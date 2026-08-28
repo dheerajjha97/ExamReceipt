@@ -259,6 +259,22 @@ export default function App() {
     updateStudentsState(updatedList);
   };
 
+  // Delete Selected Students
+  const handleDeleteSelectedStudents = (studentIds: string[]) => {
+    const updatedList = students.filter((s) => !studentIds.includes(s.id));
+    updateStudentsState(updatedList);
+  };
+
+  // Clear All Students
+  const handleClearAllStudents = () => {
+    updateStudentsState([]);
+  };
+
+  // Clear All Transactions
+  const handleClearAllTransactions = () => {
+    updateTransactionsState([]);
+  };
+
   // Import extracted students from PDF / Image OCR
   const handleImportStudents = (newExtractedStudents: Student[]) => {
     const updatedList = [...newExtractedStudents, ...students];
@@ -303,6 +319,8 @@ export default function App() {
             onOpenWhatsAppShare={(student) => setSelectedStudentForWhatsApp(student)}
             onEditStudent={(student) => setStudentToEdit(student)}
             onDeleteStudent={handleDeleteStudent}
+            onDeleteSelectedStudents={handleDeleteSelectedStudents}
+            onClearAllStudents={handleClearAllStudents}
             onOpenAddStudent={() => setIsAddStudentOpen(true)}
             onOpenUploadPdf={() => setIsUploadPdfOpen(true)}
           />
@@ -331,6 +349,8 @@ export default function App() {
               onOpenWhatsAppShare={(student) => setSelectedStudentForWhatsApp(student)}
               onEditStudent={(student) => setStudentToEdit(student)}
               onDeleteStudent={handleDeleteStudent}
+              onDeleteSelectedStudents={handleDeleteSelectedStudents}
+              onClearAllStudents={handleClearAllStudents}
               onOpenAddStudent={() => setIsAddStudentOpen(true)}
               onOpenUploadPdf={() => setIsUploadPdfOpen(true)}
             />
@@ -342,6 +362,7 @@ export default function App() {
             transactions={transactions}
             onOpenLogTransaction={() => setIsLogTransactionOpen(true)}
             onDeleteTransaction={handleDeleteTransaction}
+            onClearAllTransactions={handleClearAllTransactions}
             onViewStudentReceipt={(regNo) => {
               const matchedStudent = students.find((s) => s.registrationNo === regNo);
               if (matchedStudent) {

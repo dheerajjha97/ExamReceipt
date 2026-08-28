@@ -20,12 +20,14 @@ import {
 } from 'lucide-react';
 import { Transaction, PaymentMode } from '../types';
 import financialWallet3d from '../assets/images/financial_wallet_3d_1787937095834.jpg';
+import { ConfirmModal } from './ConfirmModal';
 
 interface TransactionHistoryProps {
   transactions: Transaction[];
   onViewStudentReceipt?: (registrationNo: string) => void;
   onOpenLogTransaction?: () => void;
   onDeleteTransaction?: (txnId: string) => void;
+  onClearAllTransactions?: () => void;
 }
 
 export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
@@ -33,6 +35,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   onViewStudentReceipt,
   onOpenLogTransaction,
   onDeleteTransaction,
+  onClearAllTransactions,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [modeFilter, setModeFilter] = useState<string>('ALL');
@@ -40,6 +43,10 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   const [streamFilter, setStreamFilter] = useState<string>('ALL');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+
+  // Confirmation Modals State
+  const [txnToDelete, setTxnToDelete] = useState<Transaction | null>(null);
+  const [showClearAllTxnsConfirm, setShowClearAllTxnsConfirm] = useState(false);
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter((txn) => {
@@ -264,13 +271,25 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
             <Filter className="w-4 h-4 text-[#5A5A40]" />
             Filterable Transaction History Ledger
           </span>
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white font-bold rounded-2xl shadow-md transition transform-gpu hover:-translate-y-0.5"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>Export CSV</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {transactions.length > 0 && onClearAllTransactions && (
+              <button
+                onClick={() => setShowClearAllTxnsConfirm(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F9E8E8] hover:bg-[#F2D6D6] text-[#8C2B2B] font-bold rounded-2xl border border-[#E8B8B8] shadow-xs transition transform-gpu hover:-translate-y-0.5 text-xs"
+                title="Clear all transaction history"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Clear All Logs</span>
+              </button>
+            )}
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white font-bold rounded-2xl shadow-md transition transform-gpu hover:-translate-y-0.5"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>Export CSV</span>
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
@@ -455,11 +474,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                         )}
                         {onDeleteTransaction && (
                           <button
-                            onClick={() => {
-                              if (window.confirm(`Are you sure you want to delete transaction receipt ${txn.receiptNo}?`)) {
-                                onDeleteTransaction(txn.id);
-                              }
-                            }}
+                            onClick={() => setTxnToDelete(txn)}
                             title="Delete Transaction Log"
                             className="p-1.5 text-[#8C2B2B] hover:text-red-700 hover:bg-[#F9EAEA] rounded-md transition"
                           >
@@ -487,6 +502,39 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         </div>
 
       </div>
+
+      {/* Confirmation Modals */}
+      {/* 1. Single Transaction Delete */}
+      <ConfirmModal
+        isOpen={!!txnToDelete}
+        title="Delete Transaction Receipt Log"
+        message={`Are you sure you want to delete transaction receipt ${txnToDelete?.receiptNo} (${txnToDelete?.studentName})?`}
+        confirmText="Delete Transaction"
+        confirmVariant="danger"
+        onConfirm={() => {
+          if (txnToDelete && onDeleteTransaction) {
+            onDeleteTransaction(txnToDelete.id);
+            setTxnToDelete(null);
+          }
+        }}
+        onClose={() => setTxnToDelete(null)}
+      />
+
+      {/* 2. Clear All Transactions */}
+      <ConfirmModal
+        isOpen={showClearAllTxnsConfirm}
+        title="Wipe All Transaction History Logs"
+        message="Are you sure you want to clear all transaction logs? This action cannot be undone."
+        confirmText="Clear All Logs"
+        confirmVariant="danger"
+        onConfirm={() => {
+          if (onClearAllTransactions) {
+            onClearAllTransactions();
+          }
+          setShowClearAllTxnsConfirm(false);
+        }}
+        onClose={() => setShowClearAllTxnsConfirm(false)}
+      />
     </div>
   );
 };

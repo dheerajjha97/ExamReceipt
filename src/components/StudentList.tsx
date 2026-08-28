@@ -17,6 +17,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { Student, PaymentStatus, CasteCategory, ExamType } from '../types';
+import { ConfirmModal } from './ConfirmModal';
 
 interface StudentListProps {
   students: Student[];
@@ -25,6 +26,8 @@ interface StudentListProps {
   onOpenWhatsAppShare: (student: Student) => void;
   onEditStudent: (student: Student) => void;
   onDeleteStudent: (studentId: string) => void;
+  onDeleteSelectedStudents?: (studentIds: string[]) => void;
+  onClearAllStudents?: () => void;
   onOpenAddStudent: () => void;
   onOpenUploadPdf: () => void;
 }
@@ -36,6 +39,8 @@ export const StudentList: React.FC<StudentListProps> = ({
   onOpenWhatsAppShare,
   onEditStudent,
   onDeleteStudent,
+  onDeleteSelectedStudents,
+  onClearAllStudents,
   onOpenAddStudent,
   onOpenUploadPdf,
 }) => {
@@ -45,6 +50,11 @@ export const StudentList: React.FC<StudentListProps> = ({
   const [examTypeFilter, setExamTypeFilter] = useState<string>('ALL');
   const [streamFilter, setStreamFilter] = useState<string>('ALL');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+
+  // Confirmation Modals State
+  const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
 
   // Filter logic
   const filteredStudents = useMemo(() => {
@@ -209,6 +219,27 @@ export const StudentList: React.FC<StudentListProps> = ({
 
           {/* Quick Action Badges */}
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+            {selectedStudentIds.length > 0 && onDeleteSelectedStudents && (
+              <button
+                onClick={() => setShowBulkDeleteConfirm(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold text-white bg-[#8C2B2B] hover:bg-[#722222] rounded-2xl transition border border-[#A83838] shadow-md hover:-translate-y-0.5 active:translate-y-0 transform-gpu animate-fadeIn"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Selected ({selectedStudentIds.length})</span>
+              </button>
+            )}
+
+            {students.length > 0 && onClearAllStudents && (
+              <button
+                onClick={() => setShowClearAllConfirm(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold text-[#8C2B2B] bg-[#F9E8E8] hover:bg-[#F2D6D6] rounded-2xl transition border border-[#E8B8B8] shadow-xs hover:-translate-y-0.5 active:translate-y-0 transform-gpu"
+                title="Wipe all dummy student data to start clean"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete All Dummy Data</span>
+              </button>
+            )}
+
             <button
               onClick={handleExportCSV}
               className="flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold text-[#4A453E] bg-[#EFECE1] hover:bg-[#E6E2D3] rounded-2xl transition border border-[#DDD8C5] shadow-xs hover:-translate-y-0.5 active:translate-y-0 transform-gpu"
@@ -515,11 +546,7 @@ export const StudentList: React.FC<StudentListProps> = ({
 
                           {/* Delete Student */}
                           <button
-                            onClick={() => {
-                              if (confirm(`Are you sure you want to delete record for ${student.studentName}?`)) {
-                                onDeleteStudent(student.id);
-                              }
-                            }}
+                            onClick={() => setStudentToDelete(student)}
                             className="p-1.5 bg-[#EFECE1] hover:bg-[#F9E8E8] text-[#787267] hover:text-[#8C2B2B] rounded transition border border-[#DDD8C5]"
                             title="Delete Student"
                           >
@@ -555,6 +582,57 @@ export const StudentList: React.FC<StudentListProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modals */}
+      {/* 1. Single Student Delete */}
+      <ConfirmModal
+        isOpen={!!studentToDelete}
+        title="Delete Student Record"
+        message={`Are you sure you want to permanently delete record for "${studentToDelete?.studentName}" (Reg No: ${studentToDelete?.registrationNo})?`}
+        confirmText="Delete Student"
+        confirmVariant="danger"
+        onConfirm={() => {
+          if (studentToDelete) {
+            onDeleteStudent(studentToDelete.id);
+            setStudentToDelete(null);
+          }
+        }}
+        onClose={() => setStudentToDelete(null)}
+      />
+
+      {/* 2. Bulk Delete Selected Students */}
+      <ConfirmModal
+        isOpen={showBulkDeleteConfirm}
+        title="Delete Selected Students"
+        message={`Are you sure you want to delete ${selectedStudentIds.length} selected student record(s)? This action cannot be undone.`}
+        confirmText={`Delete ${selectedStudentIds.length} Student(s)`}
+        confirmVariant="danger"
+        onConfirm={() => {
+          if (onDeleteSelectedStudents) {
+            onDeleteSelectedStudents(selectedStudentIds);
+            setSelectedStudentIds([]);
+          }
+          setShowBulkDeleteConfirm(false);
+        }}
+        onClose={() => setShowBulkDeleteConfirm(false)}
+      />
+
+      {/* 3. Delete All Dummy Data */}
+      <ConfirmModal
+        isOpen={showClearAllConfirm}
+        title="Wipe All Dummy Student Data"
+        message="Are you sure you want to clear all dummy student records? This will leave your student database completely blank so you can upload your real PDF/Image list or add new students."
+        confirmText="Wipe All Dummy Data"
+        confirmVariant="danger"
+        onConfirm={() => {
+          if (onClearAllStudents) {
+            onClearAllStudents();
+            setSelectedStudentIds([]);
+          }
+          setShowClearAllConfirm(false);
+        }}
+        onClose={() => setShowClearAllConfirm(false)}
+      />
     </div>
   );
 };
