@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { GitHubConfig, Student, Transaction } from '../types';
 import { syncDatabaseWithGitHub } from '../services/storageService';
+import githubCloudSync from '../assets/images/github_cloud_sync_1787937082775.jpg';
 
 interface GitHubSyncModalProps {
   config: GitHubConfig;
@@ -107,40 +108,47 @@ export const GitHubSyncModal: React.FC<GitHubSyncModalProps> = ({
   return (
     <div className="space-y-6">
       
-      {/* Banner */}
-      <div className="bg-[#4A453E] text-white p-6 rounded-2xl border border-[#3E3A33] shadow-md">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-[#5A5A40] text-[#E6E2D3] rounded-xl border border-[#737356]">
-              <GitBranch className="w-8 h-8" />
+      {/* Top Glassmorphic Banner with 3D Cloud Illustration */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-[#4A453E] to-[#3E3A33] text-white p-5 sm:p-6 rounded-3xl border border-white/20 shadow-xl backdrop-blur-xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+          
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border border-white/30 shadow-2xl shrink-0 transform-gpu hover:scale-105 transition duration-300">
+              <img 
+                src={githubCloudSync} 
+                alt="3D GitHub Cloud Sync" 
+                className="w-full h-full object-cover" 
+                referrerPolicy="no-referrer"
+              />
             </div>
+
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-[#FDFCF8]">GitHub Repository as Database Sync</h2>
-                <span className="bg-[#2E5B50] text-[#E2ECE9] text-[10px] px-2 py-0.5 rounded font-mono border border-[#3B6E62]">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base sm:text-lg font-black text-[#FDFCF8]">GitHub Repository as Database Sync</h2>
+                <span className="bg-[#2E5B50]/80 backdrop-blur-md text-[#E2ECE9] text-[10px] px-2.5 py-0.5 rounded-full font-mono border border-[#3B6E62]">
                   Real-time Version Control
                 </span>
               </div>
-              <p className="text-xs text-[#C2BEB5]">
-                All student lists, fee payments, and transaction history are saved and versioned inside your private GitHub Repository.
+              <p className="text-xs text-[#C2BEB5] mt-1 max-w-xl">
+                All student records, fee payments, and transaction history are automatically versioned and persisted inside your private GitHub Repository.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <button
               onClick={handlePushToGitHub}
               disabled={isSyncing}
-              className="flex items-center gap-2 px-4 py-2 bg-[#2E5B50] hover:bg-[#254A41] text-white rounded-lg text-xs font-semibold shadow transition disabled:opacity-50 border border-[#3B6E62]"
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#2E5B50] hover:bg-[#254A41] text-white rounded-2xl text-xs font-bold shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all transform-gpu disabled:opacity-50 border border-[#3B6E62]"
             >
               {isSyncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
-              <span>Push Local DB to GitHub</span>
+              <span>Push DB to GitHub</span>
             </button>
 
             <button
               onClick={handlePullFromGitHub}
               disabled={isSyncing}
-              className="flex items-center gap-2 px-4 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white rounded-lg text-xs font-semibold shadow transition disabled:opacity-50 border border-[#737356]"
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#5A5A40] hover:bg-[#484833] text-white rounded-2xl text-xs font-bold shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all transform-gpu disabled:opacity-50 border border-[#737356]"
             >
               <DownloadCloud className="w-4 h-4" />
               <span>Pull DB from GitHub</span>
@@ -149,8 +157,8 @@ export const GitHubSyncModal: React.FC<GitHubSyncModalProps> = ({
         </div>
       </div>
 
-      {/* Connection Config Form */}
-      <div className="bg-[#FDFCF8] p-6 rounded-2xl border border-[#E6E2D3] shadow-sm space-y-6">
+      {/* Connection Config Form (Glassmorphism & Material 3) */}
+      <div className="bg-[#FDFCF8]/90 backdrop-blur-md p-5 sm:p-6 rounded-3xl border border-[#E6E2D3] shadow-lg space-y-6">
         <div className="flex items-center justify-between border-b border-[#E6E2D3] pb-3">
           <h3 className="font-bold text-[#4A453E] text-sm flex items-center gap-2">
             <FolderGit2 className="w-4 h-4 text-[#5A5A40]" />

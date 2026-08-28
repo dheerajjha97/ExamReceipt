@@ -23,6 +23,7 @@ import { RecordPaymentModal } from './components/RecordPaymentModal';
 import { LogTransactionModal } from './components/LogTransactionModal';
 import { AddEditStudentModal } from './components/AddEditStudentModal';
 import { SettingsModal } from './components/SettingsModal';
+import { MobileBottomNav } from './components/MobileBottomNav';
 
 export default function App() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -276,7 +277,7 @@ export default function App() {
   const totalOnlineCharges = transactions.reduce((acc, t) => acc + (t.onlineCharges || 30), 0);
 
   return (
-    <div className="min-h-screen bg-[#FDFCF8] font-sans text-[#4A453E] pb-12">
+    <div className="min-h-screen bg-[#FDFCF8] font-sans text-[#4A453E] pb-24 md:pb-12">
       
       {/* Top Header Navigation */}
       <Header
@@ -430,6 +431,14 @@ export default function App() {
         settings={settings}
         onClose={() => setIsLogTransactionOpen(false)}
         onLogTransaction={handleLogTransaction}
+      />
+
+      {/* Mobile First Bottom Navigation & Floating Action Button */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onOpenLogTransaction={() => setIsLogTransactionOpen(true)}
+        onOpenAddStudent={() => setIsAddStudentOpen(true)}
       />
 
     </div>

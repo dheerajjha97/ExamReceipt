@@ -19,6 +19,7 @@ import {
   Tag
 } from 'lucide-react';
 import { Transaction, PaymentMode } from '../types';
+import financialWallet3d from '../assets/images/financial_wallet_3d_1787937095834.jpg';
 
 interface TransactionHistoryProps {
   transactions: Transaction[];
@@ -148,21 +149,32 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   return (
     <div className="space-y-6">
       
-      {/* Top Banner with Log Action */}
-      <div className="bg-[#4A453E] text-white p-6 rounded-2xl border border-[#3E3A33] shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-[#5A5A40] text-[#E6E2D3] rounded-xl border border-[#737356]">
-            <Wallet className="w-8 h-8" />
+      {/* Top Glassmorphic Banner with 3D Wallet Illustration */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-[#4A453E] to-[#3E3A33] text-white p-5 sm:p-6 rounded-3xl border border-white/20 shadow-xl backdrop-blur-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        
+        {/* Decorative background glow */}
+        <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-[#2E5B50]/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="flex items-center gap-4 relative z-10">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border border-white/30 shadow-2xl shrink-0 transform-gpu hover:scale-105 transition duration-300">
+            <img 
+              src={financialWallet3d} 
+              alt="3D Wallet & Ledger" 
+              className="w-full h-full object-cover" 
+              referrerPolicy="no-referrer"
+            />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-[#FDFCF8]">Transaction Management & Financial Ledger</h2>
-              <span className="bg-[#2E5B50] text-[#E2ECE9] text-[10px] px-2 py-0.5 rounded font-mono border border-[#3B6E62]">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base sm:text-lg font-black text-[#FDFCF8] tracking-tight">
+                Transaction Management & Financial Ledger
+              </h2>
+              <span className="bg-[#2E5B50]/80 backdrop-blur-md text-[#E2ECE9] text-[10px] px-2.5 py-0.5 rounded-full font-mono border border-[#3B6E62] shadow-xs">
                 Real-time Audit Log
               </span>
             </div>
-            <p className="text-xs text-[#C2BEB5]">
-              Log financial transactions, filter transaction history by mode, stream, or date, and sync automatically with your GitHub database repository.
+            <p className="text-xs text-[#C2BEB5] mt-1 max-w-xl">
+              Log financial transactions, filter history by mode, stream, or date, and sync automatically with your GitHub database repository.
             </p>
           </div>
         </div>
@@ -170,7 +182,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         {onOpenLogTransaction && (
           <button
             onClick={onOpenLogTransaction}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#2E5B50] hover:bg-[#254A41] text-white rounded-xl text-xs font-bold shadow-md transition shrink-0 border border-[#3B6E62]"
+            className="relative z-10 flex items-center justify-center gap-2 px-5 py-3 bg-[#2E5B50] hover:bg-[#254A41] text-white rounded-2xl text-xs font-bold shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all transform-gpu shrink-0 border border-[#3B6E62]"
           >
             <PlusCircle className="w-4.5 h-4.5" />
             <span>+ Log New Transaction</span>
@@ -178,78 +190,86 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         )}
       </div>
 
-      {/* Financial Analytics Summary Header */}
+      {/* Financial Analytics Summary Header Cards (Glassmorphism & Material 3) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        <div className="bg-[#FDFCF8] p-4 rounded-xl border border-[#E6E2D3] shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-[#787267] text-xs font-semibold">
+        <div className="bg-[#FDFCF8]/80 backdrop-blur-md p-4 rounded-3xl border border-[#E6E2D3] shadow-lg hover:shadow-xl transition-all transform-gpu space-y-1">
+          <div className="flex items-center justify-between text-[#787267] text-xs font-bold">
             <span>Total Revenue Collected</span>
-            <IndianRupee className="w-4 h-4 text-[#2E5B50]" />
+            <div className="p-1.5 bg-[#2E5B50]/10 text-[#2E5B50] rounded-xl">
+              <IndianRupee className="w-4 h-4" />
+            </div>
           </div>
           <p className="text-2xl font-black tracking-tight text-[#2E5B50]">
             ₹{summary.totalCollected.toLocaleString('en-IN')}
           </p>
-          <p className="text-[11px] text-[#787267]">
+          <p className="text-[11px] text-[#787267] font-medium">
             Across {summary.count} fee payment transactions
           </p>
         </div>
 
-        <div className="bg-[#FDFCF8] p-4 rounded-xl border border-[#E6E2D3] shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-[#787267] text-xs font-semibold">
+        <div className="bg-[#FDFCF8]/80 backdrop-blur-md p-4 rounded-3xl border border-[#E6E2D3] shadow-lg hover:shadow-xl transition-all transform-gpu space-y-1">
+          <div className="flex items-center justify-between text-[#787267] text-xs font-bold">
             <span>Base Board Fees</span>
-            <Receipt className="w-4 h-4 text-[#5A5A40]" />
+            <div className="p-1.5 bg-[#5A5A40]/10 text-[#5A5A40] rounded-xl">
+              <Receipt className="w-4 h-4" />
+            </div>
           </div>
           <p className="text-2xl font-black text-[#4A453E]">
             ₹{summary.totalBaseFee.toLocaleString('en-IN')}
           </p>
-          <p className="text-[11px] text-[#787267]">
+          <p className="text-[11px] text-[#787267] font-medium">
             Board registration & examination fees
           </p>
         </div>
 
-        <div className="bg-[#2E5B50] text-[#E2ECE9] p-4 rounded-xl border border-[#254A41] shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-[#E2ECE9] text-xs font-semibold">
+        <div className="bg-[#2E5B50] text-[#E2ECE9] p-4 rounded-3xl border border-[#254A41] shadow-lg hover:shadow-xl transition-all transform-gpu space-y-1">
+          <div className="flex items-center justify-between text-[#E2ECE9] text-xs font-bold">
             <span>Online Charges (+₹30)</span>
-            <Sparkles className="w-4 h-4 text-[#A8D3C5]" />
+            <div className="p-1.5 bg-white/10 text-[#A8D3C5] rounded-xl">
+              <Sparkles className="w-4 h-4" />
+            </div>
           </div>
           <p className="text-2xl font-black text-white">
             ₹{summary.totalOnlineCharges.toLocaleString('en-IN')}
           </p>
-          <p className="text-[11px] text-[#C2E0D8]">
+          <p className="text-[11px] text-[#C2E0D8] font-medium">
             Portal & online gateway handling charges
           </p>
         </div>
 
-        <div className="bg-[#FDFCF8] p-4 rounded-xl border border-[#E6E2D3] shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-[#787267] text-xs font-semibold">
+        <div className="bg-[#FDFCF8]/80 backdrop-blur-md p-4 rounded-3xl border border-[#E6E2D3] shadow-lg hover:shadow-xl transition-all transform-gpu space-y-1">
+          <div className="flex items-center justify-between text-[#787267] text-xs font-bold">
             <span>Payment Mode Breakdown</span>
-            <QrCode className="w-4 h-4 text-[#5A5A40]" />
+            <div className="p-1.5 bg-[#8C5A2B]/10 text-[#8C5A2B] rounded-xl">
+              <QrCode className="w-4 h-4" />
+            </div>
           </div>
-          <div className="flex items-center justify-between text-xs pt-1 font-semibold">
-            <span className="text-[#2E5B50]">UPI/QR: {summary.upiCount}</span>
+          <div className="flex items-center justify-between text-xs pt-1 font-bold">
+            <span className="text-[#2E5B50]">UPI: {summary.upiCount}</span>
             <span className="text-[#8C5E28]">Cash: {summary.cashCount}</span>
-            <span className="text-[#5A5A40]">Online: {summary.netBankingCount}</span>
+            <span className="text-[#5A5A40]">Net: {summary.netBankingCount}</span>
           </div>
-          <p className="text-[10px] text-[#787267] pt-1">
+          <p className="text-[10px] text-[#787267] pt-1 font-medium">
             Real-time multi-mode transaction recording
           </p>
         </div>
 
       </div>
 
-      {/* Comprehensive Filter Controls */}
-      <div className="bg-[#FDFCF8] p-4 rounded-xl border border-[#E6E2D3] shadow-sm space-y-3">
+      {/* Comprehensive Filter Controls (Glassmorphism) */}
+      <div className="bg-[#FDFCF8]/90 backdrop-blur-md p-4 sm:p-5 rounded-3xl border border-[#E6E2D3] shadow-lg space-y-3">
         <div className="flex items-center justify-between border-b border-[#E6E2D3] pb-2 text-xs font-bold text-[#4A453E]">
           <span className="flex items-center gap-1.5">
             <Filter className="w-4 h-4 text-[#5A5A40]" />
-            Filterable Transaction History
+            Filterable Transaction History Ledger
           </span>
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#5A5A40] hover:bg-[#484833] text-white font-semibold rounded-lg shadow-sm transition"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white font-bold rounded-2xl shadow-md transition transform-gpu hover:-translate-y-0.5"
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>Export Statement (CSV)</span>
+            <span>Export CSV</span>
           </button>
         </div>
 
