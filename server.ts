@@ -44,12 +44,20 @@ app.post("/api/extract-students", async (req, res) => {
   try {
     const { fileData, mimeType, filename } = req.body;
 
-    if (!fileData || !mimeType) {
-      return res.status(400).json({ error: "fileData and mimeType are required." });
+    if (!fileData) {
+      return res.status(400).json({ error: "fileData is required." });
     }
 
     // Clean base64 string
     const base64Content = fileData.includes(",") ? fileData.split(",")[1] : fileData;
+
+    // Normalize MIME type
+    let effectiveMimeType = mimeType || "application/pdf";
+    if (filename && filename.toLowerCase().endsWith(".pdf")) {
+      effectiveMimeType = "application/pdf";
+    } else if (mimeType && mimeType.toLowerCase().includes("pdf")) {
+      effectiveMimeType = "application/pdf";
+    }
 
     const ai = getGeminiAI();
 
@@ -59,7 +67,7 @@ Examine this uploaded document/image carefully and extract ALL student records l
 
 Required fields for each student record:
 - sNo: Serial number integer (e.g. 1, 2, 3)
-- registrationNo: Registration number (e.g., "R-313370010-25")
+- registrationNo: Registration number (e.g., "R-313370010-25" or whatever is in the table)
 - studentName: Full name of student in uppercase (e.g. "ANU KUMARI")
 - fatherName: Father's full name in uppercase (e.g. "DHARMENDRA SINGH")
 - motherName: Mother's full name in uppercase (e.g. "PINKI DEVI")
@@ -81,7 +89,7 @@ Please return a clean JSON object containing the list of extracted students. Ext
           {
             inlineData: {
               data: base64Content,
-              mimeType: mimeType,
+              mimeType: effectiveMimeType,
             },
           },
           {
@@ -111,7 +119,7 @@ Please return a clean JSON object containing the list of extracted students. Ext
                   examType: { type: Type.STRING },
                   feeAmount: { type: Type.NUMBER },
                 },
-                required: ["studentName", "registrationNo", "feeAmount"],
+                required: ["studentName"],
               },
             },
           },
@@ -121,7 +129,13 @@ Please return a clean JSON object containing the list of extracted students. Ext
     });
 
     const resultText = response.text || "{}";
-    const parsedData = JSON.parse(resultText);
+    let parsedData: any = {};
+    try {
+      parsedData = JSON.parse(resultText);
+    } catch (parseErr) {
+      const cleaned = resultText.replace(/```json\n?|\n?```/g, "").trim();
+      parsedData = JSON.parse(cleaned);
+    }
 
     res.json({
       success: true,

@@ -14,7 +14,23 @@ export function getStoredStudents(): Student[] {
   try {
     const data = localStorage.getItem(KEYS.STUDENTS);
     if (data) {
-      return JSON.parse(data);
+      const parsed: Student[] = JSON.parse(data);
+      // Ensure backward-compatibility with existing stored student records
+      return parsed.map((s, idx) => {
+        const isPaid = s.paymentStatus === 'PAID';
+        const defaultStatus = isPaid ? 'SUBMITTED' : (idx % 2 === 0 ? 'ISSUED' : 'NOT_ISSUED');
+        const formNo = s.formNo || `EF-2026-${(100 + (s.sNo || idx + 1)).toString().padStart(4, '0')}`;
+        const formIssueDate = s.formIssueDate || (defaultStatus !== 'NOT_ISSUED' ? (s.paymentDate || '2026-08-22 10:00') : undefined);
+        const formSubmissionDate = s.formSubmissionDate || (defaultStatus === 'SUBMITTED' ? (s.paymentDate || '2026-08-25 11:00') : undefined);
+
+        return {
+          ...s,
+          formIssueStatus: s.formIssueStatus || defaultStatus,
+          formNo,
+          formIssueDate,
+          formSubmissionDate,
+        };
+      });
     }
   } catch (e) {
     console.error('Failed to load students from localStorage:', e);

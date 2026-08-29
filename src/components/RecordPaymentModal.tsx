@@ -176,6 +176,22 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
             </div>
           </div>
 
+          {/* Form Submission Checkbox */}
+          <div className="bg-[#E2ECE9]/60 p-3 rounded-xl border border-[#2E5B50]/30 flex items-center justify-between">
+            <label className="flex items-center gap-2.5 cursor-pointer text-[#2E5B50]">
+              <input
+                type="checkbox"
+                defaultChecked={true}
+                id="markFormSubmitted"
+                className="w-4 h-4 rounded text-[#2E5B50] focus:ring-[#2E5B50]"
+              />
+              <span className="font-bold text-xs">Mark Exam Form as Submitted with this Fee Payment</span>
+            </label>
+            <span className="text-[10px] text-[#5A5A40] bg-[#FAF9F5] px-2 py-0.5 rounded font-mono">
+              Form: {student.formNo || `EF-${student.registrationNo.slice(-6)}`}
+            </span>
+          </div>
+
           {/* Transaction Ref / UTR */}
           <div className="space-y-1">
             <label className="block font-semibold text-[#4A453E]">Transaction Reference ID / UTR No.</label>

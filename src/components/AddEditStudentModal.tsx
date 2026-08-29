@@ -248,6 +248,35 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
               />
             </div>
 
+            {/* Exam Form Management Fields */}
+            <div className="space-y-1 sm:col-span-2 pt-2 border-t border-[#E6E2D3]">
+              <label className="block font-bold text-[#2E5B50]">Examination Form Collection & Submission Status</label>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block font-semibold text-[#4A453E]">Exam Form Status</label>
+              <select
+                value={formData.formIssueStatus || 'NOT_ISSUED'}
+                onChange={(e) => setFormData({ ...formData, formIssueStatus: e.target.value as any })}
+                className="w-full px-3 py-2 bg-[#FDFCF8] border border-[#DDD8C5] rounded-lg text-[#4A453E] focus:outline-none focus:ring-2 focus:ring-[#5A5A40]"
+              >
+                <option value="NOT_ISSUED">Form Not Collected (Pending)</option>
+                <option value="ISSUED">Blank Form Issued / Collected</option>
+                <option value="SUBMITTED">Form & Fee Submitted (Complete)</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block font-semibold text-[#4A453E]">Exam Form Serial / Number</label>
+              <input
+                type="text"
+                placeholder="e.g. EF-2026-0108"
+                value={formData.formNo || ''}
+                onChange={(e) => setFormData({ ...formData, formNo: e.target.value })}
+                className="w-full px-3 py-2 bg-[#FDFCF8] border border-[#DDD8C5] rounded-lg text-[#4A453E] font-mono focus:outline-none focus:ring-2 focus:ring-[#5A5A40]"
+              />
+            </div>
+
           </div>
 
           <div className="p-3 bg-[#F7F5EE] border border-[#E6E2D3] rounded-xl text-[#4A453E] font-medium flex justify-between items-center text-xs">

@@ -75,6 +75,15 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
     }
   };
 
+  const readFileAsDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Failed to read uploaded file.'));
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleRunAiExtraction = async () => {
     if (!selectedFile) return;
 
@@ -82,44 +91,40 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
     setExtractionError(null);
 
     try {
-      // Read file as base64
-      const reader = new FileReader();
-      reader.readAsDataURL(selectedFile);
+      const fileData = await readFileAsDataUrl(selectedFile);
+      const isPdf = selectedFile.name.toLowerCase().endsWith('.pdf') || selectedFile.type.includes('pdf');
+      const mimeType = selectedFile.type || (isPdf ? 'application/pdf' : 'image/jpeg');
 
-      reader.onload = async () => {
-        const fileData = reader.result as string;
+      const response = await fetch('/api/extract-students', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fileData,
+          mimeType,
+          filename: selectedFile.name,
+        }),
+      });
 
-        const response = await fetch('/api/extract-students', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            fileData,
-            mimeType: selectedFile.type || (selectedFile.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
-            filename: selectedFile.name,
-          }),
-        });
+      const resData = await response.json();
 
-        const resData = await response.json();
+      if (!response.ok || !resData.success) {
+        throw new Error(resData.error || 'Failed to extract data from document');
+      }
 
-        if (!response.ok || !resData.success) {
-          throw new Error(resData.error || 'Failed to extract data from document');
-        }
+      if (!resData.data || !resData.data.students || resData.data.students.length === 0) {
+        throw new Error('No student records were detected in this document. Please make sure the uploaded PDF or image contains a clear table.');
+      }
 
-        setExtractedData(resData.data);
-        if (resData.data?.classOrStream) {
-          setOverrideStream(resData.data.classOrStream);
-        }
-        setIsExtracting(false);
-      };
-
-      reader.onerror = () => {
-        throw new Error('Failed to read uploaded file.');
-      };
+      setExtractedData(resData.data);
+      if (resData.data?.classOrStream) {
+        setOverrideStream(resData.data.classOrStream);
+      }
     } catch (err: any) {
       console.error('Extraction failed:', err);
-      setExtractionError(err.message || 'AI OCR extraction failed. Please ensure file is clear.');
+      setExtractionError(err.message || 'AI OCR extraction failed. Please ensure file is clear and readable.');
+    } finally {
       setIsExtracting(false);
     }
   };

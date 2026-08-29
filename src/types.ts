@@ -2,6 +2,7 @@ export type PaymentStatus = 'PAID' | 'UNPAID' | 'PARTIAL';
 export type PaymentMode = 'UPI' | 'CASH' | 'NET_BANKING' | 'CARD' | 'QR_CODE' | 'OTHER';
 export type CasteCategory = 'General' | 'BC' | 'EBC' | 'SC' | 'ST';
 export type ExamType = 'REGULAR' | 'EX-REGULAR' | 'IMPROVEMENT' | 'COMPARTMENTAL';
+export type FormIssueStatus = 'NOT_ISSUED' | 'ISSUED' | 'SUBMITTED';
 
 export interface Student {
   id: string;
@@ -26,6 +27,13 @@ export interface Student {
   lastReceiptNo?: string;
   transactionRef?: string;
   remarks?: string;
+  
+  // Examination Form Collection & Submission Management
+  formIssueStatus?: FormIssueStatus; // 'NOT_ISSUED' | 'ISSUED' | 'SUBMITTED'
+  formNo?: string;                   // e.g. "FORM-2026-0108-001"
+  formIssueDate?: string;            // e.g. "2026-08-20 10:30"
+  formSubmissionDate?: string;       // e.g. "2026-08-25 11:15"
+
   createdAt: string;
   updatedAt: string;
 }

@@ -14,15 +14,19 @@ import {
   IndianRupee, 
   Sparkles,
   Check,
-  RefreshCw
+  RefreshCw,
+  FileText,
+  ClipboardCheck,
+  FileCheck
 } from 'lucide-react';
-import { Student, PaymentStatus, CasteCategory, ExamType } from '../types';
+import { Student, PaymentStatus, CasteCategory, ExamType, FormIssueStatus } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 
 interface StudentListProps {
   students: Student[];
   onSelectStudentReceipt: (student: Student) => void;
   onOpenRecordPayment: (student: Student) => void;
+  onOpenIssueForm?: (student: Student) => void;
   onOpenWhatsAppShare: (student: Student) => void;
   onEditStudent: (student: Student) => void;
   onDeleteStudent: (studentId: string) => void;
@@ -36,6 +40,7 @@ export const StudentList: React.FC<StudentListProps> = ({
   students,
   onSelectStudentReceipt,
   onOpenRecordPayment,
+  onOpenIssueForm,
   onOpenWhatsAppShare,
   onEditStudent,
   onDeleteStudent,
@@ -46,6 +51,7 @@ export const StudentList: React.FC<StudentListProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [formFilter, setFormFilter] = useState<string>('ALL');
   const [casteFilter, setCasteFilter] = useState<string>('ALL');
   const [examTypeFilter, setExamTypeFilter] = useState<string>('ALL');
   const [streamFilter, setStreamFilter] = useState<string>('ALL');
@@ -72,6 +78,9 @@ export const StudentList: React.FC<StudentListProps> = ({
       const matchesStatus =
         statusFilter === 'ALL' || student.paymentStatus === statusFilter;
 
+      const matchesForm =
+        formFilter === 'ALL' || (student.formIssueStatus || 'NOT_ISSUED') === formFilter;
+
       const matchesCaste =
         casteFilter === 'ALL' || student.casteCategory === casteFilter;
 
@@ -81,9 +90,9 @@ export const StudentList: React.FC<StudentListProps> = ({
       const matchesStream =
         streamFilter === 'ALL' || student.classOrStream === streamFilter;
 
-      return matchesSearch && matchesStatus && matchesCaste && matchesExam && matchesStream;
+      return matchesSearch && matchesStatus && matchesForm && matchesCaste && matchesExam && matchesStream;
     });
-  }, [students, searchQuery, statusFilter, casteFilter, examTypeFilter, streamFilter]);
+  }, [students, searchQuery, statusFilter, formFilter, casteFilter, examTypeFilter, streamFilter]);
 
   // Totals calculation
   const stats = useMemo(() => {
@@ -91,6 +100,11 @@ export const StudentList: React.FC<StudentListProps> = ({
     const paidCount = filteredStudents.filter((s) => s.paymentStatus === 'PAID').length;
     const unpaidCount = filteredStudents.filter((s) => s.paymentStatus === 'UNPAID').length;
     const partialCount = filteredStudents.filter((s) => s.paymentStatus === 'PARTIAL').length;
+
+    // Exam Form Distribution Counts
+    const formsSubmittedCount = filteredStudents.filter((s) => s.formIssueStatus === 'SUBMITTED').length;
+    const formsIssuedCount = filteredStudents.filter((s) => s.formIssueStatus === 'ISSUED').length;
+    const formsNotIssuedCount = filteredStudents.filter((s) => !s.formIssueStatus || s.formIssueStatus === 'NOT_ISSUED').length;
 
     const totalBaseFeeExpected = filteredStudents.reduce((acc, s) => acc + s.baseFee, 0);
     const totalOnlineChargesExpected = filteredStudents.reduce((acc, s) => acc + (s.onlineCharges || 30), 0);
@@ -103,6 +117,9 @@ export const StudentList: React.FC<StudentListProps> = ({
       paidCount,
       unpaidCount,
       partialCount,
+      formsSubmittedCount,
+      formsIssuedCount,
+      formsNotIssuedCount,
       totalBaseFeeExpected,
       totalOnlineChargesExpected,
       totalFeeExpected,
@@ -259,7 +276,7 @@ export const StudentList: React.FC<StudentListProps> = ({
         </div>
 
         {/* Filters Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-[#E6E2D3] text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-3 border-t border-[#E6E2D3] text-xs">
           
           {/* Payment Status Filter */}
           <div>
@@ -273,6 +290,21 @@ export const StudentList: React.FC<StudentListProps> = ({
               <option value="PAID">Paid Only</option>
               <option value="UNPAID">Unpaid Only</option>
               <option value="PARTIAL">Partial Only</option>
+            </select>
+          </div>
+
+          {/* Form Stage Filter */}
+          <div>
+            <label className="block font-bold text-[#2E5B50] mb-1">Exam Form Stage</label>
+            <select
+              value={formFilter}
+              onChange={(e) => setFormFilter(e.target.value)}
+              className="w-full bg-[#FDFCF8] border border-[#2E5B50]/40 rounded-xl px-3 py-2 text-[#2E5B50] font-bold focus:outline-none focus:ring-2 focus:ring-[#2E5B50]"
+            >
+              <option value="ALL">All Form Stages</option>
+              <option value="NOT_ISSUED">1. Form Not Collected ({stats.formsNotIssuedCount})</option>
+              <option value="ISSUED">2. Blank Form Issued ({stats.formsIssuedCount})</option>
+              <option value="SUBMITTED">3. Form & Fee Submitted ({stats.formsSubmittedCount})</option>
             </select>
           </div>
 
@@ -329,17 +361,21 @@ export const StudentList: React.FC<StudentListProps> = ({
 
       {/* Stats Breakdown Bar (Glassmorphic 3D Card) */}
       <div className="bg-gradient-to-r from-[#4A453E] to-[#3E3A33] text-white rounded-3xl p-5 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4 border border-white/20 backdrop-blur-xl">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full md:w-auto text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 w-full text-xs">
           <div>
             <p className="text-[#C2BEB5] font-semibold">Total Filtered</p>
             <p className="text-base font-black text-white">{stats.totalCount} Students</p>
           </div>
           <div>
-            <p className="text-[#C2BEB5] font-semibold">Total Fee Target</p>
-            <p className="text-base font-black text-[#FDFCF8]">₹{stats.totalFeeExpected.toLocaleString('en-IN')}</p>
+            <p className="text-[#E8D0B8] font-semibold">Blank Form Issued</p>
+            <p className="text-base font-black text-[#F2C94C]">{stats.formsIssuedCount} Students</p>
           </div>
           <div>
-            <p className="text-[#C2BEB5] font-semibold">Collected Revenue</p>
+            <p className="text-[#A3C9A8] font-semibold">Form & Fee Submitted</p>
+            <p className="text-base font-black text-[#A3C9A8]">{stats.formsSubmittedCount} Complete</p>
+          </div>
+          <div>
+            <p className="text-[#C2BEB5] font-semibold">Revenue Collected</p>
             <p className="text-base font-black text-[#A3C9A8]">₹{stats.totalFeeCollected.toLocaleString('en-IN')}</p>
           </div>
           <div>
@@ -349,7 +385,7 @@ export const StudentList: React.FC<StudentListProps> = ({
         </div>
 
         {stats.totalFeeDue > 0 && (
-          <div className="bg-[#8C5A2B]/40 backdrop-blur-md border border-[#E8D0B8]/40 rounded-2xl px-4 py-2.5 text-xs text-[#FAF0E6] flex items-center gap-2 w-full md:w-auto justify-center shadow-md">
+          <div className="bg-[#8C5A2B]/40 backdrop-blur-md border border-[#E8D0B8]/40 rounded-2xl px-4 py-2.5 text-xs text-[#FAF0E6] flex items-center gap-2 shrink-0 shadow-md">
             <AlertCircle className="w-4 h-4 text-[#E8D0B8] shrink-0" />
             <span>
               Pending Due Amount: <strong className="font-mono text-[#E8D0B8]">₹{stats.totalFeeDue.toLocaleString('en-IN')}</strong> ({stats.unpaidCount + stats.partialCount} students)
@@ -379,6 +415,7 @@ export const StudentList: React.FC<StudentListProps> = ({
                 <th className="p-3">Exam / Class</th>
                 <th className="p-3 text-right">Fee Breakup (+₹30)</th>
                 <th className="p-3 text-center">Payment Status</th>
+                <th className="p-3 text-center">Exam Form</th>
                 <th className="p-3 text-center">Action / Receipt</th>
               </tr>
             </thead>
@@ -499,6 +536,38 @@ export const StudentList: React.FC<StudentListProps> = ({
                             <AlertCircle className="w-3.5 h-3.5 text-[#8C2B2B]" />
                             UNPAID
                           </span>
+                        )}
+                      </td>
+
+                      {/* Exam Form Stage Cell */}
+                      <td className="p-3 text-center">
+                        {student.formIssueStatus === 'SUBMITTED' ? (
+                          <button
+                            onClick={() => onOpenIssueForm && onOpenIssueForm(student)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#E2ECE9] text-[#2E5B50] border border-[#B8D5CE] hover:bg-[#CDE3DC] transition"
+                            title="Form and Fee submitted. Click to view or print form slip."
+                          >
+                            <FileCheck className="w-3.5 h-3.5 text-[#2E5B50]" />
+                            <span>Submitted</span>
+                          </button>
+                        ) : student.formIssueStatus === 'ISSUED' ? (
+                          <button
+                            onClick={() => onOpenIssueForm && onOpenIssueForm(student)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] hover:bg-[#FDE68A] transition"
+                            title="Blank form issued. Click to update to submitted or collect fee."
+                          >
+                            <ClipboardCheck className="w-3.5 h-3.5 text-[#92400E]" />
+                            <span>Form Issued</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => onOpenIssueForm && onOpenIssueForm(student)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-[#EFECE1] text-[#4A453E] border border-[#DDD8C5] hover:bg-[#E6E2D3] transition"
+                            title="Issue blank examination form to student"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-[#787267]" />
+                            <span>Issue Form</span>
+                          </button>
                         )}
                       </td>
 

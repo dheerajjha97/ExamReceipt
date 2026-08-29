@@ -11,7 +11,7 @@ import {
   getNextReceiptNumber,
   syncDatabaseWithGitHub
 } from './services/storageService';
-import { Student, Transaction, InstituteSettings, GitHubConfig, PaymentMode } from './types';
+import { Student, Transaction, InstituteSettings, GitHubConfig, PaymentMode, FormIssueStatus } from './types';
 import { Header } from './components/Header';
 import { StudentList } from './components/StudentList';
 import { FeeReceiptModal } from './components/FeeReceiptModal';
@@ -22,6 +22,7 @@ import { GitHubSyncModal } from './components/GitHubSyncModal';
 import { RecordPaymentModal } from './components/RecordPaymentModal';
 import { LogTransactionModal } from './components/LogTransactionModal';
 import { AddEditStudentModal } from './components/AddEditStudentModal';
+import { IssueFormModal } from './components/IssueFormModal';
 import { SettingsModal } from './components/SettingsModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
 
@@ -38,6 +39,7 @@ export default function App() {
   const [selectedStudentForReceipt, setSelectedStudentForReceipt] = useState<Student | null>(null);
   const [selectedStudentForWhatsApp, setSelectedStudentForWhatsApp] = useState<Student | null>(null);
   const [selectedStudentForPayment, setSelectedStudentForPayment] = useState<Student | null>(null);
+  const [selectedStudentForIssueForm, setSelectedStudentForIssueForm] = useState<Student | null>(null);
   const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [isUploadPdfOpen, setIsUploadPdfOpen] = useState(false);
@@ -72,6 +74,32 @@ export default function App() {
     saveGitHubConfigToStorage(newConfig);
   };
 
+  // Examination Form Status Update Handler
+  const handleUpdateFormStatus = (
+    studentId: string,
+    formIssueStatus: FormIssueStatus,
+    formNo: string,
+    formIssueDate?: string,
+    formSubmissionDate?: string
+  ) => {
+    const updatedStudentsList = students.map((s) => {
+      if (s.id === studentId) {
+        return {
+          ...s,
+          formIssueStatus,
+          formNo: formNo || s.formNo || `EF-${s.registrationNo.slice(-6)}`,
+          formIssueDate: formIssueDate || s.formIssueDate || new Date().toISOString().slice(0, 10),
+          formSubmissionDate:
+            formSubmissionDate ||
+            (formIssueStatus === 'SUBMITTED' ? new Date().toISOString().slice(0, 10) : s.formSubmissionDate),
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return s;
+    });
+    updateStudentsState(updatedStudentsList);
+  };
+
   // Payment Confirmation Logic
   const handleConfirmPayment = (
     studentId: string,
@@ -90,11 +118,14 @@ export default function App() {
     const newReceiptNo = getNextReceiptNumber();
     const nowStr = new Date().toLocaleString('en-IN');
 
-    // 1. Update Student
+    // 1. Update Student (also marking examination form submitted when full or partial payment made)
     const updatedStudent: Student = {
       ...targetStudent,
       paidAmount: newPaidAmount,
       paymentStatus: isFullPaid ? 'PAID' : 'PARTIAL',
+      formIssueStatus: 'SUBMITTED',
+      formSubmissionDate: targetStudent.formSubmissionDate || new Date().toISOString().slice(0, 10),
+      formNo: targetStudent.formNo || `EF-${targetStudent.registrationNo.slice(-6)}`,
       paymentDate: nowStr,
       paymentMode,
       lastReceiptNo: newReceiptNo,
@@ -316,6 +347,7 @@ export default function App() {
             students={students}
             onSelectStudentReceipt={(student) => setSelectedStudentForReceipt(student)}
             onOpenRecordPayment={(student) => setSelectedStudentForPayment(student)}
+            onOpenIssueForm={(student) => setSelectedStudentForIssueForm(student)}
             onOpenWhatsAppShare={(student) => setSelectedStudentForWhatsApp(student)}
             onEditStudent={(student) => setStudentToEdit(student)}
             onDeleteStudent={handleDeleteStudent}
@@ -346,6 +378,7 @@ export default function App() {
               students={students}
               onSelectStudentReceipt={(student) => setSelectedStudentForReceipt(student)}
               onOpenRecordPayment={(student) => setSelectedStudentForPayment(student)}
+              onOpenIssueForm={(student) => setSelectedStudentForIssueForm(student)}
               onOpenWhatsAppShare={(student) => setSelectedStudentForWhatsApp(student)}
               onEditStudent={(student) => setStudentToEdit(student)}
               onDeleteStudent={handleDeleteStudent}
@@ -423,6 +456,20 @@ export default function App() {
           settings={settings}
           onClose={() => setSelectedStudentForPayment(null)}
           onConfirmPayment={handleConfirmPayment}
+        />
+      )}
+
+      {/* Examination Form Management Modal */}
+      {selectedStudentForIssueForm && (
+        <IssueFormModal
+          student={selectedStudentForIssueForm}
+          settings={settings}
+          onClose={() => setSelectedStudentForIssueForm(null)}
+          onUpdateFormStatus={handleUpdateFormStatus}
+          onOpenCollectFee={(student) => {
+            setSelectedStudentForIssueForm(null);
+            setSelectedStudentForPayment(student);
+          }}
         />
       )}
 
