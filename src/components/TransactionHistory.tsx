@@ -13,17 +13,20 @@ import {
   Sparkles,
   TrendingUp,
   FileSpreadsheet,
+  FileText,
   PlusCircle,
   Printer,
   Trash2,
   Tag
 } from 'lucide-react';
-import { Transaction, PaymentMode } from '../types';
+import { Transaction, PaymentMode, InstituteSettings } from '../types';
 import financialWallet3d from '../assets/images/financial_wallet_3d_1787937095834.jpg';
 import { ConfirmModal } from './ConfirmModal';
+import { downloadCompleteTransactionLedgerPDF } from '../utils/pdfGenerator';
 
 interface TransactionHistoryProps {
   transactions: Transaction[];
+  settings?: InstituteSettings;
   onViewStudentReceipt?: (registrationNo: string) => void;
   onOpenLogTransaction?: () => void;
   onDeleteTransaction?: (txnId: string) => void;
@@ -32,6 +35,7 @@ interface TransactionHistoryProps {
 
 export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   transactions,
+  settings,
   onViewStudentReceipt,
   onOpenLogTransaction,
   onDeleteTransaction,
@@ -151,6 +155,28 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Export Complete Multi-Page PDF Report
+  const handleExportPDF = () => {
+    const activeSettings: InstituteSettings = settings || {
+      name: 'M.S. College, Motihari',
+      subTitle: 'Constituent Unit of B.R.A. Bihar University, Muzaffarpur',
+      address: 'Motihari, East Champaran, Bihar - 845401',
+      code: '0108',
+      academicYear: '2024-2026',
+      defaultOnlineCharge: 30,
+      upiId: 'college@upi',
+    };
+
+    const filterDesc = [
+      modeFilter !== 'ALL' ? `Mode: ${modeFilter}` : '',
+      typeFilter !== 'ALL' ? `Type: ${typeFilter}` : '',
+      streamFilter !== 'ALL' ? `Stream: ${streamFilter}` : '',
+      searchQuery ? `Search: "${searchQuery}"` : '',
+    ].filter(Boolean).join(', ') || 'All Transactions';
+
+    downloadCompleteTransactionLedgerPDF(filteredTransactions, activeSettings, filterDesc);
   };
 
   return (
@@ -282,9 +308,19 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                 <span>Clear All Logs</span>
               </button>
             )}
+
+            <button
+              onClick={handleExportPDF}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-[#2E5B50] hover:bg-[#254A41] text-white font-bold rounded-2xl shadow-md transition transform-gpu hover:-translate-y-0.5 text-xs border border-[#3B6E62]"
+              title="Generate complete official financial ledger PDF report"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Complete PDF Report</span>
+            </button>
+
             <button
               onClick={handleExportCSV}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white font-bold rounded-2xl shadow-md transition transform-gpu hover:-translate-y-0.5"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white font-bold rounded-2xl shadow-md transition transform-gpu hover:-translate-y-0.5 text-xs"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
               <span>Export CSV</span>

@@ -245,8 +245,9 @@ app.post("/api/github/fetch", async (req, res) => {
 
 // Start Vite / Express
 async function startServer() {
-  const distPath = path.join(process.cwd(), "dist");
-  const isProduction = process.env.NODE_ENV === "production" || fs.existsSync(path.join(distPath, "index.html"));
+  const isProduction =
+    process.env.NODE_ENV === "production" ||
+    (process.argv[1] && process.argv[1].endsWith("server.cjs"));
 
   if (!isProduction) {
     const vite = await createViteServer({
@@ -255,6 +256,11 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
+    // Determine dist directory path (either project_root/dist or current dir if inside dist)
+    const distPath = fs.existsSync(path.join(process.cwd(), "dist", "index.html"))
+      ? path.join(process.cwd(), "dist")
+      : __dirname;
+
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));

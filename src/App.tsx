@@ -360,6 +360,7 @@ export default function App() {
         {activeTab === 'transactions' && (
           <TransactionHistory
             transactions={transactions}
+            settings={settings}
             onOpenLogTransaction={() => setIsLogTransactionOpen(true)}
             onDeleteTransaction={handleDeleteTransaction}
             onClearAllTransactions={handleClearAllTransactions}

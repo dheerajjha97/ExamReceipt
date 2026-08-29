@@ -6,10 +6,12 @@ import {
   Copy, 
   Check, 
   Phone, 
-  Receipt,
-  Sparkles
+  Download,
+  Share2,
+  FileText
 } from 'lucide-react';
 import { Student, InstituteSettings } from '../types';
+import { generateStudentFeeReceiptPDF, downloadStudentFeeReceiptPDF } from '../utils/pdfGenerator';
 
 interface WhatsAppShareModalProps {
   student: Student | null;
@@ -26,6 +28,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
 
   const [phone, setPhone] = useState(student.phone || '');
   const [copied, setCopied] = useState(false);
+  const [pdfDownloadedNotice, setPdfDownloadedNotice] = useState(false);
 
   const onlineCharges = student.onlineCharges || settings.defaultOnlineCharge || 30;
   const totalFee = student.totalFee || (student.baseFee + onlineCharges);
@@ -56,6 +59,8 @@ ${dueAmount > 0 ? `• *Balance Due Remaining:* ₹${dueAmount}` : `• *Status:
 🗓️ *Payment Date:* ${student.paymentDate || new Date().toLocaleString('en-IN')}
 ${student.transactionRef ? `💳 *Txn Ref / UTR:* ${student.transactionRef}` : ''}
 
+📄 *PDF Receipt:* Attached Fee_Receipt_${student.registrationNo}.pdf
+
 Thank you! Keep this message for reference.
 — ${settings.name} (Exam Cell)`;
 
@@ -71,29 +76,59 @@ Thank you! Keep this message for reference.
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSendWhatsApp = () => {
+  const handleDownloadPDF = () => {
+    downloadStudentFeeReceiptPDF(student, settings);
+    setPdfDownloadedNotice(true);
+  };
+
+  // Direct PDF Share or Download + WhatsApp flow
+  const handleSendWhatsAppWithPDF = async () => {
+    // 1. Generate PDF Blob
+    const doc = generateStudentFeeReceiptPDF(student, settings);
+    const pdfBlob = doc.output('blob');
+    const pdfFileName = `Fee_Receipt_${student.registrationNo}_${student.studentName.replace(/\s+/g, '_')}.pdf`;
+    const pdfFile = new File([pdfBlob], pdfFileName, { type: 'application/pdf' });
+
+    // 2. Try native Web Share API if device supports sharing PDF documents
+    if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+      try {
+        await navigator.share({
+          title: `Fee Receipt ${student.registrationNo}`,
+          text: messageText,
+          files: [pdfFile],
+        });
+        return;
+      } catch (err) {
+        console.log('Web Share fallback to wa.me URL:', err);
+      }
+    }
+
+    // 3. Desktop / Standard Fallback: Auto download PDF + Open WhatsApp
+    downloadStudentFeeReceiptPDF(student, settings);
+    setPdfDownloadedNotice(true);
+    navigator.clipboard.writeText(messageText);
     window.open(waUrl, '_blank');
   };
 
   return (
     <div className="fixed inset-0 z-50 bg-[#2D2A26]/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-[#FDFCF8] rounded-2xl shadow-2xl max-w-lg w-full border border-[#E6E2D3] overflow-hidden my-6">
+      <div className="bg-[#FDFCF8] rounded-3xl shadow-2xl max-w-lg w-full border border-[#E6E2D3] overflow-hidden my-6">
         
         {/* Header */}
         <div className="bg-[#2E5B50] text-white px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-[#254A41] rounded-lg text-white">
+            <div className="p-2.5 bg-[#254A41] rounded-2xl text-white">
               <MessageSquare className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-[#FDFCF8]">Share Fee Receipt on WhatsApp</h2>
-              <p className="text-xs text-[#E2ECE9]">Send receipt summary directly to student or parent</p>
+              <h2 className="text-base font-black text-[#FDFCF8]">WhatsApp PDF Receipt Share</h2>
+              <p className="text-xs text-[#E2ECE9]">Send official PDF fee receipt directly on WhatsApp</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 text-[#E2ECE9] hover:text-white rounded-lg hover:bg-[#254A41] transition"
+            className="p-1.5 text-[#E2ECE9] hover:text-white rounded-full hover:bg-[#254A41] transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -101,11 +136,39 @@ Thank you! Keep this message for reference.
 
         {/* Content */}
         <div className="p-6 space-y-4 text-xs">
+          
+          {/* PDF Format Banner */}
+          <div className="bg-[#E2ECE9] border border-[#3B6E62]/30 p-3.5 rounded-2xl flex items-center justify-between gap-3 text-[#2E5B50]">
+            <div className="flex items-center gap-2.5">
+              <FileText className="w-6 h-6 text-[#2E5B50] shrink-0" />
+              <div>
+                <p className="font-bold text-xs">Official PDF Receipt Ready</p>
+                <p className="text-[11px] text-[#254A41]">
+                  File: <code className="font-mono bg-white/70 px-1.5 py-0.5 rounded">Fee_Receipt_{student.registrationNo}.pdf</code>
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleDownloadPDF}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2E5B50] hover:bg-[#254A41] text-white rounded-xl text-xs font-bold shadow transition shrink-0"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Download PDF</span>
+            </button>
+          </div>
+
+          {pdfDownloadedNotice && (
+            <div className="bg-[#FAF0E6] border border-[#E8D0B8] p-3 rounded-2xl text-xs text-[#8C5A2B] font-medium flex items-center gap-2 animate-fadeIn">
+              <Check className="w-4 h-4 text-[#8C5A2B] shrink-0" />
+              <span>PDF downloaded to your device! Drag & attach this file inside WhatsApp chat.</span>
+            </div>
+          )}
+
           {/* Phone Number Input */}
           <div className="space-y-1.5">
-            <label className="block font-semibold text-[#4A453E] flex items-center gap-1.5">
+            <label className="block font-bold text-[#4A453E] flex items-center gap-1.5">
               <Phone className="w-3.5 h-3.5 text-[#2E5B50]" />
-              <span>WhatsApp Phone Number (with Country Code e.g. 919876543210):</span>
+              <span>WhatsApp Mobile Number (e.g. 919876543210):</span>
             </label>
             <div className="relative">
               <input
@@ -113,48 +176,45 @@ Thank you! Keep this message for reference.
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="e.g. 919876543210 or 9876543210"
-                className="w-full px-3 py-2 bg-[#FDFCF8] border border-[#DDD8C5] rounded-lg text-sm text-[#4A453E] focus:outline-none focus:ring-2 focus:ring-[#5A5A40]"
+                className="w-full px-3.5 py-2.5 bg-[#FDFCF8] border border-[#DDD8C5] rounded-2xl text-xs font-medium text-[#4A453E] focus:outline-none focus:ring-2 focus:ring-[#5A5A40]"
               />
             </div>
-            <p className="text-[11px] text-[#787267]">
-              Entering the student's 10-digit mobile number will automatically open their chat on WhatsApp.
-            </p>
           </div>
 
           {/* Message Preview Box */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="font-semibold text-[#4A453E]">Generated WhatsApp Message Preview:</label>
+              <label className="font-bold text-[#4A453E]">WhatsApp Message Body Preview:</label>
               <button
                 onClick={handleCopyMessage}
-                className="text-xs text-[#2E5B50] hover:text-[#254A41] font-medium flex items-center gap-1"
+                className="text-xs text-[#2E5B50] hover:text-[#254A41] font-bold flex items-center gap-1"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-[#2E5B50]" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copied ? 'Copied!' : 'Copy Text'}</span>
               </button>
             </div>
 
-            <div className="bg-[#3E3A33] text-[#DDD8C5] p-3.5 rounded-xl text-xs font-mono whitespace-pre-wrap max-h-60 overflow-y-auto border border-[#5A554A] leading-relaxed shadow-inner">
+            <div className="bg-[#3E3A33] text-[#DDD8C5] p-3.5 rounded-2xl text-xs font-mono whitespace-pre-wrap max-h-48 overflow-y-auto border border-[#5A554A] leading-relaxed shadow-inner">
               {messageText}
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="bg-[#EFECE1] px-6 py-3 border-t border-[#E6E2D3] flex items-center justify-end gap-3 text-xs">
+        <div className="bg-[#EFECE1] px-6 py-4 border-t border-[#E6E2D3] flex flex-wrap items-center justify-between gap-3 text-xs">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-[#EFECE1] hover:bg-[#E6E2D3] text-[#4A453E] rounded-lg font-medium transition border border-[#DDD8C5]"
+            className="px-4 py-2.5 bg-[#EFECE1] hover:bg-[#E6E2D3] text-[#4A453E] rounded-2xl font-bold transition border border-[#DDD8C5]"
           >
             Cancel
           </button>
 
           <button
-            onClick={handleSendWhatsApp}
-            className="flex items-center gap-2 px-5 py-2 bg-[#2E5B50] hover:bg-[#254A41] text-white rounded-lg font-semibold shadow transition"
+            onClick={handleSendWhatsAppWithPDF}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[#2E5B50] hover:bg-[#254A41] text-white rounded-2xl font-bold shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all transform-gpu border border-[#3B6E62]"
           >
             <Send className="w-4 h-4" />
-            <span>Open WhatsApp & Send</span>
+            <span>Send PDF & Open WhatsApp</span>
           </button>
         </div>
 
@@ -162,3 +222,4 @@ Thank you! Keep this message for reference.
     </div>
   );
 };
+
