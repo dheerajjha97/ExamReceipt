@@ -107,7 +107,19 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
         }),
       });
 
-      const resData = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      let resData: any = {};
+
+      if (contentType.includes('application/json')) {
+        resData = await response.json();
+      } else {
+        const rawText = await response.text();
+        if (response.status === 404 || rawText.includes('The page could not be found') || rawText.includes('404')) {
+          throw new Error('API route /api/extract-students was not found on this deployment server. Please ensure GEMINI_API_KEY environment variable is set in your Vercel project settings.');
+        } else {
+          throw new Error(rawText.slice(0, 150) || `Server returned non-JSON response (HTTP ${response.status})`);
+        }
+      }
 
       if (!response.ok || !resData.success) {
         throw new Error(resData.error || 'Failed to extract data from document');

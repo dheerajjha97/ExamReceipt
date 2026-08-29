@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "functions": {
+    "api/extract-students.ts": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/extract-students",
+      "dest": "/api/extract-students.ts"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+}
