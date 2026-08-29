@@ -169,7 +169,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="flex items-center gap-1.5 bg-[#5A5A40] hover:bg-[#484833] text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all transform-gpu border border-[#737356]"
             >
               <UploadCloud className="w-4 h-4" />
-              <span>OCR PDF List</span>
+              <span>Import Excel / PDF</span>
             </button>
 
             <button
@@ -206,8 +206,8 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <UploadCloud className="w-4 h-4" />
             <span className="flex items-center gap-1.5">
-              Extract PDF / Image
-              <span className="bg-[#A3C9A8]/30 text-[#A3C9A8] text-[9px] px-1.5 py-0.2 rounded-full font-mono border border-[#A3C9A8]/40">AI OCR</span>
+              Import Excel / PDF
+              <span className="bg-[#A3C9A8]/30 text-[#A3C9A8] text-[9px] px-1.5 py-0.2 rounded-full font-mono border border-[#A3C9A8]/40">Excel & AI</span>
             </span>
           </button>
 

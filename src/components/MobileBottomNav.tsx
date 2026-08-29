@@ -62,7 +62,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           <span className="text-[10px] font-bold mt-0.5">Students</span>
         </button>
 
-        {/* OCR Upload Tab */}
+        {/* OCR / Excel Upload Tab */}
         <button
           onClick={() => setActiveTab('upload')}
           className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all transform-gpu ${
@@ -72,7 +72,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           }`}
         >
           <UploadCloud className="w-5 h-5" />
-          <span className="text-[10px] font-bold mt-0.5">PDF OCR</span>
+          <span className="text-[10px] font-bold mt-0.5">Import</span>
         </button>
 
         {/* Transaction History Tab */}

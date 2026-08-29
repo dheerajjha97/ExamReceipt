@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { 
   UploadCloud, 
   FileText, 
+  FileSpreadsheet,
   Sparkles, 
   AlertCircle, 
   CheckCircle2, 
@@ -12,6 +13,7 @@ import {
   IndianRupee,
   Layers
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Student, ExtractedStudent, ExtractionResult } from '../types';
 
 interface PdfUploadModalProps {
@@ -37,20 +39,126 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
 
   if (!isOpen) return null;
 
+  const isExcelFile = (file: File): boolean => {
+    const name = file.name.toLowerCase();
+    return (
+      name.endsWith('.xlsx') ||
+      name.endsWith('.xls') ||
+      name.endsWith('.csv') ||
+      file.type.includes('spreadsheet') ||
+      file.type.includes('excel') ||
+      file.type.includes('csv')
+    );
+  };
+
+  const parseExcelSheet = async (file: File): Promise<ExtractionResult> => {
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: 'array' });
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    const rows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '' });
+
+    if (!rows || rows.length === 0) {
+      throw new Error('The uploaded Excel sheet contains no data rows.');
+    }
+
+    const findValue = (row: Record<string, any>, keywords: string[]): string => {
+      for (const key of Object.keys(row)) {
+        const lowerKey = key.toLowerCase().trim();
+        if (keywords.some((kw) => lowerKey.includes(kw))) {
+          const val = row[key];
+          return val !== undefined && val !== null ? String(val).trim() : '';
+        }
+      }
+      return '';
+    };
+
+    const students: ExtractedStudent[] = rows
+      .map((row, index) => {
+        const regNo = findValue(row, ['registration', 'reg', 'roll', 'रजिस्ट्रेशन']);
+        const name = findValue(row, ['student', 'name', 'candidate', 'नाम']);
+        const father = findValue(row, ['father', 'पिता']);
+        const mother = findValue(row, ['mother', 'माता']);
+        const dob = findValue(row, ['dob', 'birth', 'date', 'जन्म']);
+        const caste = findValue(row, ['caste', 'category', 'cat', 'कोटि', 'जाति']);
+        const examType = findValue(row, ['exam', 'type', 'प्रकार']);
+        const feeStr = findValue(row, ['fee', 'amount', 'total', 'शुल्क']);
+        const sNoVal = findValue(row, ['sno', 'sl', 'sr', 'no', 's.n', 's_no']);
+
+        // Skip rows that don't look like student records
+        if (!name && !regNo && !father) return null;
+
+        let parsedCaste: 'General' | 'BC' | 'EBC' | 'SC' | 'ST' = 'General';
+        const casteUpper = caste.toUpperCase();
+        if (casteUpper.includes('SC')) parsedCaste = 'SC';
+        else if (casteUpper.includes('ST')) parsedCaste = 'ST';
+        else if (casteUpper.includes('EBC') || casteUpper.includes('BC-1') || casteUpper.includes('BC1')) parsedCaste = 'EBC';
+        else if (casteUpper.includes('BC') || casteUpper.includes('BC-2') || casteUpper.includes('OBC')) parsedCaste = 'BC';
+
+        let parsedExamType: 'REGULAR' | 'EX-REGULAR' | 'IMPROVEMENT' | 'COMPARTMENTAL' = 'REGULAR';
+        const examUpper = examType.toUpperCase();
+        if (examUpper.includes('EX') || examUpper.includes('PRIVATE')) parsedExamType = 'EX-REGULAR';
+        else if (examUpper.includes('IMP') || examUpper.includes('BETTERMENT')) parsedExamType = 'IMPROVEMENT';
+        else if (examUpper.includes('COMP') || examUpper.includes('COMPART')) parsedExamType = 'COMPARTMENTAL';
+
+        let feeNum = parseFloat(feeStr.replace(/[^0-9.]/g, '')) || 0;
+        if (!feeNum) {
+          feeNum = (parsedCaste === 'SC' || parsedCaste === 'ST' || parsedCaste === 'EBC') ? 1140 : 1400;
+        }
+
+        const extracted: ExtractedStudent = {
+          sNo: parseInt(sNoVal, 10) || index + 1,
+          registrationNo: regNo || `R-31337${String(index + 10).padStart(3, '0')}-25`,
+          studentName: (name || `STUDENT ${index + 1}`).toUpperCase(),
+          fatherName: father.toUpperCase() || 'NOT MENTIONED',
+          motherName: mother.toUpperCase() || 'NOT MENTIONED',
+          dob: dob || '',
+          casteCategory: parsedCaste,
+          examType: parsedExamType,
+          feeAmount: feeNum,
+        };
+        return extracted;
+      })
+      .filter((s): s is ExtractedStudent => s !== null);
+
+    if (students.length === 0) {
+      throw new Error('Could not identify any student data rows in the Excel file. Please use the Sample Template headers.');
+    }
+
+    return { students };
+  };
+
+  const processFile = async (file: File) => {
+    setSelectedFile(file);
+    setExtractionError(null);
+    setExtractedData(null);
+
+    // Create preview for image
+    if (file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setFilePreviewUrl(url);
+    } else {
+      setFilePreviewUrl(null);
+    }
+
+    // Direct Instant Excel parsing
+    if (isExcelFile(file)) {
+      setIsExtracting(true);
+      try {
+        const result = await parseExcelSheet(file);
+        setExtractedData(result);
+      } catch (err: any) {
+        console.error('Excel Parsing Error:', err);
+        setExtractionError(err.message || 'Failed to parse Excel file.');
+      } finally {
+        setIsExtracting(false);
+      }
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedFile(file);
-      setExtractionError(null);
-      setExtractedData(null);
-
-      // Create preview for image
-      if (file.type.startsWith('image/')) {
-        const url = URL.createObjectURL(file);
-        setFilePreviewUrl(url);
-      } else {
-        setFilePreviewUrl(null);
-      }
+      processFile(e.target.files[0]);
     }
   };
 
@@ -61,18 +169,51 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      setSelectedFile(file);
-      setExtractionError(null);
-      setExtractedData(null);
-
-      if (file.type.startsWith('image/')) {
-        const url = URL.createObjectURL(file);
-        setFilePreviewUrl(url);
-      } else {
-        setFilePreviewUrl(null);
-      }
+      processFile(e.dataTransfer.files[0]);
     }
+  };
+
+  const handleDownloadSampleExcel = () => {
+    const sampleRows = [
+      {
+        "S.No": 1,
+        "Registration No": "R-313370001-25",
+        "Student Name": "AMIT KUMAR",
+        "Father Name": "RAMESH SINGH",
+        "Mother Name": "SUNITA DEVI",
+        "DOB": "15/04/2007",
+        "Caste Category": "BC",
+        "Exam Type": "REGULAR",
+        "Fee Amount": 1400
+      },
+      {
+        "S.No": 2,
+        "Registration No": "R-313370002-25",
+        "Student Name": "PRIYA KUMARI",
+        "Father Name": "SURESH ROY",
+        "Mother Name": "KAVITA DEVI",
+        "DOB": "20/08/2007",
+        "Caste Category": "EBC",
+        "Exam Type": "REGULAR",
+        "Fee Amount": 1140
+      },
+      {
+        "S.No": 3,
+        "Registration No": "R-313370003-25",
+        "Student Name": "RAHUL KUMAR",
+        "Father Name": "DINESH PASWAN",
+        "Mother Name": "MANTI DEVI",
+        "DOB": "10/01/2006",
+        "Caste Category": "SC",
+        "Exam Type": "EX-REGULAR",
+        "Fee Amount": 1140
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(sampleRows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Student_List");
+    XLSX.writeFile(wb, "Student_Import_Sample_Template.xlsx");
   };
 
   const readFileAsDataUrl = (file: File): Promise<string> => {
@@ -190,13 +331,13 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-[#FDFCF8]">Extract Student List from PDF / Image</h2>
+                <h2 className="text-base font-bold text-[#FDFCF8]">Import Student List (Excel / PDF / Image)</h2>
                 <span className="bg-[#2E5B50] text-[#E2ECE9] text-[10px] px-2 py-0.5 rounded-full font-mono border border-[#3B6E62]">
-                  Gemini 2.5 Flash AI
+                  Excel Direct & AI OCR
                 </span>
               </div>
               <p className="text-xs text-[#C2BEB5]">
-                Upload Bihar Board / Inter / Matric exam list document to extract student table automatically
+                Upload Excel Sheet (.xlsx, .csv), PDF exam list, or document photo to extract student table automatically
               </p>
             </div>
           </div>
@@ -214,60 +355,83 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
           
           {/* Upload Drop Zone */}
           {!extractedData && (
-            <div
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-              className="border-2 border-dashed border-[#DDD8C5] hover:border-[#5A5A40] rounded-2xl p-8 text-center bg-[#F7F5EE] hover:bg-[#EFECE1] transition cursor-pointer space-y-4"
-            >
-              <input
-                type="file"
-                id="file-upload-input"
-                accept=".pdf,image/*"
-                onChange={handleFileChange}
-                className="hidden"
-              />
+            <div className="space-y-3">
+              <div
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                className="border-2 border-dashed border-[#DDD8C5] hover:border-[#5A5A40] rounded-2xl p-8 text-center bg-[#F7F5EE] hover:bg-[#EFECE1] transition cursor-pointer space-y-4"
+              >
+                <input
+                  type="file"
+                  id="file-upload-input"
+                  accept=".xlsx,.xls,.csv,.pdf,image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
 
-              <label htmlFor="file-upload-input" className="cursor-pointer space-y-3 block">
-                <div className="w-16 h-16 rounded-full bg-[#EFECE1] text-[#5A5A40] flex items-center justify-center mx-auto shadow-inner border border-[#E6E2D3]">
-                  <FileText className="w-8 h-8" />
+                <label htmlFor="file-upload-input" className="cursor-pointer space-y-3 block">
+                  <div className="flex items-center justify-center gap-3 mx-auto">
+                    <div className="w-14 h-14 rounded-full bg-[#2E5B50]/10 text-[#2E5B50] flex items-center justify-center shadow-inner border border-[#2E5B50]/20">
+                      <FileSpreadsheet className="w-7 h-7" />
+                    </div>
+                    <div className="w-14 h-14 rounded-full bg-[#EFECE1] text-[#5A5A40] flex items-center justify-center shadow-inner border border-[#E6E2D3]">
+                      <FileText className="w-7 h-7" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-bold text-[#4A453E]">
+                      {selectedFile ? selectedFile.name : 'Click to Browse or Drag & Drop Excel Sheet (.xlsx / .csv) or PDF / Image'}
+                    </p>
+                    <p className="text-[#787267] mt-1">
+                      Supports Excel Sheets (.xlsx, .xls, .csv), PDF documents, or Image screenshots (JPG, PNG)
+                    </p>
+                  </div>
+                </label>
+
+                {selectedFile && !isExcelFile(selectedFile) && (
+                  <div className="pt-2 flex items-center justify-center gap-3">
+                    <span className="px-3 py-1 bg-[#EFECE1] text-[#5A5A40] rounded-full font-medium border border-[#DDD8C5]">
+                      File selected: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={handleRunAiExtraction}
+                      disabled={isExtracting}
+                      className="flex items-center gap-2 px-5 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white rounded-lg font-semibold shadow transition disabled:opacity-50"
+                    >
+                      {isExtracting ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>AI Scanning & Extracting Rows...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4" />
+                          <span>Extract Details with AI</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Sample Excel Template Banner */}
+              <div className="flex items-center justify-between bg-[#EFECE1]/60 border border-[#E6E2D3] p-3 rounded-xl">
+                <div className="flex items-center gap-2 text-[#4A453E]">
+                  <FileSpreadsheet className="w-4 h-4 text-[#2E5B50]" />
+                  <span>Don't have an Excel file format ready? Download our pre-filled Excel template:</span>
                 </div>
-
-                <div>
-                  <p className="text-sm font-bold text-[#4A453E]">
-                    {selectedFile ? selectedFile.name : 'Click to Browse or Drag & Drop PDF / Image file'}
-                  </p>
-                  <p className="text-[#787267] mt-1">
-                    Supports PDF documents or Image screenshots of Matric & Intermediate Fee Lists (JPG, PNG, WEBP)
-                  </p>
-                </div>
-              </label>
-
-              {selectedFile && (
-                <div className="pt-2 flex items-center justify-center gap-3">
-                  <span className="px-3 py-1 bg-[#EFECE1] text-[#5A5A40] rounded-full font-medium border border-[#DDD8C5]">
-                    File selected: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={handleRunAiExtraction}
-                    disabled={isExtracting}
-                    className="flex items-center gap-2 px-5 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white rounded-lg font-semibold shadow transition disabled:opacity-50"
-                  >
-                    {isExtracting ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>AI Scanning & Extracting Rows...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4" />
-                        <span>Extract Details with AI</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
+                <button
+                  type="button"
+                  onClick={handleDownloadSampleExcel}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FDFCF8] hover:bg-white text-[#2E5B50] font-bold border border-[#B8D5CE] rounded-lg shadow-xs transition shrink-0"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Sample Excel Template</span>
+                </button>
+              </div>
             </div>
           )}
 
