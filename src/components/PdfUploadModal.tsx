@@ -192,7 +192,7 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-bold text-[#FDFCF8]">Extract Student List from PDF / Image</h2>
                 <span className="bg-[#2E5B50] text-[#E2ECE9] text-[10px] px-2 py-0.5 rounded-full font-mono border border-[#3B6E62]">
-                  Gemini 3.7 Flash AI
+                  Gemini 2.5 Flash AI
                 </span>
               </div>
               <p className="text-xs text-[#C2BEB5]">
@@ -277,7 +277,7 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
               <RefreshCw className="w-8 h-8 animate-spin text-[#5A5A40] mx-auto" />
               <p className="text-sm font-bold text-[#4A453E]">Reading student table & extracting data...</p>
               <p className="text-[#787267]">
-                Gemini 3.7 Flash is analyzing registration numbers, names, father/mother names, DOBs, categories, and fees.
+                Gemini 2.5 Flash is analyzing registration numbers, names, father/mother names, DOBs, categories, and fees.
               </p>
             </div>
           )}
