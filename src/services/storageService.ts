@@ -2,11 +2,11 @@ import { Student, Transaction, InstituteSettings, GitHubConfig } from '../types'
 import { initialStudents, initialInstituteSettings, initialTransactions } from '../data/mockStudents';
 
 const KEYS = {
-  STUDENTS: 'fee_app_students_v3',
-  TRANSACTIONS: 'fee_app_transactions_v3',
-  SETTINGS: 'fee_app_settings_v3',
-  GITHUB_CONFIG: 'fee_app_github_config_v3',
-  RECEIPT_COUNTER: 'fee_app_receipt_counter_v3',
+  STUDENTS: 'fee_app_students_v4',
+  TRANSACTIONS: 'fee_app_transactions_v4',
+  SETTINGS: 'fee_app_settings_v4',
+  GITHUB_CONFIG: 'fee_app_github_config_v4',
+  RECEIPT_COUNTER: 'fee_app_receipt_counter_v4',
 };
 
 // Clean up legacy v2 mock storage keys if present

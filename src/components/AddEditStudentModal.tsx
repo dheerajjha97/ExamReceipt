@@ -17,8 +17,6 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
   onSaveStudent,
   defaultOnlineCharge = 30,
 }) => {
-  if (!isOpen) return null;
-
   const [formData, setFormData] = useState<Partial<Student>>({
     registrationNo: '',
     studentName: '',
@@ -81,6 +79,8 @@ export const AddEditStudentModal: React.FC<AddEditStudentModalProps> = ({
     });
     onClose();
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-[#2D2A26]/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">

@@ -95,8 +95,6 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
     }
   }, [extractedData, existingStudents]);
 
-  if (!isOpen) return null;
-
   const isExcelFile = (file: File): boolean => {
     const name = file.name.toLowerCase();
     return (
@@ -433,6 +431,8 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
         return true;
       });
   }, [extractedData, duplicateStatuses, activeFilter]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-[#2D2A26]/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">

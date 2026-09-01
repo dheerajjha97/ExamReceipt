@@ -35,17 +35,15 @@ export const IssueFormModal: React.FC<IssueFormModalProps> = ({
   onUpdateFormStatus,
   onProceedToFeeCollection,
 }) => {
-  if (!isOpen || !student) return null;
-
-  const [status, setStatus] = useState<FormIssueStatus>(student.formIssueStatus || 'ISSUED');
+  const [status, setStatus] = useState<FormIssueStatus>(student?.formIssueStatus || 'ISSUED');
   const [formNo, setFormNo] = useState<string>(
-    student.formNo || `EF-${settings.academicYear.slice(2, 4)}-${(student.sNo || 100).toString().padStart(4, '0')}`
+    student?.formNo || `EF-${settings.academicYear.slice(2, 4)}-${(student?.sNo || 100).toString().padStart(4, '0')}`
   );
   const [issueDate, setIssueDate] = useState<string>(
-    student.formIssueDate || new Date().toISOString().slice(0, 16).replace('T', ' ')
+    student?.formIssueDate || new Date().toISOString().slice(0, 16).replace('T', ' ')
   );
   const [submissionDate, setSubmissionDate] = useState<string>(
-    student.formSubmissionDate || new Date().toISOString().slice(0, 16).replace('T', ' ')
+    student?.formSubmissionDate || new Date().toISOString().slice(0, 16).replace('T', ' ')
   );
 
   useEffect(() => {
@@ -147,6 +145,8 @@ export const IssueFormModal: React.FC<IssueFormModalProps> = ({
     `);
     printWindow.document.close();
   };
+
+  if (!isOpen || !student) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-[#2D2A26]/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">

@@ -24,9 +24,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
   settings,
   onClose,
 }) => {
-  if (!student) return null;
-
-  const [phone, setPhone] = useState(student.phone || '');
+  const [phone, setPhone] = useState(student?.phone || '');
   const [copied, setCopied] = useState(false);
   const [pdfDownloadedNotice, setPdfDownloadedNotice] = useState(false);
 
@@ -109,6 +107,8 @@ Thank you! Keep this message for reference.
     navigator.clipboard.writeText(messageText);
     window.open(waUrl, '_blank');
   };
+
+  if (!student) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-[#2D2A26]/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">

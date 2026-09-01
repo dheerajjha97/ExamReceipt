@@ -16,7 +16,7 @@ export interface Student {
   casteCategory: CasteCategory | string;
   examType: ExamType | string;
   classOrStream: string; // e.g. "Intermediate Science (12th)", "Matriculation (10th)"
-  phone: string; // WhatsApp number
+  phone?: string; // WhatsApp number
   baseFee: number; // e.g. 1400 or 1140
   onlineCharges: number; // default: 30
   totalFee: number; // baseFee + onlineCharges

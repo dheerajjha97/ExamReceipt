@@ -27,8 +27,6 @@ export const LogTransactionModal: React.FC<LogTransactionModalProps> = ({
   onClose,
   onLogTransaction,
 }) => {
-  if (!isOpen) return null;
-
   const [selectMode, setSelectMode] = useState<'existing' | 'manual'>('existing');
   const [selectedStudentId, setSelectedStudentId] = useState<string>(students[0]?.id || '');
 
@@ -108,6 +106,8 @@ export const LogTransactionModal: React.FC<LogTransactionModalProps> = ({
     onLogTransaction(newTxnPayload, selectMode === 'existing' ? selectedStudentId : undefined);
     onClose();
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-[#2D2A26]/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">

@@ -30,11 +30,9 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
   onClose,
   onConfirmPayment,
 }) => {
-  if (!student) return null;
-
-  const onlineCharge = student.onlineCharges || settings.defaultOnlineCharge || 30;
-  const totalFee = student.totalFee || (student.baseFee + onlineCharge);
-  const remainingDue = totalFee - student.paidAmount;
+  const onlineCharge = student?.onlineCharges || settings.defaultOnlineCharge || 30;
+  const totalFee = student?.totalFee || ((student?.baseFee || 1400) + onlineCharge);
+  const remainingDue = totalFee - (student?.paidAmount || 0);
 
   const [paymentAmount, setPaymentAmount] = useState<number>(remainingDue > 0 ? remainingDue : totalFee);
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('UPI');
@@ -54,6 +52,8 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
     );
     onClose();
   };
+
+  if (!student) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-[#2D2A26]/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
