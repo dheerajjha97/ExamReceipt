@@ -478,6 +478,7 @@ export default function App() {
         isOpen={isUploadPdfOpen}
         onClose={() => setIsUploadPdfOpen(false)}
         onImportStudents={handleImportStudents}
+        existingStudents={students}
         defaultOnlineCharge={settings.defaultOnlineCharge}
       />
 

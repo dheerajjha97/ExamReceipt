@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   UploadCloud, 
   FileText, 
@@ -11,15 +11,31 @@ import {
   Plus, 
   Download,
   IndianRupee,
-  Layers
+  Layers,
+  Check,
+  CheckSquare,
+  Square,
+  Trash2,
+  ShieldAlert,
+  AlertTriangle,
+  Info,
+  Filter,
+  UserCheck
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Student, ExtractedStudent, ExtractionResult } from '../types';
+import { 
+  detectDuplicates, 
+  getDuplicateSummary, 
+  StudentDuplicateStatus, 
+  DuplicateSummary 
+} from '../utils/duplicateDetector';
 
 interface PdfUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onImportStudents: (newStudents: Student[]) => void;
+  existingStudents?: Student[];
   defaultOnlineCharge: number;
 }
 
@@ -27,6 +43,7 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
   isOpen,
   onClose,
   onImportStudents,
+  existingStudents = [],
   defaultOnlineCharge = 30,
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -36,6 +53,47 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
   const [extractedData, setExtractedData] = useState<ExtractionResult | null>(null);
   const [overrideStream, setOverrideStream] = useState<string>('Intermediate Science (12th)');
   const [overrideOnlineCharge, setOverrideOnlineCharge] = useState<number>(defaultOnlineCharge);
+
+  // Duplicate Resolution & Selection States
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  const [activeFilter, setActiveFilter] = useState<'ALL' | 'CLEAN' | 'DUPLICATE'>('ALL');
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+
+  // Calculate duplicate statuses for all extracted students
+  const duplicateStatuses: StudentDuplicateStatus[] = useMemo(() => {
+    if (!extractedData || !extractedData.students) return [];
+    return detectDuplicates(extractedData.students, existingStudents);
+  }, [extractedData, existingStudents]);
+
+  const duplicateSummary: DuplicateSummary = useMemo(() => {
+    return getDuplicateSummary(duplicateStatuses);
+  }, [duplicateStatuses]);
+
+  // When extracted data updates, auto-select non-duplicate records by default
+  useEffect(() => {
+    if (extractedData && extractedData.students.length > 0) {
+      const statuses = detectDuplicates(extractedData.students, existingStudents);
+      const initialSelected = new Set<number>();
+      
+      // Auto-select clean records (or all records if none are exact duplicates)
+      statuses.forEach((status, idx) => {
+        if (!status.isExactMatch) {
+          initialSelected.add(idx);
+        }
+      });
+
+      // If all are exact duplicates or none selected, default to select all so user can manually decide
+      if (initialSelected.size === 0) {
+        extractedData.students.forEach((_, idx) => initialSelected.add(idx));
+      }
+
+      setSelectedIndices(initialSelected);
+      setActiveFilter('ALL');
+      setExpandedIndex(null);
+    } else {
+      setSelectedIndices(new Set());
+    }
+  }, [extractedData, existingStudents]);
 
   if (!isOpen) return null;
 
@@ -285,17 +343,20 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
   const handleConfirmImport = () => {
     if (!extractedData || !extractedData.students || extractedData.students.length === 0) return;
 
-    const formattedStudents: Student[] = extractedData.students.map((item, index) => {
+    const selectedStudents = extractedData.students.filter((_, idx) => selectedIndices.has(idx));
+    if (selectedStudents.length === 0) return;
+
+    const formattedStudents: Student[] = selectedStudents.map((item, originalIndex) => {
       const baseFee = Number(item.feeAmount) || (item.casteCategory === 'SC' || item.casteCategory === 'ST' || item.casteCategory === 'EBC' ? 1140 : 1400);
       const onlineCharges = overrideOnlineCharge;
       const totalFee = baseFee + onlineCharges;
 
       // Clean Reg No
-      const regNo = item.registrationNo || `R-31337${String(index + 30).padStart(3, '0')}-25`;
+      const regNo = item.registrationNo || `R-31337${String(originalIndex + 30).padStart(3, '0')}-25`;
 
       return {
-        id: `STU-${Date.now()}-${index}`,
-        sNo: item.sNo || index + 1,
+        id: `STU-${Date.now()}-${originalIndex}`,
+        sNo: item.sNo || originalIndex + 1,
         registrationNo: regNo,
         studentName: (item.studentName || 'UNKNOWN STUDENT').toUpperCase(),
         fatherName: (item.fatherName || 'NOT MENTIONED').toUpperCase(),
@@ -318,6 +379,60 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
     onImportStudents(formattedStudents);
     onClose();
   };
+
+  const toggleSelectAll = () => {
+    if (!extractedData) return;
+    if (selectedIndices.size === extractedData.students.length) {
+      setSelectedIndices(new Set());
+    } else {
+      const all = new Set<number>();
+      extractedData.students.forEach((_, idx) => all.add(idx));
+      setSelectedIndices(all);
+    }
+  };
+
+  const selectOnlyCleanRecords = () => {
+    const cleanSet = new Set<number>();
+    duplicateStatuses.forEach((status, idx) => {
+      if (!status.hasDuplicate) {
+        cleanSet.add(idx);
+      }
+    });
+    setSelectedIndices(cleanSet);
+  };
+
+  const deselectDuplicates = () => {
+    const nextSet = new Set(selectedIndices);
+    duplicateStatuses.forEach((status, idx) => {
+      if (status.hasDuplicate) {
+        nextSet.delete(idx);
+      }
+    });
+    setSelectedIndices(nextSet);
+  };
+
+  const toggleRowSelect = (index: number) => {
+    const next = new Set(selectedIndices);
+    if (next.has(index)) {
+      next.delete(index);
+    } else {
+      next.add(index);
+    }
+    setSelectedIndices(next);
+  };
+
+  // Filter students based on active tab
+  const visibleIndices = useMemo(() => {
+    if (!extractedData) return [];
+    return extractedData.students
+      .map((_, idx) => idx)
+      .filter((idx) => {
+        const status = duplicateStatuses[idx];
+        if (activeFilter === 'CLEAN') return !status?.hasDuplicate;
+        if (activeFilter === 'DUPLICATE') return status?.hasDuplicate;
+        return true;
+      });
+  }, [extractedData, duplicateStatuses, activeFilter]);
 
   return (
     <div className="fixed inset-0 z-50 bg-[#2D2A26]/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
@@ -418,19 +533,52 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
               </div>
 
               {/* Sample Excel Template Banner */}
-              <div className="flex items-center justify-between bg-[#EFECE1]/60 border border-[#E6E2D3] p-3 rounded-xl">
-                <div className="flex items-center gap-2 text-[#4A453E]">
-                  <FileSpreadsheet className="w-4 h-4 text-[#2E5B50]" />
-                  <span>Don't have an Excel file format ready? Download our pre-filled Excel template:</span>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#E2ECE9]/60 border border-[#B8D5CE] p-3.5 rounded-xl">
+                <div className="flex items-center gap-2 text-[#2E5B50]">
+                  <FileSpreadsheet className="w-5 h-5 text-[#2E5B50] shrink-0" />
+                  <span className="font-semibold text-xs">Excel File Format Nahi Hai? Ready-made Template Download Karein:</span>
                 </div>
                 <button
                   type="button"
                   onClick={handleDownloadSampleExcel}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FDFCF8] hover:bg-white text-[#2E5B50] font-bold border border-[#B8D5CE] rounded-lg shadow-xs transition shrink-0"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#2E5B50] hover:bg-[#254A41] text-white font-bold rounded-lg shadow-xs transition shrink-0 text-xs"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Download Sample Excel Template</span>
+                  <span>Download Sample Excel (.xlsx)</span>
                 </button>
+              </div>
+
+              {/* Format Guide Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 text-[#4A453E]">
+                <div className="p-3 bg-[#FDFCF8] border border-[#E6E2D3] rounded-xl space-y-1">
+                  <div className="flex items-center gap-1.5 text-[#2E5B50] font-bold text-xs">
+                    <FileSpreadsheet className="w-4 h-4" />
+                    <span>1. Excel (.xlsx / .csv)</span>
+                  </div>
+                  <p className="text-[11px] text-[#787267]">
+                    Instant upload! Column headers: <strong>Registration No, Student Name, Father Name, Mother Name, Category, Fee</strong>.
+                  </p>
+                </div>
+
+                <div className="p-3 bg-[#FDFCF8] border border-[#E6E2D3] rounded-xl space-y-1">
+                  <div className="flex items-center gap-1.5 text-[#5A5A40] font-bold text-xs">
+                    <FileText className="w-4 h-4" />
+                    <span>2. Board PDF List</span>
+                  </div>
+                  <p className="text-[11px] text-[#787267]">
+                    Upload official Bihar Board / State Board PDF file. AI automatically scans and creates rows.
+                  </p>
+                </div>
+
+                <div className="p-3 bg-[#FDFCF8] border border-[#E6E2D3] rounded-xl space-y-1">
+                  <div className="flex items-center gap-1.5 text-[#8C5A2B] font-bold text-xs">
+                    <Layers className="w-4 h-4" />
+                    <span>3. Photo / Screenshot</span>
+                  </div>
+                  <p className="text-[11px] text-[#787267]">
+                    Upload clear photo (JPG/PNG) of printed student list or register. AI OCR extracts all details.
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -457,32 +605,99 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
             </div>
           )}
 
-          {/* Extracted Data Review Table */}
+          {/* Extracted Data Review & Duplicate Resolution Section */}
           {extractedData && (
             <div className="space-y-4">
-              <div className="bg-[#E2ECE9] border border-[#3B6E62] p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-[#2E5B50]">
-                  <CheckCircle2 className="w-5 h-5 text-[#2E5B50] shrink-0" />
-                  <div>
-                    <p className="font-bold text-sm">
-                      Extracted {extractedData.students.length} Student Records
-                    </p>
-                    <p className="text-[#3B6E62]">
-                      Review extracted data below before importing to database.
-                    </p>
+              
+              {/* Duplicate Warning / Clean Status Banner */}
+              {duplicateSummary.hasDuplicates ? (
+                <div className="bg-[#FFF8EE] border border-[#E6C687] p-4 rounded-xl space-y-2 text-[#66460D]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2.5">
+                      <AlertTriangle className="w-5 h-5 text-[#D97706] shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-sm">
+                          {duplicateSummary.duplicateCount} Duplicate Record{duplicateSummary.duplicateCount > 1 ? 's' : ''} Detected
+                        </p>
+                        <p className="text-xs text-[#785412] mt-0.5">
+                          {duplicateSummary.exactMatchCount > 0 && (
+                            <span className="font-semibold text-[#B45309] mr-2">
+                              • {duplicateSummary.exactMatchCount} matching existing registration numbers (unselected by default)
+                            </span>
+                          )}
+                          {duplicateSummary.nameMatchCount > 0 && (
+                            <span className="font-semibold text-[#D97706] mr-2">
+                              • {duplicateSummary.nameMatchCount} potential student name matches
+                            </span>
+                          )}
+                          {duplicateSummary.inBatchDuplicateCount > 0 && (
+                            <span className="font-semibold text-[#B45309]">
+                              • {duplicateSummary.inBatchDuplicateCount} duplicates within this uploaded file
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setExtractedData(null);
+                        setSelectedFile(null);
+                      }}
+                      className="px-3 py-1.5 bg-[#FDFCF8] text-[#4A453E] border border-[#DDD8C5] hover:bg-[#F7F5EE] rounded-lg text-xs font-semibold shrink-0"
+                    >
+                      Upload Another File
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-[#E6C687]/50 text-xs">
+                    <span className="text-[#8C5A2B] font-medium">Quick Resolution:</span>
+                    <button
+                      onClick={selectOnlyCleanRecords}
+                      className="px-2.5 py-1 bg-[#FEF3C7] hover:bg-[#FDE68A] text-[#92400E] font-semibold rounded border border-[#F59E0B]/30 flex items-center gap-1"
+                    >
+                      <UserCheck className="w-3.5 h-3.5" />
+                      Select Only Clean Records ({duplicateSummary.cleanCount})
+                    </button>
+                    <button
+                      onClick={deselectDuplicates}
+                      className="px-2.5 py-1 bg-[#FDFCF8] hover:bg-[#F7F5EE] text-[#787267] rounded border border-[#DDD8C5]"
+                    >
+                      Deselect All Duplicates
+                    </button>
+                    <button
+                      onClick={toggleSelectAll}
+                      className="px-2.5 py-1 bg-[#FDFCF8] hover:bg-[#F7F5EE] text-[#787267] rounded border border-[#DDD8C5]"
+                    >
+                      {selectedIndices.size === extractedData.students.length ? 'Deselect All' : 'Select All'}
+                    </button>
                   </div>
                 </div>
+              ) : (
+                <div className="bg-[#E2ECE9] border border-[#3B6E62] p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 text-[#2E5B50]">
+                    <CheckCircle2 className="w-5 h-5 text-[#2E5B50] shrink-0" />
+                    <div>
+                      <p className="font-bold text-sm">
+                        Extracted {extractedData.students.length} Student Records — All Unique!
+                      </p>
+                      <p className="text-[#3B6E62] text-xs">
+                        No duplicate registration numbers or student names were found in your existing database.
+                      </p>
+                    </div>
+                  </div>
 
-                <button
-                  onClick={() => {
-                    setExtractedData(null);
-                    setSelectedFile(null);
-                  }}
-                  className="px-3 py-1.5 bg-[#FDFCF8] text-[#4A453E] border border-[#DDD8C5] hover:bg-[#F7F5EE] rounded-lg text-xs font-semibold"
-                >
-                  Upload Another File
-                </button>
-              </div>
+                  <button
+                    onClick={() => {
+                      setExtractedData(null);
+                      setSelectedFile(null);
+                    }}
+                    className="px-3 py-1.5 bg-[#FDFCF8] text-[#4A453E] border border-[#DDD8C5] hover:bg-[#F7F5EE] rounded-lg text-xs font-semibold shrink-0"
+                  >
+                    Upload Another File
+                  </button>
+                </div>
+              )}
 
               {/* Import Options Bar */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-[#F7F5EE] p-4 rounded-xl border border-[#E6E2D3]">
@@ -518,43 +733,223 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
                 </div>
               </div>
 
-              {/* Table */}
-              <div className="border border-[#E6E2D3] rounded-xl overflow-x-auto max-h-80">
+              {/* Filter Tabs & Selection Counters */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
+                <div className="flex items-center gap-1.5 bg-[#EFECE1] p-1 rounded-lg border border-[#E6E2D3]">
+                  <button
+                    onClick={() => setActiveFilter('ALL')}
+                    className={`px-3 py-1 rounded-md font-semibold transition text-xs ${
+                      activeFilter === 'ALL'
+                        ? 'bg-[#FDFCF8] text-[#4A453E] shadow-xs'
+                        : 'text-[#787267] hover:text-[#4A453E]'
+                    }`}
+                  >
+                    All Records ({extractedData.students.length})
+                  </button>
+
+                  <button
+                    onClick={() => setActiveFilter('CLEAN')}
+                    className={`px-3 py-1 rounded-md font-semibold transition text-xs flex items-center gap-1 ${
+                      activeFilter === 'CLEAN'
+                        ? 'bg-[#FDFCF8] text-[#2E5B50] shadow-xs'
+                        : 'text-[#787267] hover:text-[#2E5B50]'
+                    }`}
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Clean ({duplicateSummary.cleanCount})
+                  </button>
+
+                  {duplicateSummary.duplicateCount > 0 && (
+                    <button
+                      onClick={() => setActiveFilter('DUPLICATE')}
+                      className={`px-3 py-1 rounded-md font-semibold transition text-xs flex items-center gap-1 ${
+                        activeFilter === 'DUPLICATE'
+                          ? 'bg-[#FEF3C7] text-[#92400E] shadow-xs border border-[#F59E0B]/30'
+                          : 'text-[#D97706] hover:text-[#B45309]'
+                      }`}
+                    >
+                      <AlertTriangle className="w-3.5 h-3.5 text-[#D97706]" />
+                      Duplicates ({duplicateSummary.duplicateCount})
+                    </button>
+                  )}
+                </div>
+
+                <div className="text-xs font-semibold text-[#5A5A40] flex items-center gap-2">
+                  <span>
+                    Selected for import: <strong className="text-[#2E5B50] font-mono text-sm">{selectedIndices.size}</strong> of {extractedData.students.length}
+                  </span>
+                </div>
+              </div>
+
+              {/* Students Review Table */}
+              <div className="border border-[#E6E2D3] rounded-xl overflow-hidden max-h-80 overflow-y-auto">
                 <table className="w-full text-left border-collapse text-xs">
-                  <thead className="bg-[#EFECE1] sticky top-0 border-b border-[#E6E2D3] font-semibold text-[#4A453E]">
+                  <thead className="bg-[#EFECE1] sticky top-0 z-10 border-b border-[#E6E2D3] font-semibold text-[#4A453E]">
                     <tr>
+                      <th className="p-2.5 text-center w-10">
+                        <button
+                          onClick={toggleSelectAll}
+                          title="Select / Deselect All Visible"
+                          className="p-1 rounded text-[#5A5A40] hover:bg-[#E6E2D3]"
+                        >
+                          {selectedIndices.size === extractedData.students.length ? (
+                            <CheckSquare className="w-4 h-4 text-[#2E5B50]" />
+                          ) : (
+                            <Square className="w-4 h-4 text-[#787267]" />
+                          )}
+                        </button>
+                      </th>
                       <th className="p-2.5 text-center">S.N</th>
+                      <th className="p-2.5">Status</th>
                       <th className="p-2.5">Registration No</th>
                       <th className="p-2.5">Student Name</th>
                       <th className="p-2.5">Father Name</th>
                       <th className="p-2.5">Mother Name</th>
                       <th className="p-2.5">DOB</th>
-                      <th className="p-2.5">Caste</th>
-                      <th className="p-2.5">Type</th>
-                      <th className="p-2.5 text-right">Fee (+₹30)</th>
+                      <th className="p-2.5">Category</th>
+                      <th className="p-2.5 text-right">Fee (+₹{overrideOnlineCharge})</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E6E2D3]">
-                    {extractedData.students.map((st, idx) => {
-                      const baseFee = Number(st.feeAmount) || (st.casteCategory === 'SC' || st.casteCategory === 'ST' || st.casteCategory === 'EBC' ? 1140 : 1400);
-                      const totalFee = baseFee + overrideOnlineCharge;
+                    {visibleIndices.length === 0 ? (
+                      <tr>
+                        <td colSpan={10} className="p-8 text-center text-[#787267]">
+                          No records match the active filter criteria.
+                        </td>
+                      </tr>
+                    ) : (
+                      visibleIndices.map((idx) => {
+                        const st = extractedData.students[idx];
+                        const dupStatus = duplicateStatuses[idx];
+                        const isSelected = selectedIndices.has(idx);
+                        const isExpanded = expandedIndex === idx;
 
-                      return (
-                        <tr key={idx} className="hover:bg-[#F7F5EE]">
-                          <td className="p-2 text-center font-mono text-[#787267]">{st.sNo || idx + 1}</td>
-                          <td className="p-2 font-mono font-semibold text-[#4A453E]">{st.registrationNo}</td>
-                          <td className="p-2 font-bold text-[#4A453E]">{st.studentName}</td>
-                          <td className="p-2 text-[#787267]">{st.fatherName}</td>
-                          <td className="p-2 text-[#787267]">{st.motherName}</td>
-                          <td className="p-2 font-mono text-[#787267]">{st.dob}</td>
-                          <td className="p-2 font-semibold text-[#4A453E]">{st.casteCategory || 'General'}</td>
-                          <td className="p-2 text-[#5A5A40] font-mono">{st.examType || 'REGULAR'}</td>
-                          <td className="p-2 text-right font-mono font-bold text-[#4A453E]">
-                            ₹{totalFee} <span className="text-[10px] text-[#8C857B] font-normal">(Base: ₹{baseFee})</span>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                        const baseFee = Number(st.feeAmount) || (st.casteCategory === 'SC' || st.casteCategory === 'ST' || st.casteCategory === 'EBC' ? 1140 : 1400);
+                        const totalFee = baseFee + overrideOnlineCharge;
+
+                        let rowBg = 'hover:bg-[#F7F5EE]';
+                        if (dupStatus.isExactMatch) {
+                          rowBg = isSelected ? 'bg-[#FEF2F2] hover:bg-[#FEE2E2]' : 'bg-[#FFF5F5] opacity-75';
+                        } else if (dupStatus.isNameMatch) {
+                          rowBg = isSelected ? 'bg-[#FFFBEB] hover:bg-[#FEF3C7]' : 'bg-[#FFFAF0] opacity-85';
+                        } else if (dupStatus.isInBatchDuplicate) {
+                          rowBg = isSelected ? 'bg-[#FFF1F2] hover:bg-[#FFE4E6]' : 'bg-[#FFF5F5] opacity-80';
+                        }
+
+                        return (
+                          <React.Fragment key={idx}>
+                            <tr className={`transition-colors ${rowBg}`}>
+                              <td className="p-2 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleRowSelect(idx)}
+                                  className="p-1 rounded text-[#5A5A40]"
+                                >
+                                  {isSelected ? (
+                                    <CheckSquare className="w-4 h-4 text-[#2E5B50]" />
+                                  ) : (
+                                    <Square className="w-4 h-4 text-[#8C857B]" />
+                                  )}
+                                </button>
+                              </td>
+
+                              <td className="p-2 text-center font-mono text-[#787267]">
+                                {st.sNo || idx + 1}
+                              </td>
+
+                              {/* Duplicate Status Badge */}
+                              <td className="p-2 whitespace-nowrap">
+                                {dupStatus.isExactMatch ? (
+                                  <button
+                                    onClick={() => setExpandedIndex(isExpanded ? null : idx)}
+                                    className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] flex items-center gap-1 hover:brightness-95"
+                                  >
+                                    <ShieldAlert className="w-3 h-3 text-[#DC2626]" />
+                                    <span>Exact Reg Duplicate</span>
+                                  </button>
+                                ) : dupStatus.isInBatchDuplicate ? (
+                                  <button
+                                    onClick={() => setExpandedIndex(isExpanded ? null : idx)}
+                                    className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#FFE4E6] text-[#9F1239] border border-[#FECDD3] flex items-center gap-1 hover:brightness-95"
+                                  >
+                                    <AlertTriangle className="w-3 h-3 text-[#E11D48]" />
+                                    <span>File Duplicate</span>
+                                  </button>
+                                ) : dupStatus.isNameMatch ? (
+                                  <button
+                                    onClick={() => setExpandedIndex(isExpanded ? null : idx)}
+                                    className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#FEF3C7] text-[#92400E] border border-[#FCD34D] flex items-center gap-1 hover:brightness-95"
+                                  >
+                                    <AlertTriangle className="w-3 h-3 text-[#D97706]" />
+                                    <span>Name Match</span>
+                                  </button>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#E2ECE9] text-[#2E5B50] border border-[#B8D5CE] inline-flex items-center gap-1">
+                                    <Check className="w-3 h-3" />
+                                    <span>New Record</span>
+                                  </span>
+                                )}
+                              </td>
+
+                              <td className="p-2 font-mono font-semibold text-[#4A453E]">
+                                {st.registrationNo}
+                              </td>
+
+                              <td className="p-2 font-bold text-[#4A453E]">
+                                {st.studentName}
+                              </td>
+
+                              <td className="p-2 text-[#787267]">
+                                {st.fatherName}
+                              </td>
+
+                              <td className="p-2 text-[#787267]">
+                                {st.motherName}
+                              </td>
+
+                              <td className="p-2 font-mono text-[#787267]">
+                                {st.dob}
+                              </td>
+
+                              <td className="p-2 font-semibold text-[#4A453E]">
+                                {st.casteCategory || 'General'}
+                              </td>
+
+                              <td className="p-2 text-right font-mono font-bold text-[#4A453E]">
+                                ₹{totalFee} <span className="text-[10px] text-[#8C857B] font-normal">(Base: ₹{baseFee})</span>
+                              </td>
+                            </tr>
+
+                            {/* Details Drawer / Card for Duplicates */}
+                            {(dupStatus.hasDuplicate || isExpanded) && (
+                              <tr className="bg-[#FFFDFA] border-b border-[#E6E2D3]">
+                                <td colSpan={10} className="p-3 pl-10">
+                                  <div className="bg-[#F7F5EE] border border-[#DDD8C5] p-3 rounded-lg text-xs space-y-1.5">
+                                    <div className="flex items-center gap-2 font-bold text-[#8C5A2B]">
+                                      <Info className="w-4 h-4 text-[#D97706]" />
+                                      <span>Duplicate Warning Details:</span>
+                                    </div>
+
+                                    {dupStatus.conflicts.map((conf, cIdx) => (
+                                      <div key={cIdx} className="pl-6 text-[#5A5A40]">
+                                        <p className="font-semibold text-[#4A453E]">• {conf.reason}</p>
+                                        <p className="text-[11px] text-[#787267] font-mono">
+                                          Existing DB Record: Reg No [{conf.existingStudent.registrationNo}] - {conf.existingStudent.studentName} (Father: {conf.existingStudent.fatherName})
+                                        </p>
+                                      </div>
+                                    ))}
+
+                                    <div className="pl-6 pt-1 text-[11px] text-[#787267] italic">
+                                      Tip: Uncheck the checkbox on the left if you do not want to import this duplicate student again.
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -566,9 +961,13 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
         {/* Footer */}
         <div className="bg-[#EFECE1] px-6 py-4 border-t border-[#E6E2D3] flex items-center justify-between text-xs">
           <div className="text-[#787267]">
-            {extractedData
-              ? `Ready to add ${extractedData.students.length} students to app database.`
-              : 'Select a PDF or image file to extract.'}
+            {extractedData ? (
+              <span>
+                <strong>{selectedIndices.size}</strong> of {extractedData.students.length} students selected for import.
+              </span>
+            ) : (
+              'Select an Excel (.xlsx / .csv), PDF or image file to extract students.'
+            )}
           </div>
 
           <div className="flex items-center gap-3">
@@ -582,10 +981,11 @@ export const PdfUploadModal: React.FC<PdfUploadModalProps> = ({
             {extractedData && (
               <button
                 onClick={handleConfirmImport}
-                className="flex items-center gap-1.5 px-5 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white rounded-lg font-semibold shadow transition"
+                disabled={selectedIndices.size === 0}
+                className="flex items-center gap-1.5 px-5 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white rounded-lg font-semibold shadow transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Plus className="w-4 h-4" />
-                <span>Import {extractedData.students.length} Students</span>
+                <span>Import {selectedIndices.size} Selected Students</span>
               </button>
             )}
           </div>

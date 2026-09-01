@@ -2,12 +2,20 @@ import { Student, Transaction, InstituteSettings, GitHubConfig } from '../types'
 import { initialStudents, initialInstituteSettings, initialTransactions } from '../data/mockStudents';
 
 const KEYS = {
-  STUDENTS: 'fee_app_students_v2',
-  TRANSACTIONS: 'fee_app_transactions_v2',
-  SETTINGS: 'fee_app_settings_v2',
-  GITHUB_CONFIG: 'fee_app_github_config_v2',
-  RECEIPT_COUNTER: 'fee_app_receipt_counter_v2',
+  STUDENTS: 'fee_app_students_v3',
+  TRANSACTIONS: 'fee_app_transactions_v3',
+  SETTINGS: 'fee_app_settings_v3',
+  GITHUB_CONFIG: 'fee_app_github_config_v3',
+  RECEIPT_COUNTER: 'fee_app_receipt_counter_v3',
 };
+
+// Clean up legacy v2 mock storage keys if present
+try {
+  localStorage.removeItem('fee_app_students_v2');
+  localStorage.removeItem('fee_app_transactions_v2');
+} catch (e) {
+  // ignore
+}
 
 // Storage getters
 export function getStoredStudents(): Student[] {
@@ -35,9 +43,21 @@ export function getStoredStudents(): Student[] {
   } catch (e) {
     console.error('Failed to load students from localStorage:', e);
   }
-  // Initialize with default students
+  // Initialize with default empty array
   saveStudentsToStorage(initialStudents);
   return initialStudents;
+}
+
+export function clearAllData(): void {
+  try {
+    localStorage.removeItem(KEYS.STUDENTS);
+    localStorage.removeItem(KEYS.TRANSACTIONS);
+    localStorage.removeItem(KEYS.RECEIPT_COUNTER);
+    saveStudentsToStorage([]);
+    saveTransactionsToStorage([]);
+  } catch (e) {
+    console.error('Failed to clear data:', e);
+  }
 }
 
 export function saveStudentsToStorage(students: Student[]): void {
@@ -120,7 +140,7 @@ export function saveGitHubConfigToStorage(config: GitHubConfig): void {
 
 // Next Receipt Number Generator
 export function getNextReceiptNumber(): string {
-  let counter = 108;
+  let counter = 1;
   try {
     const storedCounter = localStorage.getItem(KEYS.RECEIPT_COUNTER);
     if (storedCounter) {
