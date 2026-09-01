@@ -11,6 +11,7 @@ import {
   getNextReceiptNumber,
   syncDatabaseWithGitHub
 } from './services/storageService';
+import { subscribeSchoolData, saveStudentToCloud } from './services/firebaseSyncService';
 import { Student, Transaction, InstituteSettings, GitHubConfig, PaymentMode, FormIssueStatus } from './types';
 import { Header } from './components/Header';
 import { StudentList } from './components/StudentList';
@@ -45,13 +46,44 @@ export default function App() {
   const [isUploadPdfOpen, setIsUploadPdfOpen] = useState(false);
   const [isLogTransactionOpen, setIsLogTransactionOpen] = useState(false);
 
-  // Initialize data on mount
+  // Initialize data on mount and listen to Firebase real-time updates for school code
   useEffect(() => {
     const loadedStudents = getStoredStudents();
     const loadedTxns = getStoredTransactions();
     setStudents(loadedStudents);
     setTransactions(loadedTxns);
-  }, []);
+
+    const schoolCode = settings.code || '31337';
+
+    // Seed local initial students to cloud if cloud is empty
+    loadedStudents.forEach(stu => {
+      saveStudentToCloud(stu, schoolCode);
+    });
+
+    const unsubscribe = subscribeSchoolData(
+      schoolCode,
+      (cloudStudents) => {
+        if (cloudStudents && cloudStudents.length > 0) {
+          setStudents(cloudStudents);
+          saveStudentsToStorage(cloudStudents);
+        }
+      },
+      (cloudTxns) => {
+        if (cloudTxns) {
+          setTransactions(cloudTxns);
+          saveTransactionsToStorage(cloudTxns);
+        }
+      },
+      (cloudSettings) => {
+        if (cloudSettings) {
+          setSettings(cloudSettings);
+          saveSettingsToStorage(cloudSettings);
+        }
+      }
+    );
+
+    return () => unsubscribe();
+  }, [settings.code]);
 
   // Update storage whenever students or transactions change
   const updateStudentsState = (newStudents: Student[]) => {
