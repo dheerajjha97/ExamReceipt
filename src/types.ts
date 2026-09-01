@@ -71,16 +71,6 @@ export interface InstituteSettings {
   contactNumber: string;
 }
 
-export interface GitHubConfig {
-  owner: string;
-  repo: string;
-  branch: string;
-  filePath: string;
-  token: string;
-  autoSync: boolean;
-  lastSyncedAt?: string;
-}
-
 export interface ExtractedStudent {
   sNo?: number;
   registrationNo: string;

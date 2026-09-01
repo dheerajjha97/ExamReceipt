@@ -149,26 +149,31 @@ export const IssueFormModal: React.FC<IssueFormModalProps> = ({
   if (!isOpen || !student) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#2D2A26]/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-[#FDFCF8] rounded-3xl shadow-2xl max-w-lg w-full border border-[#E6E2D3] overflow-hidden my-6">
+    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
+      <div className="bg-slate-900/90 backdrop-blur-2xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/10 overflow-hidden my-6 text-slate-100">
         
         {/* Modal Header */}
-        <div className="bg-[#4A453E] text-white px-6 py-4 flex items-center justify-between border-b border-[#3E3A33]">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2.5 bg-[#5A5A40] text-white rounded-2xl">
+        <div className="bg-slate-950/70 border-b border-white/10 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-gradient-to-br from-teal-500 to-emerald-600 text-white rounded-2xl shadow-lg shadow-teal-500/20">
               <ClipboardCheck className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-[#FDFCF8]">Manage Examination Form</h2>
-              <p className="text-xs text-[#C2BEB5]">
-                Form collection & submission tracking for {student.studentName}
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                Manage Examination Form
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                  Active
+                </span>
+              </h2>
+              <p className="text-xs text-slate-400">
+                Issue & track examination form for {student.studentName}
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 text-[#C2BEB5] hover:text-white rounded-full hover:bg-[#3E3A33] transition"
+            className="p-1.5 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -178,45 +183,49 @@ export const IssueFormModal: React.FC<IssueFormModalProps> = ({
         <div className="p-6 space-y-5 text-xs">
           
           {/* Student Banner */}
-          <div className="bg-[#F7F5EE] p-3.5 rounded-2xl border border-[#E6E2D3] flex items-center justify-between">
+          <div className="bg-white/5 p-4 rounded-2xl border border-white/10 flex items-center justify-between">
             <div>
-              <span className="text-xs font-black text-[#4A453E] block">{student.studentName}</span>
-              <span className="text-[11px] text-[#787267]">{student.classOrStream} • Reg: <code className="font-mono text-[#5A5A40] font-bold">{student.registrationNo}</code></span>
+              <span className="text-sm font-black text-white block">{student.studentName}</span>
+              <span className="text-[11px] text-slate-400 font-medium">
+                {student.classOrStream} • Reg: <code className="font-mono text-teal-300 font-bold">{student.registrationNo}</code>
+              </span>
             </div>
             <div className="text-right">
-              <span className="text-xs font-bold text-[#2E5B50] block">₹{student.totalFee} Payable</span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block ${
-                student.paymentStatus === 'PAID' ? 'bg-[#E2ECE9] text-[#2E5B50]' : 'bg-[#F9E8E8] text-[#8C2B2B]'
+              <span className="text-xs font-bold text-emerald-400 block">₹{student.totalFee} Fee</span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block mt-0.5 ${
+                student.paymentStatus === 'PAID' 
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                  : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
               }`}>
-                Fee: {student.paymentStatus}
+                {student.paymentStatus}
               </span>
             </div>
           </div>
 
           {/* Form Status Radio Cards */}
-          <div className="space-y-2">
-            <label className="font-bold text-[#4A453E] block">Examination Form Stage / Status:</label>
+          <div className="space-y-2.5">
+            <label className="font-bold text-slate-300 block text-xs uppercase tracking-wider">Select Form Status Stage:</label>
             
             <div className="grid grid-cols-1 gap-2.5">
               
               {/* Option 1: Not Issued */}
               <label 
                 onClick={() => setStatus('NOT_ISSUED')}
-                className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition ${
+                className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition ${
                   status === 'NOT_ISSUED' 
-                    ? 'border-[#8C2B2B] bg-[#F9E8E8]/40 shadow-xs' 
-                    : 'border-[#DDD8C5] bg-[#FDFCF8] hover:bg-[#F7F5EE]'
+                    ? 'border-rose-500/50 bg-rose-500/10 text-white shadow-lg' 
+                    : 'border-white/10 bg-white/5 hover:bg-white/10 text-slate-300'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-3">
                   <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                    status === 'NOT_ISSUED' ? 'border-[#8C2B2B] bg-[#8C2B2B]' : 'border-[#999]'
+                    status === 'NOT_ISSUED' ? 'border-rose-500 bg-rose-500' : 'border-slate-600'
                   }`}>
                     {status === 'NOT_ISSUED' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
                   </div>
                   <div>
-                    <span className="font-bold text-[#4A453E] block">1. Form Not Collected (Pending)</span>
-                    <span className="text-[11px] text-[#787267]">Student has not yet collected the blank examination form.</span>
+                    <span className="font-bold text-slate-200 block">1. Form Not Collected (Pending)</span>
+                    <span className="text-[11px] text-slate-400">Student has not collected the blank examination form.</span>
                   </div>
                 </div>
               </label>
@@ -224,21 +233,21 @@ export const IssueFormModal: React.FC<IssueFormModalProps> = ({
               {/* Option 2: Blank Form Issued */}
               <label 
                 onClick={() => setStatus('ISSUED')}
-                className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition ${
+                className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition ${
                   status === 'ISSUED' 
-                    ? 'border-[#B8860B] bg-[#FFFBEA] shadow-xs' 
-                    : 'border-[#DDD8C5] bg-[#FDFCF8] hover:bg-[#F7F5EE]'
+                    ? 'border-amber-500/50 bg-amber-500/15 text-white shadow-lg' 
+                    : 'border-white/10 bg-white/5 hover:bg-white/10 text-slate-300'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-3">
                   <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                    status === 'ISSUED' ? 'border-[#B8860B] bg-[#B8860B]' : 'border-[#999]'
+                    status === 'ISSUED' ? 'border-amber-500 bg-amber-500' : 'border-slate-600'
                   }`}>
                     {status === 'ISSUED' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
                   </div>
                   <div>
-                    <span className="font-bold text-[#8C6D1F] block">2. Blank Form Issued / Collected</span>
-                    <span className="text-[11px] text-[#787267]">Student collected blank exam form to fill at home.</span>
+                    <span className="font-bold text-amber-300 block">2. Blank Form Issued to Student</span>
+                    <span className="text-[11px] text-slate-400">Blank examination form issued to student to fill.</span>
                   </div>
                 </div>
               </label>
@@ -246,21 +255,21 @@ export const IssueFormModal: React.FC<IssueFormModalProps> = ({
               {/* Option 3: Form Submitted */}
               <label 
                 onClick={() => setStatus('SUBMITTED')}
-                className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition ${
+                className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition ${
                   status === 'SUBMITTED' 
-                    ? 'border-[#2E5B50] bg-[#E2ECE9] shadow-xs' 
-                    : 'border-[#DDD8C5] bg-[#FDFCF8] hover:bg-[#F7F5EE]'
+                    ? 'border-teal-500/50 bg-teal-500/15 text-white shadow-lg' 
+                    : 'border-white/10 bg-white/5 hover:bg-white/10 text-slate-300'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-3">
                   <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                    status === 'SUBMITTED' ? 'border-[#2E5B50] bg-[#2E5B50]' : 'border-[#999]'
+                    status === 'SUBMITTED' ? 'border-teal-500 bg-teal-500' : 'border-slate-600'
                   }`}>
                     {status === 'SUBMITTED' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
                   </div>
                   <div>
-                    <span className="font-bold text-[#2E5B50] block">3. Filled Form & Fee Submitted</span>
-                    <span className="text-[11px] text-[#787267]">Student returned completed form with documents and fee.</span>
+                    <span className="font-bold text-teal-300 block">3. Filled Form & Fee Submitted</span>
+                    <span className="text-[11px] text-slate-400">Form returned with photos, Aadhaar & exam fee.</span>
                   </div>
                 </div>
               </label>
@@ -270,40 +279,40 @@ export const IssueFormModal: React.FC<IssueFormModalProps> = ({
 
           {/* Form Serial No & Dates */}
           {status !== 'NOT_ISSUED' && (
-            <div className="bg-[#F7F5EE] p-4 rounded-2xl border border-[#E6E2D3] space-y-3 animate-fadeIn">
+            <div className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-3 animate-fadeIn">
               
               <div>
-                <label className="font-bold text-[#4A453E] block mb-1">Exam Form Serial / Number:</label>
+                <label className="font-bold text-slate-300 block mb-1">Exam Form Serial Number:</label>
                 <input
                   type="text"
                   value={formNo}
                   onChange={(e) => setFormNo(e.target.value)}
-                  placeholder="e.g. EF-2026-0108"
-                  className="w-full px-3 py-2 bg-[#FDFCF8] border border-[#DDD8C5] rounded-xl font-mono text-xs text-[#4A453E] focus:outline-none focus:ring-2 focus:ring-[#2E5B50]"
+                  placeholder="e.g. EF-26-0010"
+                  className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-white/10 rounded-xl font-mono text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-[#4A453E] block mb-1">Form Issue Date:</label>
+                  <label className="font-semibold text-slate-300 block mb-1">Form Issue Date:</label>
                   <input
                     type="text"
                     value={issueDate}
                     onChange={(e) => setIssueDate(e.target.value)}
                     placeholder="YYYY-MM-DD HH:mm"
-                    className="w-full px-3 py-2 bg-[#FDFCF8] border border-[#DDD8C5] rounded-xl text-xs text-[#4A453E] focus:outline-none focus:ring-2 focus:ring-[#2E5B50]"
+                    className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
                   />
                 </div>
 
                 {status === 'SUBMITTED' && (
                   <div>
-                    <label className="font-semibold text-[#4A453E] block mb-1">Form Submission Date:</label>
+                    <label className="font-semibold text-slate-300 block mb-1">Form Submission Date:</label>
                     <input
                       type="text"
                       value={submissionDate}
                       onChange={(e) => setSubmissionDate(e.target.value)}
                       placeholder="YYYY-MM-DD HH:mm"
-                      className="w-full px-3 py-2 bg-[#FDFCF8] border border-[#DDD8C5] rounded-xl text-xs text-[#4A453E] focus:outline-none focus:ring-2 focus:ring-[#2E5B50]"
+                      className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
                     />
                   </div>
                 )}
@@ -314,10 +323,10 @@ export const IssueFormModal: React.FC<IssueFormModalProps> = ({
                 <button
                   type="button"
                   onClick={handlePrintSlip}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#EFECE1] hover:bg-[#E6E2D3] text-[#4A453E] font-bold rounded-xl border border-[#DDD8C5] transition text-xs"
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-white/10 hover:bg-white/15 text-slate-200 font-bold rounded-xl border border-white/10 transition text-xs shadow-xs"
                 >
-                  <Printer className="w-3.5 h-3.5 text-[#2E5B50]" />
-                  <span>Print Blank Form Collection Slip</span>
+                  <Printer className="w-3.5 h-3.5 text-teal-400" />
+                  <span>Print Form Token / Slip</span>
                 </button>
               </div>
 
@@ -327,11 +336,11 @@ export const IssueFormModal: React.FC<IssueFormModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="bg-[#EFECE1] px-6 py-4 border-t border-[#E6E2D3] flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="bg-slate-950/70 px-6 py-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 bg-[#EFECE1] hover:bg-[#E6E2D3] text-[#4A453E] rounded-2xl font-bold transition border border-[#DDD8C5]"
+            className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 rounded-2xl font-bold transition border border-white/10"
           >
             Cancel
           </button>
@@ -340,7 +349,7 @@ export const IssueFormModal: React.FC<IssueFormModalProps> = ({
             <button
               type="button"
               onClick={() => handleSave(false)}
-              className="px-4 py-2.5 bg-[#5A5A40] hover:bg-[#484833] text-white rounded-2xl font-bold transition shadow"
+              className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl font-bold transition shadow-md border border-white/10"
             >
               Save Form Status
             </button>
@@ -352,7 +361,7 @@ export const IssueFormModal: React.FC<IssueFormModalProps> = ({
                   setStatus('SUBMITTED');
                   handleSave(true);
                 }}
-                className="flex items-center gap-1.5 px-4 py-2.5 bg-[#2E5B50] hover:bg-[#254A41] text-white rounded-2xl font-bold transition shadow-md hover:-translate-y-0.5 active:translate-y-0"
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-white rounded-2xl font-bold transition shadow-lg shadow-teal-500/20 hover:-translate-y-0.5 active:translate-y-0"
               >
                 <span>Save & Collect Fee</span>
                 <ArrowRight className="w-3.5 h-3.5" />

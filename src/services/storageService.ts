@@ -1,11 +1,10 @@
-import { Student, Transaction, InstituteSettings, GitHubConfig } from '../types';
+import { Student, Transaction, InstituteSettings } from '../types';
 import { initialStudents, initialInstituteSettings, initialTransactions } from '../data/mockStudents';
 
 const KEYS = {
   STUDENTS: 'fee_app_students_v4',
   TRANSACTIONS: 'fee_app_transactions_v4',
   SETTINGS: 'fee_app_settings_v4',
-  GITHUB_CONFIG: 'fee_app_github_config_v4',
   RECEIPT_COUNTER: 'fee_app_receipt_counter_v4',
 };
 
@@ -109,35 +108,6 @@ export function saveSettingsToStorage(settings: InstituteSettings): void {
   }
 }
 
-export function getStoredGitHubConfig(): GitHubConfig {
-  const defaultConfig: GitHubConfig = {
-    owner: '',
-    repo: '',
-    branch: 'main',
-    filePath: 'data/fee_database.json',
-    token: '',
-    autoSync: false,
-  };
-
-  try {
-    const data = localStorage.getItem(KEYS.GITHUB_CONFIG);
-    if (data) {
-      return { ...defaultConfig, ...JSON.parse(data) };
-    }
-  } catch (e) {
-    console.error('Failed to load GitHub config:', e);
-  }
-  return defaultConfig;
-}
-
-export function saveGitHubConfigToStorage(config: GitHubConfig): void {
-  try {
-    localStorage.setItem(KEYS.GITHUB_CONFIG, JSON.stringify(config));
-  } catch (e) {
-    console.error('Failed to save GitHub config:', e);
-  }
-}
-
 // Next Receipt Number Generator
 export function getNextReceiptNumber(): string {
   let counter = 1;
@@ -158,111 +128,6 @@ export function getNextReceiptNumber(): string {
   // Increment counter for next use
   localStorage.setItem(KEYS.RECEIPT_COUNTER, String(counter + 1));
   return receiptNo;
-}
-
-// Sync helper with GitHub backend
-export async function syncDatabaseWithGitHub(
-  action: 'PUSH' | 'PULL',
-  config?: GitHubConfig,
-  currentStudents?: Student[],
-  currentTransactions?: Transaction[]
-): Promise<{ success: boolean; message: string; data?: { students: Student[]; transactions: Transaction[] } }> {
-  const ghConfig = config || getStoredGitHubConfig();
-
-  if (!ghConfig.token || !ghConfig.owner || !ghConfig.repo) {
-    return {
-      success: false,
-      message: 'GitHub credentials (token, repo owner, repository name) are required.',
-    };
-  }
-
-  const payloadContent = {
-    app: 'Matric & Inter Fee Receipt Manager',
-    updatedAt: new Date().toISOString(),
-    students: currentStudents || getStoredStudents(),
-    transactions: currentTransactions || getStoredTransactions(),
-    settings: getStoredSettings(),
-  };
-
-  try {
-    if (action === 'PUSH') {
-      const response = await fetch('/api/github/commit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token: ghConfig.token,
-          owner: ghConfig.owner,
-          repo: ghConfig.repo,
-          branch: ghConfig.branch || 'main',
-          filePath: ghConfig.filePath || 'data/fee_database.json',
-          content: payloadContent,
-          commitMessage: `Fee Database Sync [${new Date().toLocaleString('en-IN')}]`,
-        }),
-      });
-
-      const resData = await response.json();
-      if (!response.ok || !resData.success) {
-        throw new Error(resData.error || 'Failed to commit database to GitHub');
-      }
-
-      // Update last synced time
-      const updatedConfig = { ...ghConfig, lastSyncedAt: new Date().toISOString() };
-      saveGitHubConfigToStorage(updatedConfig);
-
-      return {
-        success: true,
-        message: `Successfully synced database to GitHub (${ghConfig.owner}/${ghConfig.repo})!`,
-      };
-    } else {
-      // PULL
-      const response = await fetch('/api/github/fetch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token: ghConfig.token,
-          owner: ghConfig.owner,
-          repo: ghConfig.repo,
-          branch: ghConfig.branch || 'main',
-          filePath: ghConfig.filePath || 'data/fee_database.json',
-        }),
-      });
-
-      const resData = await response.json();
-      if (!response.ok || !resData.success) {
-        throw new Error(resData.error || 'Failed to fetch database from GitHub');
-      }
-
-      const fetched = resData.data;
-      if (fetched && Array.isArray(fetched.students)) {
-        saveStudentsToStorage(fetched.students);
-        if (Array.isArray(fetched.transactions)) {
-          saveTransactionsToStorage(fetched.transactions);
-        }
-        if (fetched.settings) {
-          saveSettingsToStorage(fetched.settings);
-        }
-
-        const updatedConfig = { ...ghConfig, lastSyncedAt: new Date().toISOString() };
-        saveGitHubConfigToStorage(updatedConfig);
-
-        return {
-          success: true,
-          message: `Successfully loaded database from GitHub repository!`,
-          data: {
-            students: fetched.students,
-            transactions: fetched.transactions || [],
-          },
-        };
-      } else {
-        throw new Error('Invalid JSON format found in GitHub file.');
-      }
-    }
-  } catch (err: any) {
-    return {
-      success: false,
-      message: err.message || 'Error communicating with GitHub repository.',
-    };
-  }
 }
 
 // Convert numbers to Indian Currency Words (e.g., 1430 => "Rupees One Thousand Four Hundred Thirty Only")

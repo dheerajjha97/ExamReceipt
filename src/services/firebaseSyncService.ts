@@ -11,10 +11,24 @@ import {
 import { db } from '../lib/firebase';
 import { Student, Transaction, InstituteSettings } from '../types';
 
+// Helper function to remove undefined values before sending to Firestore
+function sanitizeForFirestore<T>(data: T): Record<string, any> {
+  const clean: Record<string, any> = {};
+  if (data && typeof data === 'object') {
+    Object.entries(data as Record<string, any>).forEach(([key, value]) => {
+      if (value !== undefined) {
+        clean[key] = value;
+      }
+    });
+  }
+  return clean;
+}
+
 export async function saveStudentToCloud(student: Student, schoolCode: string): Promise<void> {
   try {
     const studentRef = doc(db, `schools/${schoolCode}/students`, student.id);
-    await setDoc(studentRef, { ...student, schoolCode }, { merge: true });
+    const sanitizedStudent = sanitizeForFirestore({ ...student, schoolCode });
+    await setDoc(studentRef, sanitizedStudent, { merge: true });
   } catch (error) {
     console.error('Failed to sync student to cloud:', error);
   }
@@ -32,7 +46,8 @@ export async function deleteStudentFromCloud(studentId: string, schoolCode: stri
 export async function saveTransactionToCloud(transaction: Transaction, schoolCode: string): Promise<void> {
   try {
     const txnRef = doc(db, `schools/${schoolCode}/transactions`, transaction.id);
-    await setDoc(txnRef, { ...transaction, schoolCode }, { merge: true });
+    const sanitizedTxn = sanitizeForFirestore({ ...transaction, schoolCode });
+    await setDoc(txnRef, sanitizedTxn, { merge: true });
   } catch (error) {
     console.error('Failed to sync transaction to cloud:', error);
   }
@@ -41,7 +56,8 @@ export async function saveTransactionToCloud(transaction: Transaction, schoolCod
 export async function saveSettingsToCloud(settings: InstituteSettings, schoolCode: string): Promise<void> {
   try {
     const settingsRef = doc(db, `schools/${schoolCode}/settings`, 'config');
-    await setDoc(settingsRef, { ...settings, schoolCode }, { merge: true });
+    const sanitizedSettings = sanitizeForFirestore({ ...settings, schoolCode });
+    await setDoc(settingsRef, sanitizedSettings, { merge: true });
   } catch (error) {
     console.error('Failed to sync settings to cloud:', error);
   }

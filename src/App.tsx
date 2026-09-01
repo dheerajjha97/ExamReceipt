@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   getStoredStudents, 
   saveStudentsToStorage, 
@@ -6,35 +6,47 @@ import {
   saveTransactionsToStorage, 
   getStoredSettings, 
   saveSettingsToStorage, 
-  getStoredGitHubConfig, 
-  saveGitHubConfigToStorage,
   getNextReceiptNumber,
-  syncDatabaseWithGitHub
 } from './services/storageService';
 import { subscribeSchoolData, saveStudentToCloud } from './services/firebaseSyncService';
-import { Student, Transaction, InstituteSettings, GitHubConfig, PaymentMode, FormIssueStatus } from './types';
+import { Student, Transaction, InstituteSettings, PaymentMode, FormIssueStatus } from './types';
+import { initialStudents } from './data/mockStudents';
 import { Header } from './components/Header';
 import { StudentList } from './components/StudentList';
 import { FeeReceiptModal } from './components/FeeReceiptModal';
 import { WhatsAppShareModal } from './components/WhatsAppShareModal';
 import { PdfUploadModal } from './components/PdfUploadModal';
 import { TransactionHistory } from './components/TransactionHistory';
-import { GitHubSyncModal } from './components/GitHubSyncModal';
 import { RecordPaymentModal } from './components/RecordPaymentModal';
 import { LogTransactionModal } from './components/LogTransactionModal';
 import { AddEditStudentModal } from './components/AddEditStudentModal';
 import { IssueFormModal } from './components/IssueFormModal';
 import { SettingsModal } from './components/SettingsModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
+import { LoginPage } from './components/LoginPage';
+import { ChangePasswordModal } from './components/ChangePasswordModal';
 
 export default function App() {
   const [students, setStudents] = useState<Student[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [settings, setSettings] = useState<InstituteSettings>(getStoredSettings());
-  const [githubConfig, setGithubConfig] = useState<GitHubConfig>(getStoredGitHubConfig());
 
   // Navigation tab state
-  const [activeTab, setActiveTab] = useState<'students' | 'upload' | 'transactions' | 'github' | 'settings'>('students');
+  const [activeTab, setActiveTab] = useState<'students' | 'upload' | 'transactions' | 'settings'>('students');
+
+  // Auth session state
+  const [currentSchoolCode, setCurrentSchoolCode] = useState<string>(() => {
+    try {
+      const savedSession = localStorage.getItem('fee_app_active_session_v1');
+      if (savedSession) {
+        const parsed = JSON.parse(savedSession);
+        if (parsed.isLoggedIn && parsed.schoolCode) return parsed.schoolCode;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return '';
+  });
 
   // Modal states
   const [selectedStudentForReceipt, setSelectedStudentForReceipt] = useState<Student | null>(null);
@@ -45,15 +57,37 @@ export default function App() {
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [isUploadPdfOpen, setIsUploadPdfOpen] = useState(false);
   const [isLogTransactionOpen, setIsLogTransactionOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+
+  const handleLoginSuccess = (schoolCode: string) => {
+    setCurrentSchoolCode(schoolCode);
+    try {
+      localStorage.setItem('fee_app_active_session_v1', JSON.stringify({
+        schoolCode,
+        isLoggedIn: true,
+        loginTime: new Date().toISOString()
+      }));
+    } catch (e) {
+      console.error(e);
+    }
+    setSettings(prev => ({ ...prev, code: schoolCode }));
+  };
+
+  const handleLogout = () => {
+    setCurrentSchoolCode('');
+    localStorage.removeItem('fee_app_active_session_v1');
+  };
 
   // Initialize data on mount and listen to Firebase real-time updates for school code
   useEffect(() => {
+    if (!currentSchoolCode) return;
+
     const loadedStudents = getStoredStudents();
     const loadedTxns = getStoredTransactions();
     setStudents(loadedStudents);
     setTransactions(loadedTxns);
 
-    const schoolCode = settings.code || '31337';
+    const schoolCode = currentSchoolCode;
 
     // Seed local initial students to cloud if cloud is empty
     loadedStudents.forEach(stu => {
@@ -83,7 +117,7 @@ export default function App() {
     );
 
     return () => unsubscribe();
-  }, [settings.code]);
+  }, [currentSchoolCode]);
 
   // Update storage whenever students or transactions change
   const updateStudentsState = (newStudents: Student[]) => {
@@ -99,11 +133,6 @@ export default function App() {
   const handleSaveSettings = (newSettings: InstituteSettings) => {
     setSettings(newSettings);
     saveSettingsToStorage(newSettings);
-  };
-
-  const handleSaveGitHubConfig = (newConfig: GitHubConfig) => {
-    setGithubConfig(newConfig);
-    saveGitHubConfigToStorage(newConfig);
   };
 
   // Examination Form Status Update Handler
@@ -150,7 +179,7 @@ export default function App() {
     const newReceiptNo = getNextReceiptNumber();
     const nowStr = new Date().toLocaleString('en-IN');
 
-    // 1. Update Student (also marking examination form submitted when full or partial payment made)
+    // 1. Update Student
     const updatedStudent: Student = {
       ...targetStudent,
       paidAmount: newPaidAmount,
@@ -195,11 +224,6 @@ export default function App() {
 
     // 3. Open Traditional Receipt Modal automatically
     setSelectedStudentForReceipt(updatedStudent);
-
-    // 4. GitHub Auto-Sync if enabled
-    if (githubConfig.autoSync && githubConfig.token && githubConfig.owner && githubConfig.repo) {
-      syncDatabaseWithGitHub('PUSH', githubConfig, updatedStudentsList, updatedTxnsList);
-    }
   };
 
   // Direct Log Transaction Handler
@@ -258,21 +282,12 @@ export default function App() {
 
     const updatedTxnsList = [newTransaction, ...transactions];
     updateTransactionsState(updatedTxnsList);
-
-    // GitHub Auto-Sync
-    if (githubConfig.autoSync && githubConfig.token && githubConfig.owner && githubConfig.repo) {
-      syncDatabaseWithGitHub('PUSH', githubConfig, updatedStudentsList, updatedTxnsList);
-    }
   };
 
   // Delete Transaction Handler
   const handleDeleteTransaction = (txnId: string) => {
     const updatedTxns = transactions.filter((t) => t.id !== txnId);
     updateTransactionsState(updatedTxns);
-
-    if (githubConfig.autoSync && githubConfig.token && githubConfig.owner && githubConfig.repo) {
-      syncDatabaseWithGitHub('PUSH', githubConfig, students, updatedTxns);
-    }
   };
 
   // Add / Edit Student Save
@@ -328,6 +343,31 @@ export default function App() {
     updateStudentsState(updatedList);
   };
 
+  // Bulk Issue Forms Handler
+  const handleBulkIssueForms = (studentIds: string[], targetStatus: FormIssueStatus = 'ISSUED') => {
+    const todayStr = new Date().toLocaleString('en-IN').slice(0, 16);
+    const updatedList = students.map((s, idx) => {
+      if (studentIds.includes(s.id)) {
+        const formNo = s.formNo || `EF-26-${(100 + (s.sNo || idx + 1)).toString().padStart(4, '0')}`;
+        return {
+          ...s,
+          formIssueStatus: targetStatus,
+          formNo,
+          formIssueDate: s.formIssueDate || todayStr,
+          formSubmissionDate: targetStatus === 'SUBMITTED' ? (s.formSubmissionDate || todayStr) : s.formSubmissionDate,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return s;
+    });
+    updateStudentsState(updatedList);
+  };
+
+  // Restore 48 Official PDF Students Dataset
+  const handleRestoreOfficialData = () => {
+    updateStudentsState(initialStudents);
+  };
+
   // Clear All Students
   const handleClearAllStudents = () => {
     updateStudentsState([]);
@@ -342,11 +382,6 @@ export default function App() {
   const handleImportStudents = (newExtractedStudents: Student[]) => {
     const updatedList = [...newExtractedStudents, ...students];
     updateStudentsState(updatedList);
-
-    // Auto-sync with GitHub if enabled
-    if (githubConfig.autoSync && githubConfig.token && githubConfig.owner && githubConfig.repo) {
-      syncDatabaseWithGitHub('PUSH', githubConfig, updatedList, transactions);
-    }
   };
 
   // Calculate high-level stats
@@ -354,6 +389,10 @@ export default function App() {
   const paidStudentsCount = students.filter((s) => s.paymentStatus === 'PAID').length;
   const totalCollected = transactions.reduce((acc, t) => acc + t.paidAmount, 0);
   const totalOnlineCharges = transactions.reduce((acc, t) => acc + (t.onlineCharges || 30), 0);
+
+  if (!currentSchoolCode) {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} defaultSchoolCode={settings.code || '31337'} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#FDFCF8] font-sans text-[#4A453E] pb-24 md:pb-12">
@@ -366,10 +405,11 @@ export default function App() {
         paidStudentsCount={paidStudentsCount}
         totalCollected={totalCollected}
         totalOnlineCharges={totalOnlineCharges}
-        githubConfig={githubConfig}
         onOpenAddStudent={() => setIsAddStudentOpen(true)}
         onOpenUploadPdf={() => setIsUploadPdfOpen(true)}
         settings={settings}
+        onChangePasswordClick={() => setIsChangePasswordOpen(true)}
+        onLogoutClick={handleLogout}
       />
 
       {/* Main View Area */}
@@ -392,7 +432,7 @@ export default function App() {
 
         {activeTab === 'upload' && (
           <div className="space-y-4">
-            <div className="bg-[#F7F5EE] p-6 rounded-2xl border border-[#E6E2D3] shadow-sm text-xs">
+            <div className="bg-[#F7F5EE] p-6 rounded-2xl border border-[#E6E2D3] shadow-xs text-xs">
               <h2 className="text-base font-bold text-[#4A453E] mb-1">
                 AI PDF & Image List Extraction
               </h2>
@@ -401,7 +441,7 @@ export default function App() {
               </p>
               <button
                 onClick={() => setIsUploadPdfOpen(true)}
-                className="px-5 py-2.5 bg-[#5A5A40] hover:bg-[#484833] text-white rounded-xl font-semibold shadow transition inline-flex items-center gap-2"
+                className="px-5 py-2.5 bg-[#5A5A40] hover:bg-[#484833] text-white rounded-xl font-semibold shadow-xs transition inline-flex items-center gap-2"
               >
                 <span>Launch OCR Upload Tool</span>
               </button>
@@ -411,6 +451,8 @@ export default function App() {
               onSelectStudentReceipt={(student) => setSelectedStudentForReceipt(student)}
               onOpenRecordPayment={(student) => setSelectedStudentForPayment(student)}
               onOpenIssueForm={(student) => setSelectedStudentForIssueForm(student)}
+              onBulkIssueForms={handleBulkIssueForms}
+              onRestoreOfficialData={handleRestoreOfficialData}
               onOpenWhatsAppShare={(student) => setSelectedStudentForWhatsApp(student)}
               onEditStudent={(student) => setStudentToEdit(student)}
               onDeleteStudent={handleDeleteStudent}
@@ -434,19 +476,6 @@ export default function App() {
               if (matchedStudent) {
                 setSelectedStudentForReceipt(matchedStudent);
               }
-            }}
-          />
-        )}
-
-        {activeTab === 'github' && (
-          <GitHubSyncModal
-            config={githubConfig}
-            onSaveConfig={handleSaveGitHubConfig}
-            students={students}
-            transactions={transactions}
-            onRefreshFromGitHub={(newStudents, newTxns) => {
-              setStudents(newStudents);
-              setTransactions(newTxns);
             }}
           />
         )}
@@ -527,6 +556,7 @@ export default function App() {
       />
 
       {/* Log Financial Transaction Modal */}
+      {/* Log Transaction Modal */}
       <LogTransactionModal
         isOpen={isLogTransactionOpen}
         students={students}
@@ -543,6 +573,13 @@ export default function App() {
         onOpenAddStudent={() => setIsAddStudentOpen(true)}
       />
 
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+        schoolCode={currentSchoolCode}
+      />
+
     </div>
   );
 }
+

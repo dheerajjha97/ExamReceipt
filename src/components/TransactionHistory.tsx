@@ -207,7 +207,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
               </span>
             </div>
             <p className="text-xs text-[#C2BEB5] mt-1 max-w-xl">
-              Log financial transactions, filter history by mode, stream, or date, and sync automatically with your GitHub database repository.
+              Log financial transactions, filter history by mode, stream, or date, and sync automatically with your Cloud Firestore database.
             </p>
           </div>
         </div>

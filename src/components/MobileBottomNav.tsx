@@ -3,15 +3,13 @@ import {
   Users, 
   UploadCloud, 
   CreditCard, 
-  GitBranch, 
   Settings,
-  PlusCircle,
-  Receipt
+  PlusCircle
 } from 'lucide-react';
 
 interface MobileBottomNavProps {
-  activeTab: 'students' | 'upload' | 'transactions' | 'github' | 'settings';
-  setActiveTab: (tab: 'students' | 'upload' | 'transactions' | 'github' | 'settings') => void;
+  activeTab: 'students' | 'upload' | 'transactions' | 'settings';
+  setActiveTab: (tab: 'students' | 'upload' | 'transactions' | 'settings') => void;
   onOpenLogTransaction: () => void;
   onOpenAddStudent: () => void;
 }
@@ -26,11 +24,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     <>
       {/* Mobile Floating Action Button (FAB) */}
       <div className="fixed bottom-20 right-4 z-40 md:hidden flex flex-col gap-2.5 items-end">
-        
         {/* Secondary Quick Action: Add Student */}
         <button
           onClick={onOpenAddStudent}
-          className="p-3 bg-[#5A5A40] text-white rounded-full shadow-xl border border-[#737356] hover:scale-105 active:scale-95 transition transform-gpu flex items-center justify-center"
+          className="p-3.5 bg-slate-800/90 text-teal-300 rounded-full shadow-xl border border-white/20 hover:scale-105 active:scale-95 transition transform-gpu flex items-center justify-center backdrop-blur-md"
           title="Add New Student"
         >
           <Users className="w-5 h-5" />
@@ -39,23 +36,22 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         {/* Primary FAB: Log Transaction */}
         <button
           onClick={onOpenLogTransaction}
-          className="flex items-center gap-2 px-4 py-3 bg-[#2E5B50] text-white rounded-full shadow-2xl border border-[#3B6E62] hover:scale-105 active:scale-95 transition-all transform-gpu font-bold text-xs"
+          className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-teal-500 to-emerald-600 text-white rounded-full shadow-2xl border border-teal-400/40 hover:scale-105 active:scale-95 transition-all transform-gpu font-bold text-xs shadow-teal-500/30"
         >
           <PlusCircle className="w-5 h-5" />
           <span>+ Log Payment</span>
         </button>
       </div>
 
-      {/* Mobile Bottom Navigation Bar (Glassmorphism & Material 3) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-[#FDFCF8]/90 backdrop-blur-xl border-t border-[#E6E2D3] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 py-1.5 flex justify-around items-center">
-        
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-slate-900/95 backdrop-blur-2xl border-t border-white/10 shadow-2xl px-3 py-2 flex justify-around items-center">
         {/* Students Tab */}
         <button
           onClick={() => setActiveTab('students')}
-          className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all transform-gpu ${
+          className={`flex flex-col items-center justify-center py-1.5 px-3.5 rounded-2xl transition-all transform-gpu ${
             activeTab === 'students'
-              ? 'bg-[#5A5A40] text-white shadow-md scale-105'
-              : 'text-[#787267] hover:text-[#4A453E]'
+              ? 'bg-gradient-to-r from-teal-500/30 to-emerald-500/30 text-white border border-teal-400/40 shadow-lg scale-105'
+              : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <Users className="w-5 h-5" />
@@ -65,10 +61,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         {/* OCR / Excel Upload Tab */}
         <button
           onClick={() => setActiveTab('upload')}
-          className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all transform-gpu ${
+          className={`flex flex-col items-center justify-center py-1.5 px-3.5 rounded-2xl transition-all transform-gpu ${
             activeTab === 'upload'
-              ? 'bg-[#5A5A40] text-white shadow-md scale-105'
-              : 'text-[#787267] hover:text-[#4A453E]'
+              ? 'bg-gradient-to-r from-teal-500/30 to-emerald-500/30 text-white border border-teal-400/40 shadow-lg scale-105'
+              : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <UploadCloud className="w-5 h-5" />
@@ -78,43 +74,31 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         {/* Transaction History Tab */}
         <button
           onClick={() => setActiveTab('transactions')}
-          className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all transform-gpu ${
+          className={`flex flex-col items-center justify-center py-1.5 px-3.5 rounded-2xl transition-all transform-gpu ${
             activeTab === 'transactions'
-              ? 'bg-[#5A5A40] text-white shadow-md scale-105'
-              : 'text-[#787267] hover:text-[#4A453E]'
+              ? 'bg-gradient-to-r from-teal-500/30 to-emerald-500/30 text-white border border-teal-400/40 shadow-lg scale-105'
+              : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <CreditCard className="w-5 h-5" />
           <span className="text-[10px] font-bold mt-0.5">Ledger</span>
         </button>
 
-        {/* GitHub DB Sync Tab */}
-        <button
-          onClick={() => setActiveTab('github')}
-          className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all transform-gpu ${
-            activeTab === 'github'
-              ? 'bg-[#5A5A40] text-white shadow-md scale-105'
-              : 'text-[#787267] hover:text-[#4A453E]'
-          }`}
-        >
-          <GitBranch className="w-5 h-5" />
-          <span className="text-[10px] font-bold mt-0.5">GitHub</span>
-        </button>
-
         {/* Settings Tab */}
         <button
           onClick={() => setActiveTab('settings')}
-          className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all transform-gpu ${
+          className={`flex flex-col items-center justify-center py-1.5 px-3.5 rounded-2xl transition-all transform-gpu ${
             activeTab === 'settings'
-              ? 'bg-[#5A5A40] text-white shadow-md scale-105'
-              : 'text-[#787267] hover:text-[#4A453E]'
+              ? 'bg-gradient-to-r from-teal-500/30 to-emerald-500/30 text-white border border-teal-400/40 shadow-lg scale-105'
+              : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <Settings className="w-5 h-5" />
           <span className="text-[10px] font-bold mt-0.5">Settings</span>
         </button>
-
       </nav>
     </>
   );
 };
+
+
