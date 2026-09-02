@@ -8,7 +8,14 @@ import {
   saveSettingsToStorage, 
   getNextReceiptNumber,
 } from './services/storageService';
-import { subscribeSchoolData, saveStudentToCloud } from './services/firebaseSyncService';
+import { 
+  subscribeSchoolData, 
+  saveStudentToCloud, 
+  saveTransactionToCloud, 
+  saveSettingsToCloud, 
+  deleteStudentFromCloud, 
+  clearSchoolCloudData 
+} from './services/firebaseSyncService';
 import { Student, Transaction, InstituteSettings, PaymentMode, FormIssueStatus } from './types';
 import { initialStudents } from './data/mockStudents';
 import { Header } from './components/Header';
@@ -89,29 +96,35 @@ export default function App() {
 
     const schoolCode = currentSchoolCode;
 
-    // Seed local initial students to cloud if cloud is empty
-    loadedStudents.forEach(stu => {
-      saveStudentToCloud(stu, schoolCode);
-    });
-
     const unsubscribe = subscribeSchoolData(
       schoolCode,
       (cloudStudents) => {
         if (cloudStudents && cloudStudents.length > 0) {
           setStudents(cloudStudents);
           saveStudentsToStorage(cloudStudents);
+        } else if (loadedStudents.length > 0) {
+          // Seed local initial students to cloud if cloud is empty
+          loadedStudents.forEach((stu) => {
+            saveStudentToCloud(stu, schoolCode);
+          });
         }
       },
       (cloudTxns) => {
-        if (cloudTxns) {
+        if (cloudTxns && cloudTxns.length > 0) {
           setTransactions(cloudTxns);
           saveTransactionsToStorage(cloudTxns);
+        } else if (loadedTxns.length > 0) {
+          loadedTxns.forEach((txn) => {
+            saveTransactionToCloud(txn, schoolCode);
+          });
         }
       },
       (cloudSettings) => {
         if (cloudSettings) {
           setSettings(cloudSettings);
           saveSettingsToStorage(cloudSettings);
+        } else {
+          saveSettingsToCloud(getStoredSettings(), schoolCode);
         }
       }
     );
@@ -119,20 +132,33 @@ export default function App() {
     return () => unsubscribe();
   }, [currentSchoolCode]);
 
-  // Update storage whenever students or transactions change
+  // Update storage AND Cloud Firestore whenever students or transactions change
   const updateStudentsState = (newStudents: Student[]) => {
     setStudents(newStudents);
     saveStudentsToStorage(newStudents);
+    if (currentSchoolCode && newStudents.length > 0) {
+      newStudents.forEach((stu) => {
+        saveStudentToCloud(stu, currentSchoolCode);
+      });
+    }
   };
 
   const updateTransactionsState = (newTxns: Transaction[]) => {
     setTransactions(newTxns);
     saveTransactionsToStorage(newTxns);
+    if (currentSchoolCode && newTxns.length > 0) {
+      newTxns.forEach((txn) => {
+        saveTransactionToCloud(txn, currentSchoolCode);
+      });
+    }
   };
 
   const handleSaveSettings = (newSettings: InstituteSettings) => {
     setSettings(newSettings);
     saveSettingsToStorage(newSettings);
+    if (currentSchoolCode) {
+      saveSettingsToCloud(newSettings, currentSchoolCode);
+    }
   };
 
   // Examination Form Status Update Handler
@@ -334,13 +360,21 @@ export default function App() {
   // Delete Student
   const handleDeleteStudent = (studentId: string) => {
     const updatedList = students.filter((s) => s.id !== studentId);
-    updateStudentsState(updatedList);
+    setStudents(updatedList);
+    saveStudentsToStorage(updatedList);
+    if (currentSchoolCode) {
+      deleteStudentFromCloud(studentId, currentSchoolCode);
+    }
   };
 
   // Delete Selected Students
   const handleDeleteSelectedStudents = (studentIds: string[]) => {
     const updatedList = students.filter((s) => !studentIds.includes(s.id));
-    updateStudentsState(updatedList);
+    setStudents(updatedList);
+    saveStudentsToStorage(updatedList);
+    if (currentSchoolCode) {
+      studentIds.forEach((id) => deleteStudentFromCloud(id, currentSchoolCode));
+    }
   };
 
   // Bulk Issue Forms Handler
@@ -370,7 +404,11 @@ export default function App() {
 
   // Clear All Students
   const handleClearAllStudents = () => {
-    updateStudentsState([]);
+    setStudents([]);
+    saveStudentsToStorage([]);
+    if (currentSchoolCode) {
+      clearSchoolCloudData(currentSchoolCode);
+    }
   };
 
   // Clear All Transactions
@@ -523,11 +561,12 @@ export default function App() {
       {/* Examination Form Management Modal */}
       {selectedStudentForIssueForm && (
         <IssueFormModal
+          isOpen={Boolean(selectedStudentForIssueForm)}
           student={selectedStudentForIssueForm}
           settings={settings}
           onClose={() => setSelectedStudentForIssueForm(null)}
           onUpdateFormStatus={handleUpdateFormStatus}
-          onOpenCollectFee={(student) => {
+          onProceedToFeeCollection={(student) => {
             setSelectedStudentForIssueForm(null);
             setSelectedStudentForPayment(student);
           }}

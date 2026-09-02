@@ -209,9 +209,10 @@ export const IssueFormModal: React.FC<IssueFormModalProps> = ({
             <div className="grid grid-cols-1 gap-2.5">
               
               {/* Option 1: Not Issued */}
-              <label 
+              <button 
+                type="button"
                 onClick={() => setStatus('NOT_ISSUED')}
-                className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition ${
+                className={`w-full text-left flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition ${
                   status === 'NOT_ISSUED' 
                     ? 'border-rose-500/50 bg-rose-500/10 text-white shadow-lg' 
                     : 'border-white/10 bg-white/5 hover:bg-white/10 text-slate-300'
@@ -228,12 +229,13 @@ export const IssueFormModal: React.FC<IssueFormModalProps> = ({
                     <span className="text-[11px] text-slate-400">Student has not collected the blank examination form.</span>
                   </div>
                 </div>
-              </label>
+              </button>
 
               {/* Option 2: Blank Form Issued */}
-              <label 
+              <button 
+                type="button"
                 onClick={() => setStatus('ISSUED')}
-                className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition ${
+                className={`w-full text-left flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition ${
                   status === 'ISSUED' 
                     ? 'border-amber-500/50 bg-amber-500/15 text-white shadow-lg' 
                     : 'border-white/10 bg-white/5 hover:bg-white/10 text-slate-300'
@@ -250,12 +252,13 @@ export const IssueFormModal: React.FC<IssueFormModalProps> = ({
                     <span className="text-[11px] text-slate-400">Blank examination form issued to student to fill.</span>
                   </div>
                 </div>
-              </label>
+              </button>
 
               {/* Option 3: Form Submitted */}
-              <label 
+              <button 
+                type="button"
                 onClick={() => setStatus('SUBMITTED')}
-                className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition ${
+                className={`w-full text-left flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition ${
                   status === 'SUBMITTED' 
                     ? 'border-teal-500/50 bg-teal-500/15 text-white shadow-lg' 
                     : 'border-white/10 bg-white/5 hover:bg-white/10 text-slate-300'
@@ -272,7 +275,7 @@ export const IssueFormModal: React.FC<IssueFormModalProps> = ({
                     <span className="text-[11px] text-slate-400">Form returned with photos, Aadhaar & exam fee.</span>
                   </div>
                 </div>
-              </label>
+              </button>
 
             </div>
           </div>
