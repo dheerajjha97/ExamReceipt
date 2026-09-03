@@ -179,6 +179,10 @@ export const StudentList: React.FC<StudentListProps> = ({
       'Payment Mode',
       'Last Receipt No',
       'Transaction Ref',
+      'Form Issue Status',
+      'Form No',
+      'Form Issue Date',
+      'Form Submission Date',
     ];
 
     const csvRows = [headers.join(',')];
@@ -202,6 +206,10 @@ export const StudentList: React.FC<StudentListProps> = ({
         `"${s.paymentMode || ''}"`,
         `"${s.lastReceiptNo || ''}"`,
         `"${s.transactionRef || ''}"`,
+        `"${s.formIssueStatus || 'NOT_ISSUED'}"`,
+        `"${s.formNo || ''}"`,
+        `"${s.formIssueDate || ''}"`,
+        `"${s.formSubmissionDate || ''}"`,
       ];
       csvRows.push(row.join(','));
     });
