@@ -5,9 +5,11 @@ import {
   CreditCard, 
   Receipt, 
   CheckCircle2, 
-  Sparkles,
-  QrCode,
-  Building2
+  Sparkles, 
+  QrCode, 
+  Building2,
+  AlertTriangle,
+  ShieldCheck
 } from 'lucide-react';
 import { Student, PaymentMode, InstituteSettings } from '../types';
 
@@ -38,13 +40,17 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('UPI');
   const [transactionRef, setTransactionRef] = useState<string>('');
   const [remarks, setRemarks] = useState<string>('');
+  const [confirmDuplicate, setConfirmDuplicate] = useState<boolean>(false);
+
+  const isAlreadyPaid = (student?.paidAmount || 0) >= totalFee || student?.paymentStatus === 'PAID';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (paymentAmount <= 0) return;
+    if (isAlreadyPaid && !confirmDuplicate) return;
 
     onConfirmPayment(
-      student.id,
+      student!.id,
       Number(paymentAmount),
       paymentMode,
       transactionRef.trim() || `TXN-${Date.now().toString().slice(-6)}`,
@@ -112,10 +118,32 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
               </div>
               <div className="flex justify-between text-[#8C2B2B] font-bold">
                 <span>Current Balance Due:</span>
-                <span className="font-mono text-sm">₹{remainingDue}</span>
+                <span className="font-mono text-sm">₹{remainingDue > 0 ? remainingDue : 0}</span>
               </div>
             </div>
           </div>
+
+          {/* Mistake Protection: Alert for Already Paid */}
+          {isAlreadyPaid && (
+            <div className="bg-[#FFF8E6] border border-[#F0D28B] p-3.5 rounded-xl space-y-2 text-[#7A5300]">
+              <div className="flex items-center gap-2 font-bold text-xs">
+                <AlertTriangle className="w-4 h-4 text-[#C98200] shrink-0" />
+                <span>Mistake Protection (गलती से बचाव): फीस पहले ही पूर्ण जमा है!</span>
+              </div>
+              <p className="text-[11px] text-[#6A4800] leading-relaxed">
+                यह छात्र पहले ही कुल ₹{student.paidAmount} जमा कर चुका है (स्थिति: PAID)। अगर आप किसी लेट फाइन, अतिरिक्त शुल्क या गलती से दोबारा भुगतान दर्ज कर रहे हैं, तो नीचे पुष्टि करें:
+              </p>
+              <label className="flex items-center gap-2 text-xs font-bold text-[#543800] cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={confirmDuplicate}
+                  onChange={(e) => setConfirmDuplicate(e.target.checked)}
+                  className="rounded text-[#C98200] focus:ring-[#C98200] w-4 h-4"
+                />
+                <span>हाँ, मैंने चेक कर लिया है और अतिरिक्त भुगतान दर्ज करना चाहता हूँ।</span>
+              </label>
+            </div>
+          )}
 
           {/* Amount Input */}
           <div className="space-y-1">
@@ -125,7 +153,6 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
               <input
                 type="number"
                 min={1}
-                max={totalFee}
                 value={paymentAmount}
                 onChange={(e) => setPaymentAmount(Number(e.target.value))}
                 required
@@ -228,7 +255,12 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
 
             <button
               type="submit"
-              className="flex items-center gap-1.5 px-5 py-2 bg-[#2E5B50] hover:bg-[#254A41] text-white rounded-lg font-semibold shadow transition"
+              disabled={isAlreadyPaid && !confirmDuplicate}
+              className={`flex items-center gap-1.5 px-5 py-2 rounded-lg font-semibold shadow transition ${
+                isAlreadyPaid && !confirmDuplicate
+                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                  : 'bg-[#2E5B50] hover:bg-[#254A41] text-white'
+              }`}
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>Confirm & Generate Receipt</span>

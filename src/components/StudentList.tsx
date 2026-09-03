@@ -19,13 +19,16 @@ import {
   ClipboardCheck,
   FileCheck,
   UploadCloud,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Printer
 } from 'lucide-react';
-import { Student, PaymentStatus, CasteCategory, ExamType, FormIssueStatus } from '../types';
+import { Student, PaymentStatus, CasteCategory, ExamType, FormIssueStatus, InstituteSettings } from '../types';
 import { ConfirmModal } from './ConfirmModal';
+import { BulkStudentPrintModal } from './BulkStudentPrintModal';
 
 interface StudentListProps {
   students: Student[];
+  settings?: InstituteSettings;
   onSelectStudentReceipt: (student: Student) => void;
   onOpenRecordPayment: (student: Student) => void;
   onOpenIssueForm?: (student: Student) => void;
@@ -42,6 +45,7 @@ interface StudentListProps {
 
 export const StudentList: React.FC<StudentListProps> = ({
   students,
+  settings,
   onSelectStudentReceipt,
   onOpenRecordPayment,
   onOpenIssueForm,
@@ -69,6 +73,7 @@ export const StudentList: React.FC<StudentListProps> = ({
   const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
   const [showBulkIssueConfirm, setShowBulkIssueConfirm] = useState(false);
   const [showRestoreOfficialConfirm, setShowRestoreOfficialConfirm] = useState(false);
+  const [isBulkPrintOpen, setIsBulkPrintOpen] = useState(false);
 
   // Filter logic
   const filteredStudents = useMemo(() => {
@@ -253,6 +258,17 @@ export const StudentList: React.FC<StudentListProps> = ({
 
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+            {selectedStudentIds.length > 0 && (
+              <button
+                onClick={() => setIsBulkPrintOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold text-white bg-[#2E5B50] hover:bg-[#254A41] rounded-2xl transition border border-[#3B6E62] shadow-lg shadow-[#2E5B50]/20 hover:-translate-y-0.5 active:translate-y-0 transform-gpu"
+                title="चयनित छात्रों का रिकॉर्ड एवं रसीदें प्रिंट करें (Print selected student records / slips)"
+              >
+                <Printer className="w-3.5 h-3.5 text-emerald-200" />
+                <span>Print Selected ({selectedStudentIds.length})</span>
+              </button>
+            )}
+
             {selectedStudentIds.length > 0 && onBulkIssueForms && (
               <button
                 onClick={() => setShowBulkIssueConfirm(true)}
@@ -720,14 +736,81 @@ export const StudentList: React.FC<StudentListProps> = ({
         </div>
       </div>
 
-      {/* Confirmation Modals */}
+      {/* Floating Bottom Batch Action Bar for Selected Students */}
+      {selectedStudentIds.length > 0 && (
+        <div className="fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 bg-[#2D2A26]/95 backdrop-blur-md text-white px-4 py-2.5 rounded-2xl shadow-2xl border border-white/20 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 bg-[#5A5A40] rounded-full flex items-center justify-center text-xs font-bold font-mono">
+              {selectedStudentIds.length}
+            </span>
+            <span className="text-xs font-bold text-slate-200 hidden sm:inline">Students Selected</span>
+          </div>
+
+          <div className="h-4 w-px bg-white/20"></div>
+
+          <button
+            onClick={() => setIsBulkPrintOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2E5B50] hover:bg-[#254A41] text-white text-xs font-bold rounded-xl transition shadow-sm"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Print Records / Slips</span>
+          </button>
+
+          {onBulkIssueForms && (
+            <button
+              onClick={() => setShowBulkIssueConfirm(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#5A5A40] hover:bg-[#484833] text-white text-xs font-bold rounded-xl transition"
+            >
+              <ClipboardCheck className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Issue Forms</span>
+            </button>
+          )}
+
+          {onDeleteSelectedStudents && (
+            <button
+              onClick={() => setShowBulkDeleteConfirm(true)}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-bold rounded-xl transition"
+              title="Delete selected students"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Delete</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setSelectedStudentIds([])}
+            className="text-xs text-slate-400 hover:text-white px-2 py-1 transition font-medium"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
+      {/* Bulk Student Print Modal */}
+      <BulkStudentPrintModal
+        isOpen={isBulkPrintOpen}
+        selectedStudents={students.filter((s) => selectedStudentIds.includes(s.id))}
+        settings={settings || {
+          name: 'M.S. College, Motihari',
+          subTitle: 'Constituent Unit of B.R.A. Bihar University, Muzaffarpur',
+          address: 'Motihari, East Champaran, Bihar - 845401',
+          code: '0108',
+          academicYear: '2024-2026',
+          defaultOnlineCharge: 30,
+          upiId: 'college@upi',
+        }}
+        onClose={() => setIsBulkPrintOpen(false)}
+      />
+
+      {/* Confirmation Modals with Mistake Protection */}
       {/* 1. Single Student Delete */}
       <ConfirmModal
         isOpen={!!studentToDelete}
         title="Delete Student Record"
-        message={`Are you sure you want to permanently delete record for "${studentToDelete?.studentName}" (Reg No: ${studentToDelete?.registrationNo})?`}
+        message={`Are you sure you want to permanently delete record for "${studentToDelete?.studentName}" (Reg No: ${studentToDelete?.registrationNo})? This cannot be undone.`}
         confirmText="Delete Student"
         confirmVariant="danger"
+        requireSafetyCheckbox={true}
         onConfirm={() => {
           if (studentToDelete) {
             onDeleteStudent(studentToDelete.id);
@@ -744,6 +827,8 @@ export const StudentList: React.FC<StudentListProps> = ({
         message={`Are you sure you want to delete ${selectedStudentIds.length} selected student record(s)? This action cannot be undone.`}
         confirmText={`Delete ${selectedStudentIds.length} Student(s)`}
         confirmVariant="danger"
+        requireSafetyCode="DELETE"
+        requireSafetyCheckbox={true}
         onConfirm={() => {
           if (onDeleteSelectedStudents) {
             onDeleteSelectedStudents(selectedStudentIds);
@@ -758,9 +843,11 @@ export const StudentList: React.FC<StudentListProps> = ({
       <ConfirmModal
         isOpen={showClearAllConfirm}
         title="Wipe All Student Data"
-        message="Are you sure you want to clear all student records from the database?"
+        message="Are you sure you want to clear all student records from the database? This is an irreversible reset operation."
         confirmText="Wipe All Data"
         confirmVariant="danger"
+        requireSafetyCode="WIPE ALL"
+        requireSafetyCheckbox={true}
         onConfirm={() => {
           if (onClearAllStudents) {
             onClearAllStudents();
@@ -795,6 +882,7 @@ export const StudentList: React.FC<StudentListProps> = ({
         message="Are you sure you want to restore the official student dataset containing all 48 students from the Arts, Science, and Commerce PDF registers?"
         confirmText="Restore 48 Official Students"
         confirmVariant="primary"
+        requireSafetyCheckbox={true}
         onConfirm={() => {
           if (onRestoreOfficialData) {
             onRestoreOfficialData();

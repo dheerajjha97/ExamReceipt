@@ -578,6 +578,7 @@ export default function App() {
             </div>
             <StudentList
               students={students}
+              settings={settings}
               onSelectStudentReceipt={(student) => setSelectedStudentForReceipt(student)}
               onOpenRecordPayment={(student) => setSelectedStudentForPayment(student)}
               onOpenIssueForm={(student) => setSelectedStudentForIssueForm(student)}
@@ -597,7 +598,9 @@ export default function App() {
         {activeTab === 'transactions' && (
           <TransactionHistory
             transactions={transactions}
+            students={students}
             settings={settings}
+            onOpenRecordPayment={(student) => setSelectedStudentForPayment(student)}
             onOpenLogTransaction={() => setIsLogTransactionOpen(true)}
             onDeleteTransaction={handleDeleteTransaction}
             onClearAllTransactions={handleClearAllTransactions}
