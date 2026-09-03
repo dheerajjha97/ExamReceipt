@@ -614,6 +614,16 @@ export default function App() {
           <SettingsModal
             settings={settings}
             onSaveSettings={handleSaveSettings}
+            onForceSync={() => {
+              if (currentSchoolCode) {
+                const loadedStudents = getStoredStudents();
+                const loadedTxns = getStoredTransactions();
+                loadedStudents.forEach(stu => saveStudentToCloud(stu, currentSchoolCode));
+                loadedTxns.forEach(txn => saveTransactionToCloud(txn, currentSchoolCode));
+                saveSettingsToCloud(settings, currentSchoolCode);
+                alert("Sync complete! Local data has been pushed to the cloud.");
+              }
+            }}
           />
         )}
       </main>

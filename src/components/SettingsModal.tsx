@@ -5,11 +5,13 @@ import { InstituteSettings } from '../types';
 interface SettingsModalProps {
   settings: InstituteSettings;
   onSaveSettings: (newSettings: InstituteSettings) => void;
+  onForceSync?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   settings,
   onSaveSettings,
+  onForceSync
 }) => {
   const [formData, setFormData] = useState<InstituteSettings>(settings);
   const [savedSuccess, setSavedSuccess] = useState(false);
