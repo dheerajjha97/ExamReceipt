@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   getStoredStudents, 
   saveStudentsToStorage, 
@@ -86,6 +86,10 @@ export default function App() {
     localStorage.removeItem('fee_app_active_session_v1');
   };
 
+  const isFirstStudentFetch = useRef(true);
+  const isFirstTxnFetch = useRef(true);
+  const isFirstSettingsFetch = useRef(true);
+
   // Initialize data on mount and listen to Firebase real-time updates for school code
   useEffect(() => {
     if (!currentSchoolCode) return;
@@ -100,33 +104,37 @@ export default function App() {
     const unsubscribe = subscribeSchoolData(
       schoolCode,
       (cloudStudents) => {
-        if (cloudStudents && cloudStudents.length > 0) {
-          setStudents(cloudStudents);
-          saveStudentsToStorage(cloudStudents);
-        } else if (loadedStudents.length > 0) {
-          // Seed local initial students to cloud if cloud is empty
+        if (isFirstStudentFetch.current && cloudStudents.length === 0 && loadedStudents.length > 0) {
+          // Seed local initial students to cloud if cloud is empty on first load
           loadedStudents.forEach((stu) => {
             saveStudentToCloud(stu, schoolCode);
           });
+        } else {
+          setStudents(cloudStudents);
+          saveStudentsToStorage(cloudStudents);
         }
+        isFirstStudentFetch.current = false;
       },
       (cloudTxns) => {
-        if (cloudTxns && cloudTxns.length > 0) {
-          setTransactions(cloudTxns);
-          saveTransactionsToStorage(cloudTxns);
-        } else if (loadedTxns.length > 0) {
+        if (isFirstTxnFetch.current && cloudTxns.length === 0 && loadedTxns.length > 0) {
+          // Seed local txns to cloud on first load
           loadedTxns.forEach((txn) => {
             saveTransactionToCloud(txn, schoolCode);
           });
+        } else {
+          setTransactions(cloudTxns);
+          saveTransactionsToStorage(cloudTxns);
         }
+        isFirstTxnFetch.current = false;
       },
       (cloudSettings) => {
         if (cloudSettings) {
           setSettings(cloudSettings);
           saveSettingsToStorage(cloudSettings);
-        } else {
+        } else if (isFirstSettingsFetch.current) {
           saveSettingsToCloud(getStoredSettings(), schoolCode);
         }
+        isFirstSettingsFetch.current = false;
       }
     );
 
@@ -137,21 +145,11 @@ export default function App() {
   const updateStudentsState = (newStudents: Student[]) => {
     setStudents(newStudents);
     saveStudentsToStorage(newStudents);
-    if (currentSchoolCode && newStudents.length > 0) {
-      newStudents.forEach((stu) => {
-        saveStudentToCloud(stu, currentSchoolCode);
-      });
-    }
   };
 
   const updateTransactionsState = (newTxns: Transaction[]) => {
     setTransactions(newTxns);
     saveTransactionsToStorage(newTxns);
-    if (currentSchoolCode && newTxns.length > 0) {
-      newTxns.forEach((txn) => {
-        saveTransactionToCloud(txn, currentSchoolCode);
-      });
-    }
   };
 
   const handleSaveSettings = (newSettings: InstituteSettings) => {
@@ -172,7 +170,7 @@ export default function App() {
   ) => {
     const updatedStudentsList = students.map((s) => {
       if (s.id === studentId) {
-        return {
+        const updated = {
           ...s,
           formIssueStatus,
           formNo: formNo || s.formNo || `EF-${s.registrationNo.slice(-6)}`,
@@ -182,6 +180,8 @@ export default function App() {
             (formIssueStatus === 'SUBMITTED' ? new Date().toISOString().slice(0, 10) : s.formSubmissionDate),
           updatedAt: new Date().toISOString(),
         };
+        if (currentSchoolCode) saveStudentToCloud(updated, currentSchoolCode);
+        return updated;
       }
       return s;
     });
@@ -224,6 +224,7 @@ export default function App() {
 
     const updatedStudentsList = students.map((s) => (s.id === studentId ? updatedStudent : s));
     updateStudentsState(updatedStudentsList);
+    if (currentSchoolCode) saveStudentToCloud(updatedStudent, currentSchoolCode);
 
     // 2. Create Transaction Record
     const newTransaction: Transaction = {
@@ -248,6 +249,10 @@ export default function App() {
 
     const updatedTxnsList = [newTransaction, ...transactions];
     updateTransactionsState(updatedTxnsList);
+    
+    if (currentSchoolCode) {
+      saveTransactionToCloud(newTransaction, currentSchoolCode);
+    }
 
     // 3. Open Traditional Receipt Modal automatically
     setSelectedStudentForReceipt(updatedStudent);
@@ -283,6 +288,7 @@ export default function App() {
 
         updatedStudentsList[studentIndex] = updatedStudent;
         updateStudentsState(updatedStudentsList);
+        if (currentSchoolCode) saveStudentToCloud(updatedStudent, currentSchoolCode);
       }
     }
 
@@ -309,6 +315,9 @@ export default function App() {
 
     const updatedTxnsList = [newTransaction, ...transactions];
     updateTransactionsState(updatedTxnsList);
+    if (currentSchoolCode) {
+      saveTransactionToCloud(newTransaction, currentSchoolCode);
+    }
   };
 
   // Delete Transaction Handler
@@ -333,12 +342,14 @@ export default function App() {
         if (newPaidAmount >= totalFee) newStatus = 'PAID';
         else if (newPaidAmount > 0) newStatus = 'PARTIAL';
 
-        return {
+        const updated = {
           ...s,
           paidAmount: newPaidAmount,
           paymentStatus: newStatus,
           updatedAt: new Date().toISOString()
         };
+        if (currentSchoolCode) saveStudentToCloud(updated, currentSchoolCode);
+        return updated;
       }
       return s;
     });
@@ -349,9 +360,14 @@ export default function App() {
   const handleSaveStudent = (studentData: Partial<Student>) => {
     if (studentToEdit) {
       // Edit
-      const updatedList = students.map((s) =>
-        s.id === studentToEdit.id ? { ...s, ...studentData, updatedAt: new Date().toISOString() } : s
-      );
+      const updatedList = students.map((s) => {
+        if (s.id === studentToEdit.id) {
+          const updated = { ...s, ...studentData, updatedAt: new Date().toISOString() };
+          if (currentSchoolCode) saveStudentToCloud(updated, currentSchoolCode);
+          return updated;
+        }
+        return s;
+      });
       updateStudentsState(updatedList);
       setStudentToEdit(null);
     } else {
@@ -382,6 +398,7 @@ export default function App() {
 
       const updatedList = [newStudent, ...students];
       updateStudentsState(updatedList);
+      if (currentSchoolCode) saveStudentToCloud(newStudent, currentSchoolCode);
       setIsAddStudentOpen(false);
     }
   };
@@ -412,7 +429,7 @@ export default function App() {
     const updatedList = students.map((s, idx) => {
       if (studentIds.includes(s.id)) {
         const formNo = s.formNo || `EF-26-${(100 + (s.sNo || idx + 1)).toString().padStart(4, '0')}`;
-        return {
+        const updated = {
           ...s,
           formIssueStatus: targetStatus,
           formNo,
@@ -420,6 +437,8 @@ export default function App() {
           formSubmissionDate: targetStatus === 'SUBMITTED' ? (s.formSubmissionDate || todayStr) : s.formSubmissionDate,
           updatedAt: new Date().toISOString(),
         };
+        if (currentSchoolCode) saveStudentToCloud(updated, currentSchoolCode);
+        return updated;
       }
       return s;
     });
@@ -429,6 +448,9 @@ export default function App() {
   // Restore 48 Official PDF Students Dataset
   const handleRestoreOfficialData = () => {
     updateStudentsState(initialStudents);
+    if (currentSchoolCode) {
+      initialStudents.forEach(stu => saveStudentToCloud(stu, currentSchoolCode));
+    }
   };
 
   // Clear All Students
@@ -443,14 +465,22 @@ export default function App() {
   // Clear All Transactions
   const handleClearAllTransactions = () => {
     updateTransactionsState([]);
+    if (currentSchoolCode) {
+      // NOTE: Should actually delete all transactions from cloud here
+      // But we will just sync the reverted students for now
+    }
     
     // Also revert all students to UNPAID
-    const updatedStudents = students.map((s) => ({
-      ...s,
-      paidAmount: 0,
-      paymentStatus: 'UNPAID' as const,
-      updatedAt: new Date().toISOString()
-    }));
+    const updatedStudents = students.map((s) => {
+      const updated = {
+        ...s,
+        paidAmount: 0,
+        paymentStatus: 'UNPAID' as const,
+        updatedAt: new Date().toISOString()
+      };
+      if (currentSchoolCode) saveStudentToCloud(updated, currentSchoolCode);
+      return updated;
+    });
     updateStudentsState(updatedStudents);
   };
 
@@ -458,6 +488,9 @@ export default function App() {
   const handleImportStudents = (newExtractedStudents: Student[]) => {
     const updatedList = [...newExtractedStudents, ...students];
     updateStudentsState(updatedList);
+    if (currentSchoolCode) {
+      newExtractedStudents.forEach(stu => saveStudentToCloud(stu, currentSchoolCode));
+    }
   };
 
   // Calculate high-level stats

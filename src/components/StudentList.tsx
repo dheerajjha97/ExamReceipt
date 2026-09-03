@@ -84,7 +84,8 @@ export const StudentList: React.FC<StudentListProps> = ({
         (student.lastReceiptNo && student.lastReceiptNo.toLowerCase().includes(q));
 
       const matchesStatus =
-        statusFilter === 'ALL' || student.paymentStatus === statusFilter;
+        statusFilter === 'ALL' || 
+        (statusFilter === 'PENDING' ? student.paymentStatus !== 'PAID' : student.paymentStatus === statusFilter);
 
       const matchesForm =
         formFilter === 'ALL' || (student.formIssueStatus || 'NOT_ISSUED') === formFilter;
@@ -336,6 +337,7 @@ export const StudentList: React.FC<StudentListProps> = ({
               <option value="PAID">Paid Only</option>
               <option value="UNPAID">Unpaid Only</option>
               <option value="PARTIAL">Partial Only</option>
+              <option value="PENDING">Pending (Unpaid + Partial)</option>
             </select>
           </div>
 
@@ -408,35 +410,51 @@ export const StudentList: React.FC<StudentListProps> = ({
       {/* Stats Breakdown Bar (Glassmorphic 3D Card) */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-teal-950 text-white rounded-3xl p-5 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4 border border-white/10 backdrop-blur-xl">
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 w-full text-xs">
-          <div>
+          <button 
+            type="button"
+            onClick={() => { setStatusFilter('ALL'); setFormFilter('ALL'); setCasteFilter('ALL'); setExamTypeFilter('ALL'); setStreamFilter('ALL'); }}
+            className="text-left cursor-pointer hover:bg-white/10 rounded-xl p-2 -m-2 transition focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+          >
             <p className="text-slate-400 font-semibold">Total Filtered</p>
             <p className="text-base font-black text-white">{stats.totalCount} Students</p>
-          </div>
-          <div>
+          </button>
+          <button 
+            type="button"
+            onClick={() => { setFormFilter('ISSUED'); setStatusFilter('ALL'); setCasteFilter('ALL'); setExamTypeFilter('ALL'); setStreamFilter('ALL'); }}
+            className="text-left cursor-pointer hover:bg-white/10 rounded-xl p-2 -m-2 transition focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+          >
             <p className="text-amber-300/80 font-semibold">Blank Form Issued</p>
             <p className="text-base font-black text-amber-300">{stats.formsIssuedCount} Students</p>
-          </div>
-          <div>
+          </button>
+          <button 
+            type="button"
+            onClick={() => { setFormFilter('SUBMITTED'); setStatusFilter('ALL'); setCasteFilter('ALL'); setExamTypeFilter('ALL'); setStreamFilter('ALL'); }}
+            className="text-left cursor-pointer hover:bg-white/10 rounded-xl p-2 -m-2 transition focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+          >
             <p className="text-emerald-300/80 font-semibold">Form & Fee Submitted</p>
             <p className="text-base font-black text-emerald-300">{stats.formsSubmittedCount} Complete</p>
-          </div>
-          <div>
+          </button>
+          <div className="p-2 -m-2">
             <p className="text-teal-300/80 font-semibold">Revenue Collected</p>
             <p className="text-base font-black text-emerald-300">₹{stats.totalFeeCollected.toLocaleString('en-IN')}</p>
           </div>
-          <div>
+          <div className="p-2 -m-2">
             <p className="text-slate-400 font-semibold">Online Charges (+₹30)</p>
             <p className="text-base font-black text-slate-200">₹{stats.totalOnlineChargesExpected.toLocaleString('en-IN')}</p>
           </div>
         </div>
 
         {stats.totalFeeDue > 0 && (
-          <div className="bg-amber-500/20 backdrop-blur-md border border-amber-500/30 rounded-2xl px-4 py-2.5 text-xs text-amber-200 flex items-center gap-2 shrink-0 shadow-md">
+          <button 
+            type="button"
+            onClick={() => { setStatusFilter('PENDING'); setFormFilter('ALL'); setCasteFilter('ALL'); setExamTypeFilter('ALL'); setStreamFilter('ALL'); }}
+            className="bg-amber-500/20 hover:bg-amber-500/30 backdrop-blur-md border border-amber-500/30 rounded-2xl px-4 py-2.5 text-xs text-amber-200 flex items-center gap-2 shrink-0 shadow-md transition cursor-pointer text-left focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+          >
             <AlertCircle className="w-4 h-4 text-amber-300 shrink-0" />
             <span>
               Pending Due Amount: <strong className="font-mono text-amber-300">₹{stats.totalFeeDue.toLocaleString('en-IN')}</strong> ({stats.unpaidCount + stats.partialCount} students)
             </span>
-          </div>
+          </button>
         )}
       </div>
 
