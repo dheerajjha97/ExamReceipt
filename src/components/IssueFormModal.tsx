@@ -58,8 +58,8 @@ export const IssueFormModal: React.FC<IssueFormModalProps> = ({
   }, [student, settings]);
 
   const handleSave = (shouldProceedToFee = false) => {
-    const updatedIssueDate = status !== 'NOT_ISSUED' ? (issueDate || new Date().toLocaleString('en-IN')) : undefined;
-    const updatedSubDate = status === 'SUBMITTED' ? (submissionDate || new Date().toLocaleString('en-IN')) : undefined;
+    const updatedIssueDate = status !== 'NOT_ISSUED' ? (issueDate || new Date().toLocaleString('en-IN')) : '';
+    const updatedSubDate = status === 'SUBMITTED' ? (submissionDate || new Date().toLocaleString('en-IN')) : '';
 
     onUpdateFormStatus(
       student.id,

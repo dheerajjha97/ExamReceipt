@@ -174,10 +174,8 @@ export default function App() {
           ...s,
           formIssueStatus,
           formNo: formNo || s.formNo || `EF-${s.registrationNo.slice(-6)}`,
-          formIssueDate: formIssueDate || s.formIssueDate || new Date().toISOString().slice(0, 10),
-          formSubmissionDate:
-            formSubmissionDate ||
-            (formIssueStatus === 'SUBMITTED' ? new Date().toISOString().slice(0, 10) : s.formSubmissionDate),
+          formIssueDate: formIssueStatus === 'NOT_ISSUED' ? '' : (formIssueDate || s.formIssueDate || new Date().toISOString().slice(0, 16)),
+          formSubmissionDate: formIssueStatus === 'SUBMITTED' ? (formSubmissionDate || s.formSubmissionDate || new Date().toISOString().slice(0, 16)) : '',
           updatedAt: new Date().toISOString(),
         };
         if (currentSchoolCode) saveStudentToCloud(updated, currentSchoolCode);
@@ -362,7 +360,26 @@ export default function App() {
       // Edit
       const updatedList = students.map((s) => {
         if (s.id === studentToEdit.id) {
-          const updated = { ...s, ...studentData, updatedAt: new Date().toISOString() };
+          let updatedFormIssueDate = studentData.formIssueDate !== undefined ? studentData.formIssueDate : s.formIssueDate;
+          let updatedFormSubmissionDate = studentData.formSubmissionDate !== undefined ? studentData.formSubmissionDate : s.formSubmissionDate;
+          
+          if (studentData.formIssueStatus === 'SUBMITTED' && s.formIssueStatus !== 'SUBMITTED') {
+            updatedFormSubmissionDate = updatedFormSubmissionDate || new Date().toISOString().slice(0, 16);
+            updatedFormIssueDate = updatedFormIssueDate || new Date().toISOString().slice(0, 16);
+          } else if (studentData.formIssueStatus === 'ISSUED' && s.formIssueStatus === 'NOT_ISSUED') {
+            updatedFormIssueDate = updatedFormIssueDate || new Date().toISOString().slice(0, 16);
+          } else if (studentData.formIssueStatus === 'NOT_ISSUED') {
+            updatedFormIssueDate = '';
+            updatedFormSubmissionDate = '';
+          }
+
+          const updated = { 
+            ...s, 
+            ...studentData, 
+            formIssueDate: updatedFormIssueDate,
+            formSubmissionDate: updatedFormSubmissionDate,
+            updatedAt: new Date().toISOString() 
+          };
           if (currentSchoolCode) saveStudentToCloud(updated, currentSchoolCode);
           return updated;
         }
@@ -392,6 +409,10 @@ export default function App() {
         totalFee: baseFee + onlineCharge,
         paidAmount: 0,
         paymentStatus: 'UNPAID',
+        formIssueStatus: studentData.formIssueStatus || 'NOT_ISSUED',
+        formNo: studentData.formNo || '',
+        formIssueDate: studentData.formIssueDate || '',
+        formSubmissionDate: studentData.formSubmissionDate || '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -433,8 +454,8 @@ export default function App() {
           ...s,
           formIssueStatus: targetStatus,
           formNo,
-          formIssueDate: s.formIssueDate || todayStr,
-          formSubmissionDate: targetStatus === 'SUBMITTED' ? (s.formSubmissionDate || todayStr) : s.formSubmissionDate,
+          formIssueDate: targetStatus === 'NOT_ISSUED' ? '' : (s.formIssueDate || todayStr),
+          formSubmissionDate: targetStatus === 'SUBMITTED' ? (s.formSubmissionDate || todayStr) : (targetStatus === 'NOT_ISSUED' ? '' : s.formSubmissionDate),
           updatedAt: new Date().toISOString(),
         };
         if (currentSchoolCode) saveStudentToCloud(updated, currentSchoolCode);

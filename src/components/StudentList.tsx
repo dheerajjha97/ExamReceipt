@@ -116,7 +116,7 @@ export const StudentList: React.FC<StudentListProps> = ({
     const formsNotIssuedCount = filteredStudents.filter((s) => !s.formIssueStatus || s.formIssueStatus === 'NOT_ISSUED').length;
 
     const totalBaseFeeExpected = filteredStudents.reduce((acc, s) => acc + s.baseFee, 0);
-    const totalOnlineChargesExpected = filteredStudents.reduce((acc, s) => acc + (s.onlineCharges || 30), 0);
+    const totalOnlineChargesCollected = filteredStudents.reduce((acc, s) => acc + (s.paidAmount > 0 ? (s.onlineCharges || 30) : 0), 0);
     const totalFeeExpected = filteredStudents.reduce((acc, s) => acc + s.totalFee, 0);
     const totalFeeCollected = filteredStudents.reduce((acc, s) => acc + s.paidAmount, 0);
     const totalFeeDue = totalFeeExpected - totalFeeCollected;
@@ -130,7 +130,7 @@ export const StudentList: React.FC<StudentListProps> = ({
       formsIssuedCount,
       formsNotIssuedCount,
       totalBaseFeeExpected,
-      totalOnlineChargesExpected,
+      totalOnlineChargesCollected,
       totalFeeExpected,
       totalFeeCollected,
       totalFeeDue,
@@ -439,8 +439,8 @@ export const StudentList: React.FC<StudentListProps> = ({
             <p className="text-base font-black text-emerald-300">₹{stats.totalFeeCollected.toLocaleString('en-IN')}</p>
           </div>
           <div className="p-2 -m-2">
-            <p className="text-slate-400 font-semibold">Online Charges (+₹30)</p>
-            <p className="text-base font-black text-slate-200">₹{stats.totalOnlineChargesExpected.toLocaleString('en-IN')}</p>
+            <p className="text-slate-400 font-semibold">Online Chg. Collected</p>
+            <p className="text-base font-black text-slate-200">₹{stats.totalOnlineChargesCollected.toLocaleString('en-IN')}</p>
           </div>
         </div>
 
