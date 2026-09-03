@@ -53,6 +53,16 @@ export async function saveTransactionToCloud(transaction: Transaction, schoolCod
   }
 }
 
+export async function deleteTransactionFromCloud(transactionId: string, schoolCode: string = '31337'): Promise<void> {
+  try {
+    const docRef = doc(db, `schools/${schoolCode}/transactions`, transactionId);
+    await deleteDoc(docRef);
+    console.log(`Transaction ${transactionId} deleted from cloud.`);
+  } catch (error) {
+    console.error("Error deleting transaction from cloud:", error);
+  }
+}
+
 export async function saveSettingsToCloud(settings: InstituteSettings, schoolCode: string): Promise<void> {
   try {
     const settingsRef = doc(db, `schools/${schoolCode}/settings`, 'config');

@@ -14,6 +14,7 @@ import {
   saveTransactionToCloud, 
   saveSettingsToCloud, 
   deleteStudentFromCloud, 
+  deleteTransactionFromCloud,
   clearSchoolCloudData 
 } from './services/firebaseSyncService';
 import { Student, Transaction, InstituteSettings, PaymentMode, FormIssueStatus } from './types';
@@ -312,8 +313,36 @@ export default function App() {
 
   // Delete Transaction Handler
   const handleDeleteTransaction = (txnId: string) => {
+    const txnToDelete = transactions.find((t) => t.id === txnId);
+    if (!txnToDelete) return;
+
+    // 1. Remove transaction
     const updatedTxns = transactions.filter((t) => t.id !== txnId);
     updateTransactionsState(updatedTxns);
+    if (currentSchoolCode) {
+      deleteTransactionFromCloud(txnId, currentSchoolCode);
+    }
+
+    // 2. Revert student paid amount
+    const updatedStudents = students.map((s) => {
+      if (s.id === txnToDelete.studentId) {
+        const newPaidAmount = Math.max(0, s.paidAmount - txnToDelete.paidAmount);
+        const totalFee = s.totalFee || (s.baseFee + (s.onlineCharges || 30));
+        
+        let newStatus: 'UNPAID' | 'PARTIAL' | 'PAID' = 'UNPAID';
+        if (newPaidAmount >= totalFee) newStatus = 'PAID';
+        else if (newPaidAmount > 0) newStatus = 'PARTIAL';
+
+        return {
+          ...s,
+          paidAmount: newPaidAmount,
+          paymentStatus: newStatus,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return s;
+    });
+    updateStudentsState(updatedStudents);
   };
 
   // Add / Edit Student Save
@@ -414,6 +443,15 @@ export default function App() {
   // Clear All Transactions
   const handleClearAllTransactions = () => {
     updateTransactionsState([]);
+    
+    // Also revert all students to UNPAID
+    const updatedStudents = students.map((s) => ({
+      ...s,
+      paidAmount: 0,
+      paymentStatus: 'UNPAID' as const,
+      updatedAt: new Date().toISOString()
+    }));
+    updateStudentsState(updatedStudents);
   };
 
   // Import extracted students from PDF / Image OCR
