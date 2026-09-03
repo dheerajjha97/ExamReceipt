@@ -134,14 +134,14 @@ export function generateStudentFeeReceiptPDF(student: Student, settings: Institu
       1: { cellWidth: 86 },
       2: { cellWidth: 30, halign: 'right', fontStyle: 'bold' },
     },
-    head: [['S.N.', 'Fee Head / Particulars', 'Amount (₹)']],
+    head: [['S.N.', 'Fee Head / Particulars', 'Amount (Rs.)']],
     body: [
-      ['1.', `Board Exam Registration Fee (${student.casteCategory})`, `₹${student.baseFee.toFixed(2)}`],
-      ['2.', `Online Processing & Portal Charge (Extra)`, `₹${onlineCharges.toFixed(2)}`],
-      ['', 'TOTAL PAYABLE FEE:', `₹${totalAmount.toFixed(2)}`],
-      ['', 'AMOUNT RECEIVED PAID:', `₹${paidAmount.toFixed(2)}`],
+      ['1.', `Board Exam Registration Fee (${student.casteCategory})`, `Rs. ${(student.baseFee || 0).toLocaleString('en-IN')}.00`],
+      ['2.', `Online Processing & Portal Charge (Extra)`, `Rs. ${(onlineCharges || 30).toLocaleString('en-IN')}.00`],
+      ['', 'TOTAL PAYABLE FEE:', `Rs. ${(totalAmount || 0).toLocaleString('en-IN')}.00`],
+      ['', 'AMOUNT RECEIVED PAID:', `Rs. ${(paidAmount || 0).toLocaleString('en-IN')}.00`],
       ...(balanceDue > 0
-        ? [['', 'BALANCE DUE REMAINING:', `₹${balanceDue.toFixed(2)}`]]
+        ? [['', 'BALANCE DUE REMAINING:', `Rs. ${(balanceDue || 0).toLocaleString('en-IN')}.00`]]
         : []),
     ],
   });
@@ -257,23 +257,23 @@ export function downloadCompleteTransactionLedgerPDF(
   doc.text(`Total Revenue Collected: `, 75, 36);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(46, 91, 80); // green accent
-  doc.text(`₹${totalRevenue.toLocaleString('en-IN')}`, 115, 36);
+  doc.text(`Rs. ${totalRevenue.toLocaleString('en-IN')}`, 115, 36);
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(50, 50, 50);
   doc.text(`Cash: `, 155, 36);
   doc.setFont('helvetica', 'bold');
-  doc.text(`₹${cashTotal.toLocaleString('en-IN')}`, 166, 36);
+  doc.text(`Rs. ${cashTotal.toLocaleString('en-IN')}`, 166, 36);
 
   doc.setFont('helvetica', 'normal');
   doc.text(`Online/UPI: `, 198, 36);
   doc.setFont('helvetica', 'bold');
-  doc.text(`₹${onlineTotal.toLocaleString('en-IN')}`, 218, 36);
+  doc.text(`Rs. ${onlineTotal.toLocaleString('en-IN')}`, 218, 36);
 
   doc.setFont('helvetica', 'normal');
   doc.text(`Online Charges: `, 245, 36);
   doc.setFont('helvetica', 'bold');
-  doc.text(`₹${totalOnlineCharges.toLocaleString('en-IN')}`, 271, 36);
+  doc.text(`Rs. ${totalOnlineCharges.toLocaleString('en-IN')}`, 271, 36);
 
   // Filter description note
   doc.setFontSize(8);
@@ -292,9 +292,9 @@ export function downloadCompleteTransactionLedgerPDF(
     (txn as unknown as { casteCategory?: string }).casteCategory || 'General',
     txn.paymentMode || 'CASH',
     txn.transactionRef || '-',
-    `₹${(txn.baseFee || 0).toFixed(0)}`,
-    `₹${(txn.onlineCharges || 30).toFixed(0)}`,
-    `₹${(txn.paidAmount || 0).toFixed(0)}`,
+    `Rs. ${(txn.baseFee || 0).toLocaleString('en-IN')}`,
+    `Rs. ${(txn.onlineCharges || 30).toLocaleString('en-IN')}`,
+    `Rs. ${(txn.paidAmount || 0).toLocaleString('en-IN')}`,
   ]);
 
   autoTable(doc, {
@@ -313,28 +313,28 @@ export function downloadCompleteTransactionLedgerPDF(
       textColor: [30, 30, 30],
     },
     columnStyles: {
-      0: { cellWidth: 10, halign: 'center' }, // S.No
-      1: { cellWidth: 32, fontStyle: 'bold' }, // Receipt No
-      2: { cellWidth: 32 }, // Date
+      0: { cellWidth: 9, halign: 'center' }, // S.No
+      1: { cellWidth: 28, fontStyle: 'bold' }, // Receipt No
+      2: { cellWidth: 26 }, // Date
       3: { cellWidth: 26, fontStyle: 'bold' }, // Reg No
-      4: { cellWidth: 42, fontStyle: 'bold' }, // Student Name
-      5: { cellWidth: 30 }, // Stream
+      4: { cellWidth: 38, fontStyle: 'bold' }, // Student Name
+      5: { cellWidth: 26 }, // Stream
       6: { cellWidth: 18 }, // Category
-      7: { cellWidth: 18, fontStyle: 'bold' }, // Mode
-      8: { cellWidth: 25 }, // Ref
-      9: { cellWidth: 18, halign: 'right' }, // Base
-      10: { cellWidth: 18, halign: 'right' }, // Online
-      11: { cellWidth: 23, halign: 'right', fontStyle: 'bold' }, // Total
+      7: { cellWidth: 16, fontStyle: 'bold' }, // Mode
+      8: { cellWidth: 24 }, // Ref
+      9: { cellWidth: 19, halign: 'right' }, // Base
+      10: { cellWidth: 19, halign: 'right' }, // Online
+      11: { cellWidth: 20, halign: 'right', fontStyle: 'bold' }, // Total
     },
     head: [[
-      'S.N.', 'Receipt No', 'Date', 'Reg No', 'Student Name', 'Class/Stream', 'Category', 'Mode', 'Txn Ref', 'Base (₹)', 'Online (₹)', 'Paid (₹)'
+      'S.N.', 'Receipt No', 'Date', 'Reg No', 'Student Name', 'Class/Stream', 'Category', 'Mode', 'Txn Ref', 'Base (Rs.)', 'Online (Rs.)', 'Paid (Rs.)'
     ]],
     body: tableData,
     foot: [[
       '', 'TOTAL SUMMARY', '', '', `${transactions.length} Records`, '', '', '', '', 
-      `₹${transactions.reduce((acc, t) => acc + (t.baseFee || 0), 0).toFixed(0)}`,
-      `₹${totalOnlineCharges.toFixed(0)}`,
-      `₹${totalRevenue.toFixed(0)}`
+      `Rs. ${transactions.reduce((acc, t) => acc + (t.baseFee || 0), 0).toLocaleString('en-IN')}`,
+      `Rs. ${totalOnlineCharges.toLocaleString('en-IN')}`,
+      `Rs. ${totalRevenue.toLocaleString('en-IN')}`
     ]],
     footStyles: {
       fillColor: [74, 69, 62],

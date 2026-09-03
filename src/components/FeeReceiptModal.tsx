@@ -225,7 +225,7 @@ export const FeeReceiptModal: React.FC<FeeReceiptModalProps> = ({
                   <tr className="bg-slate-200 border-b border-slate-400 font-bold text-slate-800">
                     <th className="p-2 border-r border-slate-400 text-center w-10">S.N.</th>
                     <th className="p-2 border-r border-slate-400">Particulars / Head of Account</th>
-                    <th className="p-2 text-right w-28">Amount (₹)</th>
+                    <th className="p-2 text-right w-32">Amount (Rs.)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-300">
@@ -235,7 +235,7 @@ export const FeeReceiptModal: React.FC<FeeReceiptModalProps> = ({
                       Annual Examination & Registration Board Fee ({student.casteCategory})
                     </td>
                     <td className="p-2 text-right font-mono font-semibold">
-                      ₹{student.baseFee.toFixed(2)}
+                      Rs. {(student.baseFee || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
                   <tr>
@@ -244,7 +244,7 @@ export const FeeReceiptModal: React.FC<FeeReceiptModalProps> = ({
                       Online Processing & Portal Charges (Included Extra)
                     </td>
                     <td className="p-2 text-right font-mono font-semibold text-indigo-900">
-                      ₹{onlineCharges.toFixed(2)}
+                      Rs. {(onlineCharges || 30).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
                   <tr className="bg-slate-100 font-bold border-t-2 border-slate-400">
@@ -252,7 +252,7 @@ export const FeeReceiptModal: React.FC<FeeReceiptModalProps> = ({
                       TOTAL PAYABLE FEE AMOUNT:
                     </td>
                     <td className="p-2 text-right font-mono text-sm">
-                      ₹{totalAmount.toFixed(2)}
+                      Rs. {(totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
                   <tr className="bg-emerald-50 text-emerald-950 font-bold">
@@ -260,7 +260,7 @@ export const FeeReceiptModal: React.FC<FeeReceiptModalProps> = ({
                       AMOUNT PAID RECEIVED:
                     </td>
                     <td className="p-2 text-right font-mono text-sm text-emerald-700">
-                      ₹{paidAmount.toFixed(2)}
+                      Rs. {(paidAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
                   {balanceDue > 0 && (
@@ -269,7 +269,7 @@ export const FeeReceiptModal: React.FC<FeeReceiptModalProps> = ({
                         BALANCE DUE AMOUNT:
                       </td>
                       <td className="p-2 text-right font-mono text-sm text-rose-700">
-                        ₹{balanceDue.toFixed(2)}
+                        Rs. {(balanceDue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
                   )}
@@ -332,7 +332,7 @@ export const FeeReceiptModal: React.FC<FeeReceiptModalProps> = ({
             <span>
               Receipt status:{' '}
               <strong className="text-[#4A453E]">
-                {paidAmount >= totalAmount ? 'FULL PAYMENT COMPLETED' : `PARTIAL PAYMENT (DUE ₹${balanceDue})`}
+                {paidAmount >= totalAmount ? 'FULL PAYMENT COMPLETED' : `PARTIAL PAYMENT (DUE Rs. ${balanceDue.toLocaleString('en-IN')})`}
               </strong>
             </span>
           </div>

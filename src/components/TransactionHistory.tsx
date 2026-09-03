@@ -30,6 +30,7 @@ import financialWallet3d from '../assets/images/financial_wallet_3d_178793709583
 import { ConfirmModal } from './ConfirmModal';
 import { downloadCompleteTransactionLedgerPDF } from '../utils/pdfGenerator';
 import { DailySettlementModal } from './DailySettlementModal';
+import { BulkStudentPrintModal } from './BulkStudentPrintModal';
 
 interface TransactionHistoryProps {
   transactions: Transaction[];
@@ -39,6 +40,7 @@ interface TransactionHistoryProps {
   onOpenRecordPayment?: (student: Student) => void;
   onOpenLogTransaction?: () => void;
   onDeleteTransaction?: (txnId: string) => void;
+  onBulkDeleteTransactions?: (txnIds: string[]) => void;
   onClearAllTransactions?: () => void;
 }
 
@@ -50,6 +52,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   onOpenRecordPayment,
   onOpenLogTransaction,
   onDeleteTransaction,
+  onBulkDeleteTransactions,
   onClearAllTransactions,
 }) => {
   // View Switcher: Transactions Log vs Dues & Outstanding Ledger
@@ -72,6 +75,41 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   // Confirmation Modals State (Mistake Protection)
   const [txnToDelete, setTxnToDelete] = useState<Transaction | null>(null);
   const [showClearAllTxnsConfirm, setShowClearAllTxnsConfirm] = useState(false);
+  const [showBulkDeleteTxnConfirm, setShowBulkDeleteTxnConfirm] = useState(false);
+
+  // Student / Transaction Selection State for Ledger
+  const [selectedTxnIds, setSelectedTxnIds] = useState<string[]>([]);
+  const [selectedDueStudentIds, setSelectedDueStudentIds] = useState<string[]>([]);
+  const [isBulkPrintModalOpen, setIsBulkPrintOpen] = useState(false);
+
+  // Selection Handlers
+  const handleToggleSelectAllTxns = () => {
+    if (selectedTxnIds.length === filteredTransactions.length) {
+      setSelectedTxnIds([]);
+    } else {
+      setSelectedTxnIds(filteredTransactions.map((t) => t.id));
+    }
+  };
+
+  const handleToggleSelectTxn = (id: string) => {
+    setSelectedTxnIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAllDues = () => {
+    if (selectedDueStudentIds.length === duesStudents.length) {
+      setSelectedDueStudentIds([]);
+    } else {
+      setSelectedDueStudentIds(duesStudents.map((s) => s.id));
+    }
+  };
+
+  const handleToggleSelectDue = (id: string) => {
+    setSelectedDueStudentIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
 
   // Quick Date Preset Change Handler
   const handleDatePresetChange = (preset: 'all' | 'today' | 'yesterday' | 'week' | 'month' | 'custom') => {
@@ -208,9 +246,62 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
     };
   }, [filteredTransactions, duesStudents]);
 
+  // Selected Stats & Students for Bulk Print
+  const selectedTxnStats = useMemo(() => {
+    const selected = transactions.filter((t) => selectedTxnIds.includes(t.id));
+    const totalPaid = selected.reduce((sum, t) => sum + t.paidAmount, 0);
+    return { count: selected.length, totalPaid };
+  }, [transactions, selectedTxnIds]);
+
+  const selectedDueStats = useMemo(() => {
+    const selected = duesStudents.filter((s) => selectedDueStudentIds.includes(s.id));
+    const totalDue = selected.reduce((sum, s) => {
+      const fee = s.totalFee || (s.baseFee + (s.onlineCharges || 30));
+      return sum + Math.max(0, fee - s.paidAmount);
+    }, 0);
+    return { count: selected.length, totalDue };
+  }, [duesStudents, selectedDueStudentIds]);
+
+  const selectedStudentsForPrint = useMemo(() => {
+    if (activeLedgerView === 'transactions') {
+      const selectedTxns = transactions.filter((t) => selectedTxnIds.includes(t.id));
+      return selectedTxns.map((t) => {
+        const existing = students.find((s) => s.registrationNo === t.registrationNo || s.id === t.studentId);
+        if (existing) return existing;
+        return {
+          id: t.studentId || t.id,
+          sNo: 0,
+          registrationNo: t.registrationNo,
+          studentName: t.studentName,
+          fatherName: t.fatherName || 'N/A',
+          motherName: '',
+          dob: '',
+          casteCategory: 'General',
+          classOrStream: t.classOrStream,
+          examType: 'REGULAR',
+          baseFee: t.baseFee,
+          onlineCharges: t.onlineCharges || 30,
+          totalFee: t.totalAmount,
+          paidAmount: t.paidAmount,
+          paymentStatus: 'PAID',
+          lastReceiptNo: t.receiptNo,
+          receiptDate: t.paymentDate,
+          formIssueStatus: 'SUBMITTED',
+          createdAt: t.paymentDate,
+          updatedAt: t.paymentDate,
+        } as unknown as Student;
+      });
+    } else {
+      return students.filter((s) => selectedDueStudentIds.includes(s.id));
+    }
+  }, [activeLedgerView, selectedTxnIds, selectedDueStudentIds, transactions, students]);
+
   // CSV Export
-  const handleExportCSV = () => {
-    if (filteredTransactions.length === 0) return;
+  const handleExportCSV = (onlySelected: boolean = false) => {
+    const targetTxns = onlySelected && selectedTxnIds.length > 0
+      ? transactions.filter((t) => selectedTxnIds.includes(t.id))
+      : filteredTransactions;
+    if (targetTxns.length === 0) return;
 
     const headers = [
       'Txn ID',
@@ -233,7 +324,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
     const csvRows = [headers.join(',')];
 
-    filteredTransactions.forEach((t) => {
+    targetTxns.forEach((t) => {
       const row = [
         t.id,
         `"${t.receiptNo}"`,
@@ -266,8 +357,11 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   };
 
   // Dues List CSV Export
-  const handleExportDuesCSV = () => {
-    if (duesStudents.length === 0) return;
+  const handleExportDuesCSV = (onlySelected: boolean = false) => {
+    const targetDues = onlySelected && selectedDueStudentIds.length > 0
+      ? duesStudents.filter((s) => selectedDueStudentIds.includes(s.id))
+      : duesStudents;
+    if (targetDues.length === 0) return;
 
     const headers = [
       'S.No',
@@ -284,7 +378,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
     const csvRows = [headers.join(',')];
 
-    duesStudents.forEach((s, idx) => {
+    targetDues.forEach((s, idx) => {
       const fee = s.totalFee || (s.baseFee + (s.onlineCharges || 30));
       const due = Math.max(0, fee - s.paidAmount);
       const row = [
@@ -372,10 +466,10 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           <button
             onClick={() => setIsSettlementOpen(true)}
             className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#5A5A40] hover:bg-[#484833] text-white rounded-xl text-xs font-bold shadow-lg transition border border-[#6E6E4F]"
-            title="Generate Cashier Day-End Settlement Sheet"
+            title="Generate Cashier Day-End Settlement Sheet / Day Book"
           >
             <FileCheck className="w-4 h-4" />
-            <span>दैनिक रोकड़ पर्ची (Day Closing)</span>
+            <span>दैनिक रोकड़ बही (Day Book / Closing)</span>
           </button>
 
           {onOpenLogTransaction && (
@@ -705,6 +799,15 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-[#F7F5EE] text-[#4A453E] font-semibold border-b border-[#E6E2D3] uppercase tracking-wider text-[11px]">
+                    <th className="p-3 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedTxnIds.length === filteredTransactions.length && filteredTransactions.length > 0}
+                        onChange={handleToggleSelectAllTxns}
+                        className="rounded border-[#DDD8C5] text-[#2E5B50] focus:ring-[#2E5B50] w-4 h-4 cursor-pointer"
+                        title="सभी लेन-देन चुनें (Select All Transactions)"
+                      />
+                    </th>
                     <th className="p-3">Receipt No</th>
                     <th className="p-3">Student & Reg No</th>
                     <th className="p-3">Class / Stream</th>
@@ -722,13 +825,24 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                 <tbody className="divide-y divide-[#E6E2D3]">
                   {filteredTransactions.length === 0 ? (
                     <tr>
-                      <td colSpan={12} className="p-12 text-center text-[#787267]">
+                      <td colSpan={13} className="p-12 text-center text-[#787267]">
                         No transactions recorded matching your search filters.
                       </td>
                     </tr>
                   ) : (
-                    filteredTransactions.map((txn) => (
-                      <tr key={txn.id} className="hover:bg-[#F7F5EE] transition">
+                    filteredTransactions.map((txn) => {
+                      const isSelected = selectedTxnIds.includes(txn.id);
+                      return (
+                      <tr key={txn.id} className={`hover:bg-[#F7F5EE] transition ${isSelected ? 'bg-[#E2ECE9]/70' : ''}`}>
+                        {/* Checkbox */}
+                        <td className="p-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelectTxn(txn.id)}
+                            className="rounded border-[#DDD8C5] text-[#2E5B50] focus:ring-[#2E5B50] w-4 h-4 cursor-pointer"
+                          />
+                        </td>
                         
                         {/* Receipt No */}
                         <td className="p-3 font-mono font-bold text-[#5A5A40] whitespace-nowrap">
@@ -819,7 +933,8 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                         </td>
 
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -872,6 +987,15 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-rose-100/50 text-rose-900 font-bold border-b border-rose-200 uppercase tracking-wider text-[11px]">
+                    <th className="p-3 text-center w-10">
+                      <input
+                        type="checkbox"
+                        checked={selectedDueStudentIds.length === duesStudents.length && duesStudents.length > 0}
+                        onChange={handleToggleSelectAllDues}
+                        className="rounded border-rose-300 text-rose-700 focus:ring-rose-500 w-4 h-4 cursor-pointer"
+                        title="सभी बकाया छात्र चुनें (Select All Dues)"
+                      />
+                    </th>
                     <th className="p-3 text-center w-10">क्र.</th>
                     <th className="p-3">पंजीकरण संख्या (Reg No)</th>
                     <th className="p-3">छात्र एवं पिता का नाम</th>
@@ -887,7 +1011,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                 <tbody className="divide-y divide-rose-100">
                   {duesStudents.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="p-12 text-center text-slate-500">
+                      <td colSpan={11} className="p-12 text-center text-slate-500">
                         बहुत बढ़िया! कोई भी छात्र बकाया शुल्क की सूची में नहीं है (All clear).
                       </td>
                     </tr>
@@ -895,8 +1019,17 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                     duesStudents.map((s, idx) => {
                       const fee = s.totalFee || (s.baseFee + (s.onlineCharges || 30));
                       const due = Math.max(0, fee - s.paidAmount);
+                      const isSelected = selectedDueStudentIds.includes(s.id);
                       return (
-                        <tr key={s.id} className="hover:bg-rose-50/50 transition">
+                        <tr key={s.id} className={`hover:bg-rose-50/50 transition ${isSelected ? 'bg-rose-100/70 font-semibold' : ''}`}>
+                          <td className="p-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleSelectDue(s.id)}
+                              className="rounded border-rose-300 text-rose-700 focus:ring-rose-500 w-4 h-4 cursor-pointer"
+                            />
+                          </td>
                           <td className="p-3 text-center font-mono text-slate-400">{idx + 1}</td>
                           <td className="p-3 font-mono font-bold text-slate-800">{s.registrationNo}</td>
                           <td className="p-3">
@@ -934,6 +1067,85 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         </div>
       )}
 
+      {/* Floating Bottom Batch Action Bar for Selected Records */}
+      {((activeLedgerView === 'transactions' && selectedTxnIds.length > 0) ||
+        (activeLedgerView === 'dues' && selectedDueStudentIds.length > 0)) && (
+        <div className="fixed bottom-20 sm:bottom-6 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-50 bg-[#2D2A26]/95 backdrop-blur-md text-white px-3.5 sm:px-5 py-2.5 rounded-2xl shadow-2xl border border-white/20 flex flex-wrap items-center justify-between sm:justify-start gap-2.5 sm:gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 bg-[#2E5B50] rounded-full flex items-center justify-center text-xs font-bold font-mono text-white">
+              {activeLedgerView === 'transactions' ? selectedTxnIds.length : selectedDueStudentIds.length}
+            </span>
+            <span className="text-xs font-bold text-slate-200">
+              {activeLedgerView === 'transactions' ? 'लेन-देन चयनित' : 'बकाया छात्र चयनित'}
+            </span>
+            <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-lg border border-emerald-500/30">
+              ₹{activeLedgerView === 'transactions' ? selectedTxnStats.totalPaid.toLocaleString('en-IN') : selectedDueStats.totalDue.toLocaleString('en-IN')}
+            </span>
+          </div>
+
+          <div className="h-4 w-px bg-white/20 hidden sm:block"></div>
+
+          {/* Print Slips / Register Button */}
+          <button
+            onClick={() => setIsBulkPrintOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2E5B50] hover:bg-[#254A41] text-white text-xs font-bold rounded-xl transition shadow-sm"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>रसीदें प्रिंट करें (Print)</span>
+          </button>
+
+          {/* Export Selected CSV */}
+          <button
+            onClick={() => {
+              if (activeLedgerView === 'transactions') handleExportCSV(true);
+              else handleExportDuesCSV(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#5A5A40] hover:bg-[#484833] text-white text-xs font-bold rounded-xl transition shadow-sm"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>Export CSV</span>
+          </button>
+
+          {/* Delete Selected (Transactions View only) */}
+          {activeLedgerView === 'transactions' && (onDeleteTransaction || onBulkDeleteTransactions) && (
+            <button
+              onClick={() => setShowBulkDeleteTxnConfirm(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600/90 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition shadow-sm"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>हटाएं ({selectedTxnIds.length})</span>
+            </button>
+          )}
+
+          {/* Cancel / Deselect */}
+          <button
+            onClick={() => {
+              if (activeLedgerView === 'transactions') setSelectedTxnIds([]);
+              else setSelectedDueStudentIds([]);
+            }}
+            className="text-xs text-slate-300 hover:text-white px-2 py-1 transition ml-auto sm:ml-0"
+          >
+            रद्द करें (Deselect)
+          </button>
+        </div>
+      )}
+
+      {/* Bulk Print Modal for Selected Students / Transactions */}
+      <BulkStudentPrintModal
+        isOpen={isBulkPrintModalOpen}
+        selectedStudents={selectedStudentsForPrint}
+        settings={settings || {
+          name: 'M.S. College, Motihari',
+          subTitle: 'Constituent Unit of B.R.A. Bihar University, Muzaffarpur',
+          address: 'Motihari, East Champaran, Bihar - 845401',
+          code: '0108',
+          academicYear: '2024-2026',
+          defaultOnlineCharge: 30,
+          upiId: 'college@upi',
+        }}
+        onClose={() => setIsBulkPrintOpen(false)}
+      />
+
       {/* Daily Settlement Modal */}
       <DailySettlementModal
         isOpen={isSettlementOpen}
@@ -955,9 +1167,9 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
       {/* 1. Single Transaction Delete */}
       <ConfirmModal
         isOpen={!!txnToDelete}
-        title="Delete Transaction Receipt Log"
-        message={`Are you sure you want to delete transaction receipt ${txnToDelete?.receiptNo} for ${txnToDelete?.studentName}? This will permanently remove it from financial records.`}
-        confirmText="Delete Transaction"
+        title="लेन-देन रसीद हटाएं (Delete Receipt)"
+        message={`क्या आप रसीद सं. #${txnToDelete?.receiptNo} (छात्र: ${txnToDelete?.studentName}, राशि: Rs. ${txnToDelete?.paidAmount}) को हटाना चाहते हैं?\n\n💡 ध्यान दें: गलती से डिलीट होने पर भी आपको नीचे 'पूर्ववत करें (Undo)' का विकल्प मिलेगा।`}
+        confirmText="रसीद हटाएं (Delete)"
         confirmVariant="danger"
         requireSafetyCheckbox={true}
         onConfirm={() => {
@@ -967,6 +1179,26 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           }
         }}
         onClose={() => setTxnToDelete(null)}
+      />
+
+      {/* 1b. Bulk Delete Selected Transactions */}
+      <ConfirmModal
+        isOpen={showBulkDeleteTxnConfirm}
+        title="चुने गए लेन-देन हटाएं (Delete Selected)"
+        message={`क्या आप चुने गए ${selectedTxnIds.length} लेन-देन रसीदों को हटाना चाहते हैं? छात्र का बकाया शुल्क पुनः समायोजित किया जाएगा।`}
+        confirmText={`Delete ${selectedTxnIds.length} Transactions`}
+        confirmVariant="danger"
+        requireSafetyCheckbox={true}
+        onConfirm={() => {
+          if (onBulkDeleteTransactions) {
+            onBulkDeleteTransactions(selectedTxnIds);
+          } else if (onDeleteTransaction) {
+            selectedTxnIds.forEach((id) => onDeleteTransaction(id));
+          }
+          setSelectedTxnIds([]);
+          setShowBulkDeleteTxnConfirm(false);
+        }}
+        onClose={() => setShowBulkDeleteTxnConfirm(false)}
       />
 
       {/* 2. Clear All Transactions */}

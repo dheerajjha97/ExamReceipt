@@ -32,7 +32,14 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       setTypedCode('');
       setIsCheckConfirmed(!requireSafetyCheckbox);
     }
-  }, [isOpen, requireSafetyCheckbox]);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, requireSafetyCheckbox, onClose]);
 
   if (!isOpen) return null;
 
@@ -55,7 +62,10 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn"
+      onClick={onClose}
+    >
       <div 
         className="bg-slate-900/95 backdrop-blur-2xl rounded-3xl border border-white/15 shadow-2xl max-w-md w-full p-6 space-y-5 transform-gpu transition-all text-slate-100"
         onClick={(e) => e.stopPropagation()}
@@ -66,31 +76,43 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
               <AlertTriangle className="w-6 h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <h3 className="font-black text-white text-base">{title}</h3>
-                <span className="text-[10px] bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded-full border border-rose-500/30 font-bold">
-                  Mistake Protection
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30 font-bold">
+                  🛡️ ग़लती से सुरक्षा (Safe)
                 </span>
               </div>
-              <p className="text-xs text-slate-400 font-medium mt-0.5">Please verify carefully before continuing</p>
+              <p className="text-xs text-slate-400 font-medium mt-0.5">आगे बढ़ने से पहले विवरण की पुष्टि करें</p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition"
+            title="रद्द करें (Close)"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <p className="text-xs text-slate-300 leading-relaxed bg-white/5 p-4 rounded-2xl border border-white/5 whitespace-pre-line">
+        {/* Accidental Tap Friendly Reassurance Banner */}
+        <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs flex items-start gap-2.5 leading-relaxed">
+          <span className="text-base leading-none">⚠️</span>
+          <div>
+            <strong className="block font-semibold text-amber-100">गलती से टैप हो गया? घबराएं नहीं!</strong>
+            <span className="text-[11px] text-amber-200/90">
+              अभी कुछ भी डिलीट नहीं हुआ है। अगर आप हटाना नहीं चाहते हैं, तो सीधे नीचे <strong>&quot;रद्द करें / वापस जाएं&quot;</strong> पर टैप करें।
+            </span>
+          </div>
+        </div>
+
+        <p className="text-xs text-slate-300 leading-relaxed bg-white/5 p-3.5 rounded-2xl border border-white/5 whitespace-pre-line">
           {message}
         </p>
 
         {requireSafetyCode && (
           <div className="space-y-1.5 bg-rose-500/10 border border-rose-500/20 p-3.5 rounded-2xl">
             <label className="block text-[11px] font-bold text-rose-300">
-              Type <span className="underline font-mono uppercase bg-rose-950/50 px-1.5 py-0.5 rounded">{requireSafetyCode}</span> to confirm:
+              हटाने की पुष्टि के लिए <span className="underline font-mono uppercase bg-rose-950/50 px-1.5 py-0.5 rounded">{requireSafetyCode}</span> टाइप करें:
             </label>
             <input
               type="text"
@@ -103,25 +125,26 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         )}
 
         {requireSafetyCheckbox && (
-          <label className="flex items-start gap-2.5 p-3 rounded-2xl bg-white/5 border border-white/10 cursor-pointer select-none">
+          <label className="flex items-start gap-2.5 p-3 rounded-2xl bg-white/5 border border-white/10 cursor-pointer select-none hover:bg-white/10 transition">
             <input
               type="checkbox"
               checked={isCheckConfirmed}
               onChange={(e) => setIsCheckConfirmed(e.target.checked)}
-              className="mt-0.5 rounded border-slate-700 text-rose-600 focus:ring-rose-500 bg-slate-800"
+              className="mt-0.5 rounded border-slate-700 text-rose-600 focus:ring-rose-500 bg-slate-800 w-4 h-4 cursor-pointer"
             />
             <span className="text-[11px] text-slate-300 leading-snug">
-              I understand that this action is irreversible and I have confirmed the record details.
+              हाँ, मैंने विवरण की जाँच कर ली है और मैं इसे हटाना चाहता हूँ (Confirm Delete).
             </span>
           </label>
         )}
 
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="flex items-center justify-between gap-3 pt-2">
+          {/* Prominent Safe Cancel Button */}
           <button
             onClick={onClose}
-            className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 font-bold rounded-2xl text-xs transition border border-white/10"
+            className="flex-1 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs transition border border-white/15 text-center shadow"
           >
-            Cancel
+            ← रद्द करें / वापस जाएं (Cancel)
           </button>
 
           <button
@@ -132,7 +155,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                 onClose();
               }
             }}
-            className={`flex items-center gap-1.5 px-5 py-2.5 font-bold rounded-2xl text-xs shadow-lg transition-all transform-gpu border ${getButtonBg()}`}
+            className={`flex items-center justify-center gap-1.5 px-5 py-2.5 font-bold rounded-2xl text-xs shadow-lg transition-all transform-gpu border ${getButtonBg()}`}
           >
             <Trash2 className="w-4 h-4" />
             <span>{confirmText}</span>

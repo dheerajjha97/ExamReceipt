@@ -33,11 +33,24 @@ import { SettingsModal } from './components/SettingsModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { LoginPage } from './components/LoginPage';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
+import { RotateCcw, CheckCircle2, X } from 'lucide-react';
+
+interface UndoAction {
+  id: string;
+  message: string;
+  subMessage?: string;
+  onUndo: () => void;
+}
 
 export default function App() {
   const [students, setStudents] = useState<Student[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [settings, setSettings] = useState<InstituteSettings>(getStoredSettings());
+
+  // Accidental Deletion Protection & Undo state
+  const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
+  const [undoCountdown, setUndoCountdown] = useState<number>(10);
+  const [restoredNotice, setRestoredNotice] = useState<string | null>(null);
 
   // Navigation tab state
   const [activeTab, setActiveTab] = useState<'students' | 'upload' | 'transactions' | 'settings'>('students');
@@ -140,6 +153,22 @@ export default function App() {
 
     return () => unsubscribe();
   }, [currentSchoolCode]);
+
+  useEffect(() => {
+    if (!undoAction) return;
+    setUndoCountdown(10);
+    const interval = setInterval(() => {
+      setUndoCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setUndoAction(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [undoAction?.id]);
 
   // Update storage AND Cloud Firestore whenever students or transactions change
   const updateStudentsState = (newStudents: Student[]) => {
@@ -323,6 +352,9 @@ export default function App() {
     const txnToDelete = transactions.find((t) => t.id === txnId);
     if (!txnToDelete) return;
 
+    const previousTxns = [...transactions];
+    const previousStudents = [...students];
+
     // 1. Remove transaction
     const updatedTxns = transactions.filter((t) => t.id !== txnId);
     updateTransactionsState(updatedTxns);
@@ -352,6 +384,75 @@ export default function App() {
       return s;
     });
     updateStudentsState(updatedStudents);
+
+    // Provide Undo Opportunity (ग़लती से सुरक्षा)
+    setUndoAction({
+      id: `txn-${txnId}-${Date.now()}`,
+      message: `रसीद #${txnToDelete.receiptNo} (${txnToDelete.studentName}, Rs. ${txnToDelete.paidAmount}) हटाई गई`,
+      subMessage: 'गलती से हट गया? पूर्ववत (Undo) दबाकर तुरंत वापस लाएं।',
+      onUndo: () => {
+        updateTransactionsState(previousTxns);
+        updateStudentsState(previousStudents);
+        if (currentSchoolCode) {
+          saveTransactionToCloud(txnToDelete, currentSchoolCode);
+          const origStudent = previousStudents.find((s) => s.id === txnToDelete.studentId);
+          if (origStudent) saveStudentToCloud(origStudent, currentSchoolCode);
+        }
+        setUndoAction(null);
+      },
+    });
+  };
+
+  // Bulk Delete Transactions Handler
+  const handleBulkDeleteTransactions = (txnIds: string[]) => {
+    if (!txnIds.length) return;
+    const txnsToDelete = transactions.filter((t) => txnIds.includes(t.id));
+    const previousTxns = [...transactions];
+    const previousStudents = [...students];
+
+    const updatedTxns = transactions.filter((t) => !txnIds.includes(t.id));
+    updateTransactionsState(updatedTxns);
+    if (currentSchoolCode) {
+      txnIds.forEach((id) => deleteTransactionFromCloud(id, currentSchoolCode));
+    }
+
+    const updatedStudents = students.map((s) => {
+      const matchedTxns = txnsToDelete.filter((t) => t.studentId === s.id);
+      if (matchedTxns.length > 0) {
+        const deducted = matchedTxns.reduce((sum, t) => sum + t.paidAmount, 0);
+        const newPaidAmount = Math.max(0, s.paidAmount - deducted);
+        const totalFee = s.totalFee || (s.baseFee + (s.onlineCharges || 30));
+        let newStatus: 'UNPAID' | 'PARTIAL' | 'PAID' = 'UNPAID';
+        if (newPaidAmount >= totalFee) newStatus = 'PAID';
+        else if (newPaidAmount > 0) newStatus = 'PARTIAL';
+        const updated = {
+          ...s,
+          paidAmount: newPaidAmount,
+          paymentStatus: newStatus,
+          updatedAt: new Date().toISOString(),
+        };
+        if (currentSchoolCode) saveStudentToCloud(updated, currentSchoolCode);
+        return updated;
+      }
+      return s;
+    });
+    updateStudentsState(updatedStudents);
+
+    // Provide Undo Opportunity (ग़लती से सुरक्षा)
+    setUndoAction({
+      id: `bulk-txns-${Date.now()}`,
+      message: `${txnsToDelete.length} लेन-देन रसीदें हटाई गईं`,
+      subMessage: 'गलती से हटा? पूर्ववत (Undo) दबाकर सभी को पुनः स्थापित करें।',
+      onUndo: () => {
+        updateTransactionsState(previousTxns);
+        updateStudentsState(previousStudents);
+        if (currentSchoolCode) {
+          txnsToDelete.forEach((t) => saveTransactionToCloud(t, currentSchoolCode));
+          previousStudents.forEach((s) => saveStudentToCloud(s, currentSchoolCode));
+        }
+        setUndoAction(null);
+      },
+    });
   };
 
   // Add / Edit Student Save
@@ -426,22 +527,56 @@ export default function App() {
 
   // Delete Student
   const handleDeleteStudent = (studentId: string) => {
+    const studentToDelete = students.find((s) => s.id === studentId);
+    if (!studentToDelete) return;
+
+    const previousStudents = [...students];
     const updatedList = students.filter((s) => s.id !== studentId);
-    setStudents(updatedList);
-    saveStudentsToStorage(updatedList);
+    updateStudentsState(updatedList);
     if (currentSchoolCode) {
       deleteStudentFromCloud(studentId, currentSchoolCode);
     }
+
+    // Provide Undo Opportunity (ग़लती से सुरक्षा)
+    setUndoAction({
+      id: `stu-${studentId}-${Date.now()}`,
+      message: `छात्र "${studentToDelete.studentName}" (पंजीकरण: ${studentToDelete.registrationNo}) हटाया गया`,
+      subMessage: 'गलती से हट गया? पूर्ववत (Undo) दबाकर तुरंत वापस लाएं।',
+      onUndo: () => {
+        updateStudentsState(previousStudents);
+        if (currentSchoolCode) {
+          saveStudentToCloud(studentToDelete, currentSchoolCode);
+        }
+        setUndoAction(null);
+      },
+    });
   };
 
   // Delete Selected Students
   const handleDeleteSelectedStudents = (studentIds: string[]) => {
+    if (!studentIds.length) return;
+    const deletedStudents = students.filter((s) => studentIds.includes(s.id));
+    const previousStudents = [...students];
+
     const updatedList = students.filter((s) => !studentIds.includes(s.id));
-    setStudents(updatedList);
-    saveStudentsToStorage(updatedList);
+    updateStudentsState(updatedList);
     if (currentSchoolCode) {
       studentIds.forEach((id) => deleteStudentFromCloud(id, currentSchoolCode));
     }
+
+    // Provide Undo Opportunity (ग़लती से सुरक्षा)
+    setUndoAction({
+      id: `bulk-stu-${Date.now()}`,
+      message: `${deletedStudents.length} छात्र रिकॉर्ड हटाए गए`,
+      subMessage: 'गलती से हटा? पूर्ववत (Undo) दबाकर सभी को तुरंत वापस लाएं।',
+      onUndo: () => {
+        updateStudentsState(previousStudents);
+        if (currentSchoolCode) {
+          deletedStudents.forEach((s) => saveStudentToCloud(s, currentSchoolCode));
+        }
+        setUndoAction(null);
+      },
+    });
   };
 
   // Bulk Issue Forms Handler
@@ -543,13 +678,18 @@ export default function App() {
       />
 
       {/* Main View Area */}
-      <main className="max-w-7xl mx-auto px-4 pt-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 pt-6 pb-36 sm:pb-24">
         {activeTab === 'students' && (
           <StudentList
             students={students}
+            transactions={transactions}
+            settings={settings}
             onSelectStudentReceipt={(student) => setSelectedStudentForReceipt(student)}
             onOpenRecordPayment={(student) => setSelectedStudentForPayment(student)}
+            onOpenLogTransaction={() => setIsLogTransactionOpen(true)}
+            onSwitchToLedger={() => setActiveTab('transactions')}
             onOpenIssueForm={(student) => setSelectedStudentForIssueForm(student)}
+            onBulkIssueForms={handleBulkIssueForms}
             onOpenWhatsAppShare={(student) => setSelectedStudentForWhatsApp(student)}
             onEditStudent={(student) => setStudentToEdit(student)}
             onDeleteStudent={handleDeleteStudent}
@@ -583,7 +723,6 @@ export default function App() {
               onOpenRecordPayment={(student) => setSelectedStudentForPayment(student)}
               onOpenIssueForm={(student) => setSelectedStudentForIssueForm(student)}
               onBulkIssueForms={handleBulkIssueForms}
-              onRestoreOfficialData={handleRestoreOfficialData}
               onOpenWhatsAppShare={(student) => setSelectedStudentForWhatsApp(student)}
               onEditStudent={(student) => setStudentToEdit(student)}
               onDeleteStudent={handleDeleteStudent}
@@ -603,6 +742,7 @@ export default function App() {
             onOpenRecordPayment={(student) => setSelectedStudentForPayment(student)}
             onOpenLogTransaction={() => setIsLogTransactionOpen(true)}
             onDeleteTransaction={handleDeleteTransaction}
+            onBulkDeleteTransactions={handleBulkDeleteTransactions}
             onClearAllTransactions={handleClearAllTransactions}
             onViewStudentReceipt={(regNo) => {
               const matchedStudent = students.find((s) => s.registrationNo === regNo);
@@ -722,6 +862,59 @@ export default function App() {
         onClose={() => setIsChangePasswordOpen(false)}
         schoolCode={currentSchoolCode}
       />
+
+      {/* Accidental Deletion Protection: Floating Undo Toast Notification */}
+      {undoAction && (
+        <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-lg animate-bounce-short">
+          <div className="bg-slate-900/95 text-white border-2 border-emerald-500/70 shadow-2xl rounded-2xl p-3.5 sm:p-4 flex items-center justify-between gap-3 backdrop-blur-xl">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+                <RotateCcw className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white truncate">
+                  {undoAction.message}
+                </p>
+                <p className="text-[11px] text-slate-300 truncate">
+                  {undoAction.subMessage || 'गलती से हुआ? वापस लाने के लिए पूर्ववत करें।'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => {
+                  undoAction.onUndo();
+                  setRestoredNotice('डेटा सफलतापूर्वक पुनः प्राप्त कर लिया गया (Successfully Restored)!');
+                  setTimeout(() => setRestoredNotice(null), 4000);
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg transition active:scale-95 cursor-pointer whitespace-nowrap"
+                title="हटाए गए डेटा को पुनः वापस लाएं"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>पूर्ववत करें ({undoCountdown}s)</span>
+              </button>
+              <button
+                onClick={() => setUndoAction(null)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg transition"
+                title="खारिज करें (Dismiss)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restored confirmation toast */}
+      {restoredNotice && (
+        <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+          <div className="bg-emerald-950/95 text-emerald-200 border border-emerald-500/50 shadow-xl rounded-2xl px-4 py-2.5 flex items-center gap-2 text-xs font-bold backdrop-blur-xl">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span>{restoredNotice}</span>
+          </div>
+        </div>
+      )}
 
     </div>
   );

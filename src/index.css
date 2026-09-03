@@ -1,23 +1,169 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   FORMAL INSTITUTIONAL PRINT STYLESHEET
+   Optimized for School/College Board Receipts, Cashier Day Book & Ledger
+   ========================================================================== */
+
 @media print {
-  body * {
-    visibility: hidden;
+  /* 1. Page Setup & Universal Print Resets */
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm 10mm 10mm;
   }
-  .printable-receipt,
-  .printable-receipt * {
-    visibility: visible;
+
+  html, body {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
-  .printable-receipt {
-    position: absolute;
-    left: 0;
-    top: 0;
+
+  /* 2. Hide Web Interactive Elements & Overlays */
+  .no-print,
+  button,
+  nav,
+  aside,
+  [role="alert"],
+  [role="status"],
+  .fixed.bottom-20,
+  .fixed.bottom-6,
+  input[type="text"]:not(.print-show),
+  input[type="search"],
+  .modal-backdrop-blur {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* 3. Container & Modal Print Normalization */
+  .fixed.inset-0 {
+    position: static !important;
+    inset: auto !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
     width: 100% !important;
     max-width: 100% !important;
-    border: 3px double #000 !important;
-    box-shadow: none !important;
+    overflow: visible !important;
   }
-  .no-print {
-    display: none !important;
+
+  /* 4. Formal Institutional Receipt Card */
+  .printable-receipt {
+    position: relative !important;
+    width: 100% !important;
+    max-width: 720px !important;
+    margin: 0 auto !important;
+    padding: 18px 24px !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: 3.5px double #0f172a !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Formal Institutional Top Watermark/Bar Template */
+  .printable-receipt::before {
+    content: "GOVERNMENT OF BIHAR • EDUCATION DEPARTMENT • OFFICIAL BOARD EXAMINATION & REGISTRATION COUNTER RECEIPT";
+    display: block !important;
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif !important;
+    font-size: 7.5pt !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.08em !important;
+    text-align: center !important;
+    text-transform: uppercase !important;
+    padding: 4px 6px !important;
+    margin-bottom: 12px !important;
+    background-color: #f1f5f9 !important;
+    border-bottom: 1.5px solid #0f172a !important;
+    color: #0f172a !important;
+  }
+
+  /* Formal Institutional Bottom Verification Template */
+  .printable-receipt::after {
+    content: "• VERIFIED COMPUTER GENERATED DOCUMENT • PRESERVE SAFELY FOR ADMIT CARD & MARKSHEET DISBURSEMENT • BIHAR SCHOOL EXAMINATION BOARD (BSEB) RECORD •";
+    display: block !important;
+    font-family: ui-monospace, SFMono-Regular, monospace !important;
+    font-size: 7pt !important;
+    font-weight: 700 !important;
+    text-align: center !important;
+    padding-top: 8px !important;
+    margin-top: 14px !important;
+    border-top: 1.5px dashed #64748b !important;
+    color: #334155 !important;
+    letter-spacing: 0.04em !important;
+  }
+
+  /* 5. Printable Settlement & Day Book Styling */
+  .printable-settlement,
+  .printable-document,
+  .printable-ledger {
+    width: 100% !important;
+    max-width: 100% !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    page-break-after: auto !important;
+  }
+
+  /* 6. High-Contrast Table Rulings for Official Ledgers */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    page-break-inside: auto !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  th, td {
+    border: 1px solid #1e293b !important;
+    padding: 4px 6px !important;
+    color: #000000 !important;
+  }
+
+  thead th {
+    background-color: #f1f5f9 !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    color: #0f172a !important;
+  }
+
+  tfoot td {
+    background-color: #f8fafc !important;
+    font-weight: 800 !important;
+    border-top: 2px solid #000000 !important;
+  }
+
+  /* 7. Institutional Signatures & Verification Stamp Boxes */
+  .institutional-signature-block {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin-top: 20px !important;
+    padding-top: 10px !important;
+  }
+
+  .institutional-stamp-box {
+    border: 1.5px dashed #475569 !important;
+    background-color: #fafaf9 !important;
+  }
+
+  /* 8. Crisp Numbers & Typography */
+  .font-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
   }
 }
+

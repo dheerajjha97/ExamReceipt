@@ -177,11 +177,11 @@ export const BulkStudentPrintModal: React.FC<BulkStudentPrintModalProps> = ({
                           <td className="p-1.5 border border-slate-800 text-slate-700">{s.fatherName}</td>
                           <td className="p-1.5 border border-slate-800">{s.classOrStream}</td>
                           <td className="p-1.5 border border-slate-800 text-center font-semibold">{s.casteCategory}</td>
-                          <td className="p-1.5 border border-slate-800 text-right font-mono">₹{s.baseFee}</td>
-                          <td className="p-1.5 border border-slate-800 text-right font-mono font-semibold">+₹{onlineCharge}</td>
-                          <td className="p-1.5 border border-slate-800 text-right font-mono font-bold">₹{total}</td>
-                          <td className="p-1.5 border border-slate-800 text-right font-mono font-bold text-emerald-800 print:text-black">₹{s.paidAmount}</td>
-                          <td className="p-1.5 border border-slate-800 text-right font-mono font-bold text-rose-800 print:text-black">₹{due}</td>
+                          <td className="p-1.5 border border-slate-800 text-right font-mono">₹{(s.baseFee || 0).toLocaleString('en-IN')}</td>
+                          <td className="p-1.5 border border-slate-800 text-right font-mono font-semibold">+₹{(onlineCharge || 30).toLocaleString('en-IN')}</td>
+                          <td className="p-1.5 border border-slate-800 text-right font-mono font-bold">₹{(total || 0).toLocaleString('en-IN')}</td>
+                          <td className="p-1.5 border border-slate-800 text-right font-mono font-bold text-emerald-800 print:text-black">₹{(s.paidAmount || 0).toLocaleString('en-IN')}</td>
+                          <td className="p-1.5 border border-slate-800 text-right font-mono font-bold text-rose-800 print:text-black">₹{(due || 0).toLocaleString('en-IN')}</td>
                           <td className="p-1.5 border border-slate-800 text-center font-bold">
                             <span className={`px-1 py-0.5 rounded text-[10px] ${
                               s.paymentStatus === 'PAID' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
@@ -308,11 +308,11 @@ export const BulkStudentPrintModal: React.FC<BulkStudentPrintModalProps> = ({
                           <td className="p-1.5 border border-slate-300 font-medium">
                             बिहार विद्यालय परीक्षा समिति परीक्षा शुल्क सत्र {settings.academicYear}
                           </td>
-                          <td className="p-1.5 border border-slate-300 text-right font-mono">₹{s.baseFee}</td>
-                          <td className="p-1.5 border border-slate-300 text-right font-mono font-bold text-teal-800">+₹{onlineCharge}</td>
-                          <td className="p-1.5 border border-slate-300 text-right font-mono font-bold">₹{total}</td>
-                          <td className="p-1.5 border border-slate-300 text-right font-mono font-black text-emerald-800 print:text-black">₹{s.paidAmount}</td>
-                          <td className="p-1.5 border border-slate-300 text-right font-mono font-bold text-rose-700 print:text-black">₹{due}</td>
+                          <td className="p-1.5 border border-slate-300 text-right font-mono">₹{(s.baseFee || 0).toLocaleString('en-IN')}</td>
+                          <td className="p-1.5 border border-slate-300 text-right font-mono font-bold text-teal-800">+₹{(onlineCharge || 30).toLocaleString('en-IN')}</td>
+                          <td className="p-1.5 border border-slate-300 text-right font-mono font-bold">₹{(total || 0).toLocaleString('en-IN')}</td>
+                          <td className="p-1.5 border border-slate-300 text-right font-mono font-black text-emerald-800 print:text-black">₹{(s.paidAmount || 0).toLocaleString('en-IN')}</td>
+                          <td className="p-1.5 border border-slate-300 text-right font-mono font-bold text-rose-700 print:text-black">₹{(due || 0).toLocaleString('en-IN')}</td>
                         </tr>
                       </tbody>
                     </table>
