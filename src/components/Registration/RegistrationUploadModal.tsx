@@ -14,7 +14,14 @@ import {
   Trash2,
   BookOpen
 } from 'lucide-react';
-import { RegistrationStudent, InstituteSettings, CasteCategory, calculateRegistrationFee, isBSEBBoard } from '../../types';
+import { 
+  RegistrationStudent, 
+  InstituteSettings, 
+  CasteCategory, 
+  calculateRegistrationFee, 
+  isBSEBBoard,
+  normalizeStream 
+} from '../../types';
 
 interface RegistrationUploadModalProps {
   isOpen: boolean;
@@ -40,7 +47,7 @@ export const RegistrationUploadModal: React.FC<RegistrationUploadModalProps> = (
   const [serviceCharge, setServiceCharge] = useState<number>(30); // ₹30 Service / processing charge
   const [isExtracting, setIsExtracting] = useState<boolean>(false);
   const [extractionError, setExtractionError] = useState<string | null>(null);
-  const [defaultStream, setDefaultStream] = useState<string>('Science (I.Sc)');
+  const [defaultStream, setDefaultStream] = useState<string>('Commerce (I.Com)');
   
   // Extracted preview state before confirmation
   const [extractedStudents, setExtractedStudents] = useState<RegistrationStudent[]>([]);
@@ -58,7 +65,7 @@ export const RegistrationUploadModal: React.FC<RegistrationUploadModalProps> = (
   if (!isOpen) return null;
 
   // Direct High-Speed Excel / TSV / OFSS Table Parser
-  const parseDirectTabularText = (text: string, stream: string, extraFee: number = 30): RegistrationStudent[] => {
+  const parseDirectTabularText = (text: string, fallbackStream: string, extraFee: number = 30): RegistrationStudent[] => {
     const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
     if (lines.length === 0) return [];
 
@@ -73,7 +80,7 @@ export const RegistrationUploadModal: React.FC<RegistrationUploadModalProps> = (
       // Skip headers
       if (
         (lower.includes('ofss') && (lower.includes('name') || lower.includes('father') || lower.includes('dob'))) ||
-        (lower.includes('s.no') && (lower.includes('board') || lower.includes('fee')))
+        (lower.includes('s.no') && (lower.includes('board') || lower.includes('fee') || lower.includes('stream')))
       ) {
         continue;
       }
@@ -89,119 +96,145 @@ export const RegistrationUploadModal: React.FC<RegistrationUploadModalProps> = (
 
       if (cols.length < 2) continue;
 
-      let idx = 0;
       let sNo = currentTotalStudents + results.length + 1;
       let ofssNo = '';
       let name = '';
       let fatherName = '';
       let motherName = '';
       let dob = '';
+      let gender = 'MALE';
       let boardName = 'BSEB,Bihar';
-      let category = 'Regular';
+      let category = 'BC';
+      let rowStream = '';
+      let mobile = '';
+      let aadharNo = '';
+      let apaarId = '';
+      let tcNo = '';
+      let casteCertNo = '';
       let baseFee = 485;
 
-      // 1. S.No
-      if (/^\d+$/.test(cols[idx]) && cols[idx].length <= 4) {
-        sNo = parseInt(cols[idx], 10);
-        idx++;
-      }
+      const remainingTextCols: string[] = [];
 
-      // 2. OFSS No. (e.g. 26J54670842 or 24J...)
-      if (cols[idx] && (/^\d{2}[A-Z0-9]{5,}/i.test(cols[idx]) || /\d{6,}/.test(cols[idx]))) {
-        ofssNo = cols[idx];
-        idx++;
-      }
+      for (let c = 0; c < cols.length; c++) {
+        const val = cols[c];
+        const valLower = val.toLowerCase();
 
-      // 3. Student Name
-      if (cols[idx]) {
-        name = cols[idx];
-        idx++;
-      }
-
-      // 4. Father Name
-      if (cols[idx]) {
-        fatherName = cols[idx];
-        idx++;
-      }
-
-      // 5. Mother Name
-      if (cols[idx]) {
-        if (/^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/.test(cols[idx])) {
-          dob = cols[idx];
-          idx++;
-        } else {
-          motherName = cols[idx];
-          idx++;
+        // 1. S.No if first col and short number
+        if (c === 0 && /^\d{1,4}$/.test(val)) {
+          sNo = parseInt(val, 10);
+          continue;
         }
-      }
 
-      // 6. DOB (if not already taken)
-      if (!dob && cols[idx]) {
-        if (/^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/.test(cols[idx])) {
-          dob = cols[idx];
-          idx++;
+        // 2. OFSS No (e.g. 26J54670842 or 24J...)
+        if (!ofssNo && (/^\d{2}[A-Z0-9]{5,}/i.test(val) || (val.length >= 8 && /^\d{8,}$/.test(val)))) {
+          ofssNo = val;
+          continue;
         }
-      }
 
-      // 7. Board Name (e.g. BSEB,Bihar or CBSE,Delhi)
-      if (cols[idx]) {
-        const candidate = cols[idx];
-        if (candidate.toLowerCase().includes('bseb') || candidate.toLowerCase().includes('cbse') || candidate.toLowerCase().includes('icse') || candidate.toLowerCase().includes('bihar') || candidate.toLowerCase().includes('delhi')) {
-          boardName = candidate;
-          idx++;
-        } else if (!dob && /^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/.test(candidate)) {
-          dob = candidate;
-          idx++;
-        } else {
-          boardName = candidate;
-          idx++;
+        // 3. DOB
+        if (!dob && /^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/.test(val)) {
+          dob = val;
+          continue;
         }
-      }
 
-      // 8. Category (Regular / BC / EBC / SC / ST / General)
-      if (cols[idx]) {
-        const catCandidate = cols[idx];
-        if (/^\d+$/.test(catCandidate)) {
-          baseFee = parseInt(catCandidate, 10);
-          idx++;
-        } else {
-          category = catCandidate;
-          idx++;
+        // 4. Gender
+        if (valLower === 'male' || valLower === 'female' || valLower === 'other' || valLower === 'm' || valLower === 'f' || valLower === 'पुरुष' || valLower === 'महिला') {
+          gender = (valLower === 'female' || valLower === 'f' || valLower === 'महिला') ? 'FEMALE' : 'MALE';
+          continue;
         }
+
+        // 5. Stream detection from cell
+        if (!rowStream && (
+          valLower.includes('commerce') || valLower.includes('i.com') || valLower.includes('वाणिज्य') ||
+          valLower.includes('arts') || valLower.includes('i.a') || valLower.includes('कला') ||
+          valLower.includes('science') || valLower.includes('i.sc') || valLower.includes('विज्ञान') ||
+          valLower.includes('vocational')
+        )) {
+          rowStream = normalizeStream(val);
+          continue;
+        }
+
+        // 6. Caste Category
+        if (
+          valLower === 'general' || valLower === 'gen' || valLower === 'regular' ||
+          valLower === 'bc' || valLower === 'bc-ii' || valLower === 'bc2' || valLower === 'obc' ||
+          valLower === 'ebc' || valLower === 'bc-i' || valLower === 'bc1' ||
+          valLower === 'sc' || valLower === 'st'
+        ) {
+          category = val;
+          continue;
+        }
+
+        // 7. Board Name
+        if (valLower.includes('bseb') || valLower.includes('cbse') || valLower.includes('icse') || valLower.includes('bihar') || valLower.includes('delhi')) {
+          boardName = val;
+          continue;
+        }
+
+        // 8. Mobile Number (10 digits starting with 6,7,8,9)
+        if (!mobile && /^[6-9]\d{9}$/.test(val.replace(/\s+/g, ''))) {
+          mobile = val.replace(/\s+/g, '');
+          continue;
+        }
+
+        // 9. Aadhaar Number (12 digits)
+        if (!aadharNo && /^\d{4}\s?\d{4}\s?\d{4}$/.test(val)) {
+          aadharNo = val;
+          continue;
+        }
+
+        // 10. TC Number
+        if (!tcNo && (valLower.includes('tc') || valLower.includes('slc') || valLower.includes('clc'))) {
+          tcNo = val;
+          continue;
+        }
+
+        // 11. Fee Amount
+        if (/^\d{3,4}$/.test(val) && (parseInt(val, 10) === 485 || parseInt(val, 10) === 515 || parseInt(val, 10) === 685 || parseInt(val, 10) === 715)) {
+          baseFee = parseInt(val, 10) >= 500 ? (parseInt(val, 10) === 715 || parseInt(val, 10) === 685 ? 685 : 485) : parseInt(val, 10);
+          continue;
+        }
+
+        // Otherwise collect text column for name assignment
+        remainingTextCols.push(val);
       }
 
-      // 9. Fee Amount (e.g. 485 or 685)
-      if (cols[idx] && /^\d+$/.test(cols[idx])) {
-        baseFee = parseInt(cols[idx], 10);
-        idx++;
-      } else {
-        // Fallback base fee logic based on Board
-        const feeCalc = calculateRegistrationFee(boardName, extraFee);
-        baseFee = feeCalc.baseFee;
+      // Assign remaining names
+      if (remainingTextCols.length > 0) {
+        name = remainingTextCols[0];
+      }
+      if (remainingTextCols.length > 1) {
+        fatherName = remainingTextCols[1];
+      }
+      if (remainingTextCols.length > 2) {
+        motherName = remainingTextCols[2];
       }
 
-      // If board is not BSEB, ensure baseFee is 685 unless explicitly specified differently
-      if (!isBSEBBoard(boardName) && baseFee === 485) {
-        baseFee = 685;
-      }
+      // If no row-level stream was detected in row cells, use fallbackStream
+      const finalStream = rowStream ? normalizeStream(rowStream) : normalizeStream(fallbackStream);
 
-      const totalFee = baseFee + extraFee; // 485 + 30 = 515, or 685 + 30 = 715
+      // Fee calculations
+      const feeCalc = calculateRegistrationFee(boardName, extraFee);
+      baseFee = isBSEBBoard(boardName) ? 485 : 685;
+      const totalFee = baseFee + extraFee;
 
       let casteCat: CasteCategory = 'BC';
       const catUpper = category.toUpperCase();
       if (catUpper.includes('GEN') || catUpper.includes('REGULAR')) {
         casteCat = 'General';
-      } else if (catUpper.includes('EBC')) {
+      } else if (catUpper.includes('EBC') || catUpper.includes('BC-I') || catUpper.includes('BC1')) {
         casteCat = 'EBC';
       } else if (catUpper.includes('SC')) {
         casteCat = 'SC';
       } else if (catUpper.includes('ST')) {
         casteCat = 'ST';
-      } else if (catUpper.includes('BC')) {
+      } else if (catUpper.includes('BC') || catUpper.includes('OBC')) {
         casteCat = 'BC';
       }
 
-      const isFemale = name.toLowerCase().includes('kumari') || name.toLowerCase().includes('devi') || name.toLowerCase().includes('sharma') && name.toLowerCase().includes('kumari');
+      const isFemale = gender === 'FEMALE' || name.toLowerCase().includes('kumari') || name.toLowerCase().includes('devi');
+
+      const isCasteMandatory = casteCat === 'EBC' || casteCat === 'SC' || casteCat === 'ST';
 
       const studentObj: RegistrationStudent = {
         id: `REG-${Date.now()}-${results.length}`,
@@ -215,8 +248,8 @@ export const RegistrationUploadModal: React.FC<RegistrationUploadModalProps> = (
         boardName: boardName,
         gender: isFemale ? 'FEMALE' : 'MALE',
         casteCategory: casteCat,
-        stream: stream,
-        mobile: '',
+        stream: finalStream,
+        mobile: mobile,
         email: '',
         matricRollCode: settings.code || '31337',
         matricRollNo: '',
@@ -231,17 +264,32 @@ export const RegistrationUploadModal: React.FC<RegistrationUploadModalProps> = (
         paymentDate: dateStr,
         transactionRef: 'CASH-REG',
         documents: {
-          aadhar: { status: 'SUBMITTED', verified: true },
-          apaar: { status: 'SUBMITTED', verified: true },
-          transferCertificate: { status: 'SUBMITTED', verified: true },
-          casteCertificate: {
-            status: (casteCat === 'EBC' || casteCat === 'SC' || casteCat === 'ST') ? 'SUBMITTED' : 'EXEMPTED',
-            verified: true
+          aadhar: { 
+            status: aadharNo ? 'SUBMITTED' : 'PENDING', 
+            docNumber: aadharNo || '', 
+            verified: Boolean(aadharNo) 
           },
-          matricMarksheet: { status: 'SUBMITTED', verified: true },
+          apaar: { 
+            status: apaarId ? 'SUBMITTED' : 'PENDING', 
+            docNumber: apaarId || undefined, 
+            verified: Boolean(apaarId) 
+          },
+          transferCertificate: { 
+            status: tcNo ? 'SUBMITTED' : 'PENDING', 
+            docNumber: tcNo || '', 
+            verified: Boolean(tcNo) 
+          },
+          casteCertificate: {
+            status: isCasteMandatory ? (casteCertNo ? 'SUBMITTED' : 'PENDING') : 'EXEMPTED',
+            docNumber: casteCertNo || '',
+            verified: Boolean(casteCertNo)
+          },
+          matricMarksheet: { status: 'PENDING', verified: false },
         },
-        registrationStatus: 'FEE_PAID',
-        remarks: `Direct Paste: Base ₹${baseFee} + Extra ₹${extraFee} = ₹${totalFee}`,
+        registrationStatus: 'PENDING_DOCS',
+        isFormIssued: false,
+        isFormSubmitted: false,
+        remarks: `Direct Import: ${finalStream} | Base ₹${baseFee} + Extra ₹${extraFee} = ₹${totalFee}`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -337,7 +385,7 @@ export const RegistrationUploadModal: React.FC<RegistrationUploadModalProps> = (
       const parsedList = (data.students || []).map((s: any, idx: number) => {
         const cat = (s.casteCategory || 'BC') as CasteCategory;
         const isCasteMandatory = cat === 'EBC' || cat === 'SC' || cat === 'ST';
-        const stStream = s.stream || data.stream || defaultStream;
+        const stStream = normalizeStream(s.stream || data.stream || defaultStream);
         const now = new Date();
         const dateStr = `${now.toISOString().slice(0, 10)} 10:00`;
         const bName = s.boardName || 'BSEB,Bihar';
@@ -375,31 +423,33 @@ export const RegistrationUploadModal: React.FC<RegistrationUploadModalProps> = (
           transactionRef: 'CASH-REG',
           documents: {
             aadhar: {
-              status: s.aadharNo ? 'SUBMITTED' : 'SUBMITTED',
+              status: s.aadharNo ? 'SUBMITTED' : 'PENDING',
               docNumber: s.aadharNo || '',
               verified: Boolean(s.aadharNo),
             },
             apaar: {
-              status: s.apaarId ? 'SUBMITTED' : 'SUBMITTED',
+              status: s.apaarId ? 'SUBMITTED' : 'PENDING',
               docNumber: s.apaarId || undefined,
-              verified: true,
+              verified: Boolean(s.apaarId),
             },
             transferCertificate: {
-              status: s.tcNo ? 'SUBMITTED' : 'SUBMITTED',
-              docNumber: s.tcNo || 'TC/2024/001',
-              verified: true,
+              status: s.tcNo ? 'SUBMITTED' : 'PENDING',
+              docNumber: s.tcNo || '',
+              verified: Boolean(s.tcNo),
             },
             casteCertificate: {
-              status: isCasteMandatory ? (s.casteCertNo ? 'SUBMITTED' : 'SUBMITTED') : 'EXEMPTED',
+              status: isCasteMandatory ? (s.casteCertNo ? 'SUBMITTED' : 'PENDING') : 'EXEMPTED',
               docNumber: s.casteCertNo || '',
-              verified: true,
+              verified: Boolean(s.casteCertNo),
             },
             matricMarksheet: {
-              status: 'SUBMITTED',
-              verified: true,
+              status: 'PENDING',
+              verified: false,
             },
           },
-          registrationStatus: 'FEE_PAID',
+          registrationStatus: 'PENDING_DOCS',
+          isFormIssued: false,
+          isFormSubmitted: false,
           remarks: `AI Parsed: ₹${base} + ₹${serviceCharge} = ₹${total}`,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),

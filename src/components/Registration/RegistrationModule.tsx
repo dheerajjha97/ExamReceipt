@@ -23,15 +23,21 @@ import {
   Info,
   ChevronRight,
   Receipt,
-  FileCheck
+  FileCheck,
+  Check,
+  X
 } from 'lucide-react';
 import { 
   RegistrationStudent, 
   InstituteSettings, 
   CasteCategory, 
   PaymentStatus,
+  RegistrationDocStatus,
+  RegistrationDocuments,
   calculateRegistrationFee,
-  isBSEBBoard
+  isBSEBBoard,
+  normalizeStream,
+  isStreamMatching
 } from '../../types';
 import { AddEditRegistrationModal } from './AddEditRegistrationModal';
 import { RegistrationFeeReceiptModal } from './RegistrationFeeReceiptModal';
@@ -65,6 +71,7 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState<string>('ALL');
   const [selectedDocFilter, setSelectedDocFilter] = useState<string>('ALL');
+  const [selectedFormStatus, setSelectedFormStatus] = useState<string>('ALL');
 
   // Modals state
   const [isAddEditOpen, setIsAddEditOpen] = useState(false);
@@ -100,7 +107,7 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
       }
 
       // Stream filter
-      if (selectedStream !== 'ALL' && !stu.stream.includes(selectedStream)) {
+      if (selectedStream !== 'ALL' && !isStreamMatching(stu.stream, selectedStream)) {
         return false;
       }
 
@@ -111,6 +118,23 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
 
       // Payment Status filter
       if (selectedPaymentStatus !== 'ALL' && stu.paymentStatus !== selectedPaymentStatus) {
+        return false;
+      }
+
+      // Form Status filter (फॉर्म लिया / फॉर्म जमा)
+      if (selectedFormStatus === 'ISSUED' && !stu.isFormIssued) {
+        return false;
+      }
+      if (selectedFormStatus === 'NOT_ISSUED' && stu.isFormIssued) {
+        return false;
+      }
+      if (selectedFormStatus === 'SUBMITTED' && !stu.isFormSubmitted) {
+        return false;
+      }
+      if (selectedFormStatus === 'NOT_SUBMITTED' && stu.isFormSubmitted) {
+        return false;
+      }
+      if (selectedFormStatus === 'PENDING_SUBMIT' && (!stu.isFormIssued || stu.isFormSubmitted)) {
         return false;
       }
 
@@ -131,7 +155,7 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
 
       return true;
     });
-  }, [students, searchTerm, selectedStream, selectedCategory, selectedPaymentStatus, selectedDocFilter]);
+  }, [students, searchTerm, selectedStream, selectedCategory, selectedPaymentStatus, selectedDocFilter, selectedFormStatus]);
 
   // Key metrics calculation
   const totalCount = students.length;
@@ -159,7 +183,231 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
     return req && s.documents?.casteCertificate?.status !== 'SUBMITTED';
   }).length;
 
+  const formIssuedCount = students.filter(s => s.isFormIssued).length;
+  const formSubmittedCount = students.filter(s => s.isFormSubmitted).length;
+  const formPendingSubmitCount = students.filter(s => s.isFormIssued && !s.isFormSubmitted).length;
+
+  // Stream counts (Robust stream classification)
+  const scienceCount = students.filter(s => isStreamMatching(s.stream, 'Science')).length;
+  const artsCount = students.filter(s => isStreamMatching(s.stream, 'Arts')).length;
+  const commerceCount = students.filter(s => isStreamMatching(s.stream, 'Commerce')).length;
+  const vocationalCount = students.filter(s => isStreamMatching(s.stream, 'Vocational')).length;
+
   // Handlers
+  const handleStreamChange = (studentId: string, newStream: string) => {
+    const updatedList = students.map((stu) => {
+      if (stu.id !== studentId) return stu;
+      return {
+        ...stu,
+        stream: normalizeStream(newStream),
+        updatedAt: new Date().toISOString(),
+      };
+    });
+    onUpdateStudents(updatedList);
+  };
+
+  const handleToggleFormIssued = (studentId: string) => {
+    const updatedList = students.map((stu) => {
+      if (stu.id !== studentId) return stu;
+      const nextIssued = !stu.isFormIssued;
+      return {
+        ...stu,
+        isFormIssued: nextIssued,
+        formIssuedDate: nextIssued ? (stu.formIssuedDate || new Date().toLocaleDateString('en-GB')) : undefined,
+        // If un-issuing form, automatically un-submit
+        isFormSubmitted: nextIssued ? stu.isFormSubmitted : false,
+        formSubmittedDate: nextIssued ? stu.formSubmittedDate : undefined,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+    onUpdateStudents(updatedList);
+  };
+
+  const handleToggleFormSubmitted = (studentId: string) => {
+    const updatedList = students.map((stu) => {
+      if (stu.id !== studentId) return stu;
+      const nextSubmitted = !stu.isFormSubmitted;
+      return {
+        ...stu,
+        isFormSubmitted: nextSubmitted,
+        // If form submitted is true, form was definitely taken/issued
+        isFormIssued: nextSubmitted ? true : stu.isFormIssued,
+        formSubmittedDate: nextSubmitted ? (stu.formSubmittedDate || new Date().toLocaleDateString('en-GB')) : undefined,
+        formIssuedDate: nextSubmitted && !stu.formIssuedDate ? new Date().toLocaleDateString('en-GB') : stu.formIssuedDate,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+    onUpdateStudents(updatedList);
+  };
+  const handleCategoryChange = (studentId: string, newCategory: CasteCategory) => {
+    const updatedList = students.map((stu) => {
+      if (stu.id !== studentId) return stu;
+
+      const isEbcScSt = newCategory === 'EBC' || newCategory === 'SC' || newCategory === 'ST';
+      const existingCasteDoc = stu.documents?.casteCertificate;
+      
+      let newCasteDocStatus: RegistrationDocStatus = existingCasteDoc?.status || 'PENDING';
+      if (!isEbcScSt) {
+        newCasteDocStatus = 'EXEMPTED';
+      } else if (newCasteDocStatus === 'EXEMPTED') {
+        newCasteDocStatus = 'PENDING';
+      }
+
+      const updatedDocs: RegistrationDocuments = {
+        aadhar: stu.documents?.aadhar || { status: 'PENDING' },
+        apaar: stu.documents?.apaar || { status: 'PENDING' },
+        transferCertificate: stu.documents?.transferCertificate || { status: 'PENDING' },
+        matricMarksheet: stu.documents?.matricMarksheet || { status: 'PENDING' },
+        ...stu.documents,
+        casteCertificate: {
+          ...(existingCasteDoc || { status: 'PENDING' }),
+          status: newCasteDocStatus,
+          verified: newCasteDocStatus === 'SUBMITTED',
+        },
+      };
+
+      const allMandatoryDone =
+        updatedDocs.aadhar.status === 'SUBMITTED' &&
+        updatedDocs.transferCertificate.status === 'SUBMITTED' &&
+        updatedDocs.matricMarksheet.status === 'SUBMITTED' &&
+        (!isEbcScSt || updatedDocs.casteCertificate.status === 'SUBMITTED');
+
+      let regStatus = stu.registrationStatus;
+      if (allMandatoryDone && stu.paymentStatus === 'PAID') {
+        regStatus = 'COMPLETED';
+      } else if (allMandatoryDone) {
+        regStatus = 'DOCS_VERIFIED';
+      } else {
+        regStatus = 'PENDING_DOCS';
+      }
+
+      return {
+        ...stu,
+        casteCategory: newCategory,
+        documents: updatedDocs,
+        registrationStatus: regStatus,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+
+    onUpdateStudents(updatedList);
+  };
+
+  const handleSetAllStudentsDocsNo = () => {
+    if (students.length === 0) return;
+    if (!window.confirm('क्या आप वाकई सभी पंजीकृत छात्रों के आवश्यक दस्तावेजों और फॉर्म स्थिति (लिया/जमा) को "NO" (लंबित) स्थिति में रीसेट करना चाहते हैं?')) {
+      return;
+    }
+    const updatedList = students.map((stu) => {
+      const isEbcScSt = stu.casteCategory === 'EBC' || stu.casteCategory === 'SC' || stu.casteCategory === 'ST';
+      const updatedDocs: RegistrationDocuments = {
+        aadhar: { ...(stu.documents?.aadhar || { status: 'PENDING' }), status: 'PENDING', verified: false },
+        apaar: { ...(stu.documents?.apaar || { status: 'PENDING' }), status: 'PENDING', verified: false },
+        transferCertificate: { ...(stu.documents?.transferCertificate || { status: 'PENDING' }), status: 'PENDING', verified: false },
+        casteCertificate: {
+          ...(stu.documents?.casteCertificate || { status: 'PENDING' }),
+          status: isEbcScSt ? 'PENDING' : 'EXEMPTED',
+          verified: false,
+        },
+        matricMarksheet: { ...(stu.documents?.matricMarksheet || { status: 'PENDING' }), status: 'PENDING', verified: false },
+      };
+
+      return {
+        ...stu,
+        isFormIssued: false,
+        formIssuedDate: undefined,
+        isFormSubmitted: false,
+        formSubmittedDate: undefined,
+        documents: updatedDocs,
+        registrationStatus: 'PENDING_DOCS',
+        updatedAt: new Date().toISOString(),
+      };
+    });
+
+    onUpdateStudents(updatedList);
+  };
+
+  const handleToggleDocStatus = (
+    studentId: string,
+    docKey: 'aadhar' | 'apaar' | 'transferCertificate' | 'casteCertificate' | 'matricMarksheet'
+  ) => {
+    const updatedList = students.map((stu) => {
+      if (stu.id !== studentId) return stu;
+
+      const currentDoc = stu.documents?.[docKey] || { status: 'PENDING' };
+      const currentStatus = currentDoc.status;
+      const newStatus: RegistrationDocStatus = currentStatus === 'SUBMITTED' ? 'PENDING' : 'SUBMITTED';
+
+      const updatedDocs: RegistrationDocuments = {
+        aadhar: stu.documents?.aadhar || { status: 'PENDING' },
+        apaar: stu.documents?.apaar || { status: 'PENDING' },
+        transferCertificate: stu.documents?.transferCertificate || { status: 'PENDING' },
+        casteCertificate: stu.documents?.casteCertificate || { status: 'PENDING' },
+        matricMarksheet: stu.documents?.matricMarksheet || { status: 'PENDING' },
+        ...stu.documents,
+        [docKey]: {
+          ...currentDoc,
+          status: newStatus,
+          verified: newStatus === 'SUBMITTED',
+        },
+      };
+
+      const isEbcScSt = stu.casteCategory === 'EBC' || stu.casteCategory === 'SC' || stu.casteCategory === 'ST';
+      const allMandatoryDone =
+        updatedDocs.aadhar.status === 'SUBMITTED' &&
+        updatedDocs.transferCertificate.status === 'SUBMITTED' &&
+        updatedDocs.matricMarksheet.status === 'SUBMITTED' &&
+        (!isEbcScSt || updatedDocs.casteCertificate.status === 'SUBMITTED');
+
+      let regStatus = stu.registrationStatus;
+      if (allMandatoryDone && stu.paymentStatus === 'PAID') {
+        regStatus = 'COMPLETED';
+      } else if (allMandatoryDone) {
+        regStatus = 'DOCS_VERIFIED';
+      } else {
+        regStatus = 'PENDING_DOCS';
+      }
+
+      return {
+        ...stu,
+        documents: updatedDocs,
+        registrationStatus: regStatus,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+
+    onUpdateStudents(updatedList);
+  };
+
+  const handleMarkAllDocs = (studentId: string, markSubmitted: boolean) => {
+    const updatedList = students.map((stu) => {
+      if (stu.id !== studentId) return stu;
+      const targetStatus: RegistrationDocStatus = markSubmitted ? 'SUBMITTED' : 'PENDING';
+      const isEbcScSt = stu.casteCategory === 'EBC' || stu.casteCategory === 'SC' || stu.casteCategory === 'ST';
+
+      const updatedDocs: RegistrationDocuments = {
+        aadhar: { ...(stu.documents?.aadhar || { status: 'PENDING' }), status: targetStatus, verified: markSubmitted },
+        apaar: { ...(stu.documents?.apaar || { status: 'PENDING' }), status: targetStatus, verified: markSubmitted },
+        transferCertificate: { ...(stu.documents?.transferCertificate || { status: 'PENDING' }), status: targetStatus, verified: markSubmitted },
+        casteCertificate: {
+          ...(stu.documents?.casteCertificate || { status: 'PENDING' }),
+          status: isEbcScSt ? targetStatus : 'EXEMPTED',
+          verified: isEbcScSt ? markSubmitted : true,
+        },
+        matricMarksheet: { ...(stu.documents?.matricMarksheet || { status: 'PENDING' }), status: targetStatus, verified: markSubmitted },
+      };
+
+      return {
+        ...stu,
+        documents: updatedDocs,
+        registrationStatus: markSubmitted ? (stu.paymentStatus === 'PAID' ? 'COMPLETED' : 'DOCS_VERIFIED') : 'PENDING_DOCS',
+        updatedAt: new Date().toISOString(),
+      };
+    });
+
+    onUpdateStudents(updatedList);
+  };
+
   const handleSaveStudent = (studentToSave: RegistrationStudent) => {
     if (editingStudent) {
       onUpdateStudents(students.map(s => s.id === studentToSave.id ? studentToSave : s));
@@ -267,11 +515,58 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
           <div>
             <div className="text-xs text-[#5A5A40] font-semibold">कुल पंजीकृत छात्र</div>
             <div className="text-2xl font-black text-[#2E5B50] mt-1">{totalCount}</div>
-            <div className="text-[11px] text-gray-500 mt-0.5 font-medium">
-              विज्ञान: {students.filter(s => s.stream.includes('Science')).length} &bull; कला: {students.filter(s => s.stream.includes('Arts')).length} &bull; वाणिज्य: {students.filter(s => s.stream.includes('Commerce')).length}
+            <div className="flex items-center gap-1.5 flex-wrap mt-2">
+              <button
+                type="button"
+                onClick={() => setSelectedStream('ALL')}
+                className={`px-2 py-0.5 rounded-lg text-[10.5px] font-bold transition cursor-pointer ${
+                  selectedStream === 'ALL'
+                    ? 'bg-[#2E5B50] text-white shadow-2xs'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+                title="सभी संकाय देखें"
+              >
+                सभी: {totalCount}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedStream('Arts')}
+                className={`px-2 py-0.5 rounded-lg text-[10.5px] font-bold transition cursor-pointer ${
+                  selectedStream === 'Arts'
+                    ? 'bg-orange-600 text-white shadow-2xs'
+                    : 'bg-orange-50 text-orange-900 border border-orange-200 hover:bg-orange-100'
+                }`}
+                title="केवल कला (Arts) छात्र फ़िल्टर करें"
+              >
+                कला: {artsCount}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedStream('Science')}
+                className={`px-2 py-0.5 rounded-lg text-[10.5px] font-bold transition cursor-pointer ${
+                  selectedStream === 'Science'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'bg-blue-50 text-blue-900 border border-blue-200 hover:bg-blue-100'
+                }`}
+                title="केवल विज्ञान (Science) छात्र फ़िल्टर करें"
+              >
+                विज्ञान: {scienceCount}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedStream('Commerce')}
+                className={`px-2 py-0.5 rounded-lg text-[10.5px] font-bold transition cursor-pointer ${
+                  selectedStream === 'Commerce'
+                    ? 'bg-emerald-700 text-white shadow-2xs'
+                    : 'bg-emerald-50 text-emerald-900 border border-emerald-200 hover:bg-emerald-100'
+                }`}
+                title="केवल वाणिज्य (Commerce) छात्र फ़िल्टर करें"
+              >
+                वाणिज्य: {commerceCount}
+              </button>
             </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-[#2E5B50]">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-[#2E5B50] shrink-0">
             <BookOpen className="w-6 h-6" />
           </div>
         </div>
@@ -329,9 +624,9 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
 
       {/* Filter and Search Bar */}
       <div className="bg-white/70 backdrop-blur-xl p-4 sm:p-5 rounded-3xl border border-white/60 shadow-lg space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3">
           {/* Search Box */}
-          <div className="md:col-span-4 relative">
+          <div className="md:col-span-3 relative">
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
@@ -381,28 +676,44 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
             </select>
           </div>
 
-          {/* Payment Status Filter */}
+          {/* Form Status Filter (फॉर्म लिया / फॉर्म जमा) */}
           <div className="md:col-span-2">
+            <select
+              value={selectedFormStatus}
+              onChange={(e) => setSelectedFormStatus(e.target.value)}
+              className="w-full px-3 py-2.5 bg-white/90 rounded-2xl border border-blue-300 text-xs font-bold text-blue-900 focus:ring-2 focus:ring-[#2E5B50]"
+            >
+              <option value="ALL">फॉर्म स्थिति (All)</option>
+              <option value="ISSUED">✓ फॉर्म लिया (Issued)</option>
+              <option value="NOT_ISSUED">✗ फॉर्म नहीं लिया (Not Issued)</option>
+              <option value="SUBMITTED">✓ फॉर्म जमा किया (Submitted)</option>
+              <option value="NOT_SUBMITTED">✗ फॉर्म जमा नहीं (Not Submitted)</option>
+              <option value="PENDING_SUBMIT">⚠️ फॉर्म लिया पर जमा बाकी</option>
+            </select>
+          </div>
+
+          {/* Payment Status Filter */}
+          <div className="md:col-span-1.5">
             <select
               value={selectedPaymentStatus}
               onChange={(e) => setSelectedPaymentStatus(e.target.value)}
               className="w-full px-3 py-2.5 bg-white/90 rounded-2xl border border-[#DDD8C5] text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-[#2E5B50]"
             >
-              <option value="ALL">शुल्क स्थिति (All)</option>
-              <option value="PAID">₹515 प्राप्त (Paid)</option>
-              <option value="UNPAID">बकाया (Unpaid)</option>
+              <option value="ALL">शुल्क स्थिति</option>
+              <option value="PAID">₹515 प्राप्त</option>
+              <option value="UNPAID">बकाया</option>
             </select>
           </div>
 
           {/* Doc Compliance Filter */}
-          <div className="md:col-span-2">
+          <div className="md:col-span-1.5">
             <select
               value={selectedDocFilter}
               onChange={(e) => setSelectedDocFilter(e.target.value)}
               className="w-full px-3 py-2.5 bg-white/90 rounded-2xl border border-amber-300 text-xs font-bold text-amber-900 focus:ring-2 focus:ring-[#2E5B50]"
             >
-              <option value="ALL">दस्तावेज फ़िल्टर (All)</option>
-              <option value="MISSING_TC">लंबित TC (Mandatory)</option>
+              <option value="ALL">दस्तावेज फ़िल्टर</option>
+              <option value="MISSING_TC">लंबित TC</option>
               <option value="MISSING_APAAR">अनुपलब्ध APAAR</option>
               <option value="MISSING_CASTE">लंबित जाति प्रमाण</option>
             </select>
@@ -415,6 +726,15 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
             <span className="text-[#5A5A40] font-medium">
               दर्शाए गए छात्र: <strong>{filteredStudents.length}</strong> / {totalCount}
             </span>
+            {/* Form stats pill */}
+            <span className="px-2 py-0.5 bg-blue-50 text-blue-800 rounded-full font-bold text-[10.5px] border border-blue-200">
+              फॉर्म लिया: {formIssuedCount} &bull; फॉर्म जमा: {formSubmittedCount} &bull; फॉर्म जमा बाकी: {formPendingSubmitCount}
+            </span>
+            {selectedFormStatus !== 'ALL' && (
+              <span className="px-2 py-0.5 bg-blue-100 text-blue-900 rounded-full font-bold text-[10px]">
+                फॉर्म फ़िल्टर सक्रिय
+              </span>
+            )}
             {selectedDocFilter !== 'ALL' && (
               <span className="px-2 py-0.5 bg-amber-100 text-amber-900 rounded-full font-bold text-[10px]">
                 दस्तावेज फ़िल्टर सक्रिय
@@ -423,6 +743,16 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {students.length > 0 && (
+              <button
+                onClick={handleSetAllStudentsDocsNo}
+                className="px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-800 font-bold text-xs flex items-center gap-1 transition shadow-2xs"
+                title="सभी छात्रों के आवश्यक दस्तावेजों को 'NO' (लंबित) पर सेट करें"
+              >
+                <X className="w-3.5 h-3.5 text-orange-600" />
+                <span>सबको No करें</span>
+              </button>
+            )}
             {students.length > 0 && (
               <button
                 onClick={() => setIsConfirmClearAllOpen(true)}
@@ -466,6 +796,8 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
                 <th className="p-3.5">BOARD NAME</th>
                 <th className="p-3.5">CATEGORY</th>
                 <th className="p-3.5">संकाय (Stream)</th>
+                <th className="p-3.5">फॉर्म ट्रैकिंग (लिया / जमा)</th>
+                <th className="p-3.5">आवश्यक दस्तावेज (Documents - Yes/No)</th>
                 <th className="p-3.5 text-center">शुल्क (Fee)</th>
                 <th className="p-3.5 text-right">कार्रवाई (Actions)</th>
               </tr>
@@ -473,7 +805,7 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
             <tbody className="divide-y divide-[#E8E4D5]">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="p-12 text-center text-gray-500">
+                  <td colSpan={12} className="p-12 text-center text-gray-500">
                     <div className="max-w-md mx-auto py-4">
                       <div className="w-16 h-16 rounded-3xl bg-emerald-50 text-[#2E5B50] border border-emerald-200 flex items-center justify-center mx-auto mb-3 shadow-sm">
                         <BookOpen className="w-8 h-8" />
@@ -573,18 +905,287 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
                         </span>
                       </td>
 
-                      {/* CATEGORY */}
+                      {/* CATEGORY (Directly Editable in Table) */}
                       <td className="p-3.5">
-                        <span className="px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg text-xs font-bold">
-                          {stu.casteCategory}
-                        </span>
+                        <div className="flex flex-col gap-1 min-w-[110px]">
+                          <select
+                            value={stu.casteCategory}
+                            onChange={(e) => handleCategoryChange(stu.id, e.target.value as CasteCategory)}
+                            className={`px-2 py-1 rounded-lg text-xs font-black border transition cursor-pointer shadow-2xs focus:ring-2 focus:ring-[#2E5B50] focus:outline-hidden ${
+                              stu.casteCategory === 'General'
+                                ? 'bg-slate-50 border-slate-300 text-slate-800 hover:bg-slate-100'
+                                : stu.casteCategory === 'BC'
+                                ? 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100'
+                                : stu.casteCategory === 'EBC'
+                                ? 'bg-purple-50 border-purple-300 text-purple-900 hover:bg-purple-100'
+                                : stu.casteCategory === 'SC'
+                                ? 'bg-rose-50 border-rose-300 text-rose-900 hover:bg-rose-100'
+                                : 'bg-teal-50 border-teal-300 text-teal-900 hover:bg-teal-100'
+                            }`}
+                            title="छात्र की कोटि (Category) बदलें - जाति प्रमाण पत्र की आवश्यकता तुरंत अपडेट होगी"
+                          >
+                            <option value="General">General</option>
+                            <option value="BC">BC</option>
+                            <option value="EBC">EBC</option>
+                            <option value="SC">SC</option>
+                            <option value="ST">ST</option>
+                          </select>
+                          <span className="text-[9.5px] text-gray-500 font-medium">
+                            {stu.casteCategory === 'EBC' || stu.casteCategory === 'SC' || stu.casteCategory === 'ST' 
+                              ? '⚠️ जाति प्रमाण अनिवार्य' 
+                              : '✓ जाति प्रमाण छूट'}
+                          </span>
+                        </div>
                       </td>
 
-                      {/* STREAM */}
+                      {/* STREAM (Directly Editable in Table) */}
                       <td className="p-3.5">
-                        <span className="font-semibold text-[#2E5B50] whitespace-nowrap block">
-                          {stu.stream}
-                        </span>
+                        <div className="flex flex-col gap-1 min-w-[125px]">
+                          <select
+                            value={normalizeStream(stu.stream)}
+                            onChange={(e) => handleStreamChange(stu.id, e.target.value)}
+                            className={`px-2 py-1 rounded-lg text-xs font-bold border transition cursor-pointer shadow-2xs focus:ring-2 focus:ring-[#2E5B50] focus:outline-hidden ${
+                              isStreamMatching(stu.stream, 'Commerce')
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-900 hover:bg-emerald-100'
+                                : isStreamMatching(stu.stream, 'Science')
+                                ? 'bg-blue-50 border-blue-300 text-blue-900 hover:bg-blue-100'
+                                : isStreamMatching(stu.stream, 'Arts')
+                                ? 'bg-orange-50 border-orange-300 text-orange-900 hover:bg-orange-100'
+                                : 'bg-purple-50 border-purple-300 text-purple-900 hover:bg-purple-100'
+                            }`}
+                            title="संकाय (Stream) बदलें - Arts, Science, Commerce"
+                          >
+                            <option value="Arts (I.A)">कला • Arts (I.A)</option>
+                            <option value="Science (I.Sc)">विज्ञान • Science (I.Sc)</option>
+                            <option value="Commerce (I.Com)">वाणिज्य • Commerce (I.Com)</option>
+                            <option value="Vocational">व्यावसायिक • Vocational</option>
+                          </select>
+                        </div>
+                      </td>
+
+                      {/* FORM TRACKING (फॉर्म लिया / फॉर्म जमा - YES/NO Toggles) */}
+                      <td className="p-3.5">
+                        <div className="flex flex-col gap-1.5 min-w-[195px]">
+                          {/* 1. Form Issued Toggle */}
+                          <div className={`flex items-center justify-between gap-1 px-2 py-1 rounded-xl border transition ${
+                            stu.isFormIssued 
+                              ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900' 
+                              : 'bg-rose-50/60 border-rose-200 text-rose-900'
+                          }`}>
+                            <span className="text-[11px] font-bold">1. फॉर्म लिया:</span>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleFormIssued(stu.id)}
+                              className={`px-2 py-0.5 rounded-lg text-xs font-black shadow-2xs transition flex items-center gap-0.5 cursor-pointer ${
+                                stu.isFormIssued
+                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                  : 'bg-rose-600 hover:bg-rose-700 text-white'
+                              }`}
+                              title="क्लिक करके Yes/No बदलें (क्या छात्र ने फॉर्म लिया है?)"
+                            >
+                              <span>{stu.isFormIssued ? 'YES ✓' : 'NO ✗'}</span>
+                            </button>
+                          </div>
+
+                          {/* 2. Form Submitted Toggle */}
+                          <div className={`flex items-center justify-between gap-1 px-2 py-1 rounded-xl border transition ${
+                            stu.isFormSubmitted 
+                              ? 'bg-blue-50/80 border-blue-200 text-blue-900' 
+                              : 'bg-rose-50/60 border-rose-200 text-rose-900'
+                          }`}>
+                            <span className="text-[11px] font-bold">2. फॉर्म जमा:</span>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleFormSubmitted(stu.id)}
+                              className={`px-2 py-0.5 rounded-lg text-xs font-black shadow-2xs transition flex items-center gap-0.5 cursor-pointer ${
+                                stu.isFormSubmitted
+                                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                  : 'bg-rose-600 hover:bg-rose-700 text-white'
+                              }`}
+                              title="क्लिक करके Yes/No बदलें (क्या छात्र ने फॉर्म जमा किया है?)"
+                            >
+                              <span>{stu.isFormSubmitted ? 'YES ✓' : 'NO ✗'}</span>
+                            </button>
+                          </div>
+
+                          {/* Date summary tags if set */}
+                          {(stu.isFormIssued || stu.isFormSubmitted) && (
+                            <div className="flex items-center justify-between text-[9.5px] font-mono text-gray-500 px-0.5">
+                              {stu.isFormIssued && <span>लिया: {stu.formIssuedDate || 'आज'}</span>}
+                              {stu.isFormSubmitted && <span>जमा: {stu.formSubmittedDate || 'आज'}</span>}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Required Documents Toggle Buttons (Yes / No) */}
+                      <td className="p-3.5">
+                        {(() => {
+                          const isAadharSubmitted = stu.documents?.aadhar?.status === 'SUBMITTED';
+                          const isApaarSubmitted = stu.documents?.apaar?.status === 'SUBMITTED';
+                          const isTcSubmitted = stu.documents?.transferCertificate?.status === 'SUBMITTED';
+                          const isMarksheetSubmitted = stu.documents?.matricMarksheet?.status === 'SUBMITTED';
+                          const isCasteReq = stu.casteCategory === 'EBC' || stu.casteCategory === 'SC' || stu.casteCategory === 'ST';
+                          const isCasteSubmitted = stu.documents?.casteCertificate?.status === 'SUBMITTED';
+
+                          const submittedDocsCount = 
+                            (isAadharSubmitted ? 1 : 0) +
+                            (isApaarSubmitted ? 1 : 0) +
+                            (isTcSubmitted ? 1 : 0) +
+                            (isMarksheetSubmitted ? 1 : 0) +
+                            (isCasteReq ? (isCasteSubmitted ? 1 : 0) : 1);
+                          const totalReqDocs = isCasteReq ? 5 : 4;
+                          const allDone = submittedDocsCount >= totalReqDocs;
+
+                          return (
+                            <div className="flex flex-col gap-1.5 min-w-[280px]">
+                              {/* Summary header, Category quick changer & Quick All Yes/No buttons */}
+                              <div className="flex items-center justify-between text-[11px] pb-1 border-b border-gray-100 gap-1 flex-wrap">
+                                <span className="flex items-center gap-1.5 font-bold">
+                                  <span className={`w-2 h-2 rounded-full ${allDone ? 'bg-emerald-500 ring-2 ring-emerald-200' : 'bg-amber-500'}`} />
+                                  <span className={allDone ? 'text-emerald-800' : 'text-amber-800'}>
+                                    {submittedDocsCount}/{totalReqDocs} जमा
+                                  </span>
+                                </span>
+
+                                <div className="flex items-center gap-1">
+                                  {/* Quick category select right here inside document panel */}
+                                  <div className="flex items-center gap-0.5 bg-gray-50 px-1 py-0.5 rounded border border-gray-200" title="कोटि (Category) बदलें">
+                                    <span className="text-[9.5px] text-gray-500 font-bold">कोटि:</span>
+                                    <select
+                                      value={stu.casteCategory}
+                                      onChange={(e) => handleCategoryChange(stu.id, e.target.value as CasteCategory)}
+                                      className="text-[10px] font-black bg-white border border-gray-300 rounded px-1 py-0.2 text-gray-800 focus:outline-hidden cursor-pointer"
+                                    >
+                                      <option value="General">GEN</option>
+                                      <option value="BC">BC</option>
+                                      <option value="EBC">EBC</option>
+                                      <option value="SC">SC</option>
+                                      <option value="ST">ST</option>
+                                    </select>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMarkAllDocs(stu.id, true)}
+                                    className="px-1.5 py-0.5 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-bold transition flex items-center gap-0.5 shadow-2xs cursor-pointer"
+                                    title="सभी आवश्यक दस्तावेज एक साथ YES (जमा) करें"
+                                  >
+                                    <Check className="w-3 h-3 text-emerald-600" />
+                                    <span>सब Yes</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMarkAllDocs(stu.id, false)}
+                                    className="px-1.5 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-[10px] font-bold transition flex items-center gap-0.5 shadow-2xs cursor-pointer"
+                                    title="सभी दस्तावेज एक साथ NO (लंबित) करें"
+                                  >
+                                    <X className="w-3 h-3 text-rose-600" />
+                                    <span>No</span>
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Document Toggle Buttons */}
+                              <div className="flex flex-wrap items-center gap-1">
+                                {/* 1. आधार (Aadhaar) */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleDocStatus(stu.id, 'aadhar')}
+                                  className={`px-2 py-0.5 rounded-lg text-[10.5px] font-bold border transition flex items-center gap-1 shadow-2xs cursor-pointer ${
+                                    isAadharSubmitted
+                                      ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-300'
+                                      : 'bg-rose-50 hover:bg-rose-100 text-rose-800 border-rose-300'
+                                  }`}
+                                  title="आधार कार्ड: क्लिक करके Yes/No बदलें"
+                                >
+                                  <span>आधार:</span>
+                                  <span className={`px-1 py-0.2 rounded text-[9.5px] font-black ${isAadharSubmitted ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
+                                    {isAadharSubmitted ? 'YES ✓' : 'NO ✗'}
+                                  </span>
+                                </button>
+
+                                {/* 2. अपार (APAAR) */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleDocStatus(stu.id, 'apaar')}
+                                  className={`px-2 py-0.5 rounded-lg text-[10.5px] font-bold border transition flex items-center gap-1 shadow-2xs cursor-pointer ${
+                                    isApaarSubmitted
+                                      ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-300'
+                                      : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300'
+                                  }`}
+                                  title="अपार आईडी: क्लिक करके Yes/No बदलें"
+                                >
+                                  <span>अपार:</span>
+                                  <span className={`px-1 py-0.2 rounded text-[9.5px] font-black ${isApaarSubmitted ? 'bg-emerald-600 text-white' : 'bg-amber-600 text-white'}`}>
+                                    {isApaarSubmitted ? 'YES ✓' : 'NO ✗'}
+                                  </span>
+                                </button>
+
+                                {/* 3. मूल TC (SLC/TC) */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleDocStatus(stu.id, 'transferCertificate')}
+                                  className={`px-2 py-0.5 rounded-lg text-[10.5px] font-bold border transition flex items-center gap-1 shadow-2xs cursor-pointer ${
+                                    isTcSubmitted
+                                      ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-300'
+                                      : 'bg-rose-50 hover:bg-rose-100 text-rose-800 border-rose-300'
+                                  }`}
+                                  title="मूल TC / SLC: क्लिक करके Yes/No बदलें"
+                                >
+                                  <span>मूल TC:</span>
+                                  <span className={`px-1 py-0.2 rounded text-[9.5px] font-black ${isTcSubmitted ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
+                                    {isTcSubmitted ? 'YES ✓' : 'NO ✗'}
+                                  </span>
+                                </button>
+
+                                {/* 4. जाति प्रमाण पत्र (Caste Certificate) */}
+                                {isCasteReq ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleDocStatus(stu.id, 'casteCertificate')}
+                                    className={`px-2 py-0.5 rounded-lg text-[10.5px] font-bold border transition flex items-center gap-1 shadow-2xs cursor-pointer ${
+                                      isCasteSubmitted
+                                        ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-300'
+                                        : 'bg-rose-50 hover:bg-rose-100 text-rose-800 border-rose-300'
+                                    }`}
+                                    title={`${stu.casteCategory} जाति प्रमाण पत्र: क्लिक करके Yes/No बदलें`}
+                                  >
+                                    <span>जाति:</span>
+                                    <span className={`px-1 py-0.2 rounded text-[9.5px] font-black ${isCasteSubmitted ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
+                                      {isCasteSubmitted ? 'YES ✓' : 'NO ✗'}
+                                    </span>
+                                  </button>
+                                ) : (
+                                  <span 
+                                    className="px-2 py-0.5 rounded-lg text-[10.5px] font-medium bg-gray-100 text-gray-500 border border-gray-200 flex items-center gap-1"
+                                    title="सामान्य / पिछड़ा वर्ग (छूट)"
+                                  >
+                                    <span>जाति:</span>
+                                    <span className="text-[9.5px] font-semibold text-gray-400">छूट (N/A)</span>
+                                  </span>
+                                )}
+
+                                {/* 5. अंकपत्र (10th Marksheet) */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleDocStatus(stu.id, 'matricMarksheet')}
+                                  className={`px-2 py-0.5 rounded-lg text-[10.5px] font-bold border transition flex items-center gap-1 shadow-2xs cursor-pointer ${
+                                    isMarksheetSubmitted
+                                      ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-300'
+                                      : 'bg-rose-50 hover:bg-rose-100 text-rose-800 border-rose-300'
+                                  }`}
+                                  title="10वीं मैट्रिक अंकपत्र: क्लिक करके Yes/No बदलें"
+                                >
+                                  <span>अंकपत्र:</span>
+                                  <span className={`px-1 py-0.2 rounded text-[9.5px] font-black ${isMarksheetSubmitted ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
+                                    {isMarksheetSubmitted ? 'YES ✓' : 'NO ✗'}
+                                  </span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Registration Fee Status */}

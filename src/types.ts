@@ -69,6 +69,12 @@ export interface RegistrationStudent {
   documents: RegistrationDocuments;
   registrationStatus: 'PENDING_DOCS' | 'DOCS_VERIFIED' | 'FEE_PAID' | 'COMPLETED';
 
+  // Form Track Status (Form Issued & Form Submitted)
+  isFormIssued?: boolean;        // फॉर्म लिया / निर्गत (Form Taken/Issued) - default false (NO)
+  formIssuedDate?: string;
+  isFormSubmitted?: boolean;     // फॉर्म जमा किया (Form Submitted) - default false (NO)
+  formSubmittedDate?: string;
+
   remarks?: string;
   createdAt: string;
   updatedAt: string;
@@ -92,6 +98,43 @@ export function calculateRegistrationFee(boardName?: string, serviceCharge = 30)
     serviceCharge,
     totalFee: baseFee + serviceCharge,
   };
+}
+
+export function normalizeStream(raw?: string): 'Science (I.Sc)' | 'Arts (I.A)' | 'Commerce (I.Com)' | 'Vocational' {
+  if (!raw) return 'Science (I.Sc)';
+  const lower = raw.toLowerCase().trim();
+  if (lower.includes('com') || lower.includes('वाणिज्य') || lower.includes('i.com')) {
+    return 'Commerce (I.Com)';
+  }
+  if (lower.includes('art') || lower.includes('कला') || lower.includes('i.a') || lower.includes('ia')) {
+    return 'Arts (I.A)';
+  }
+  if (lower.includes('sci') || lower.includes('विज्ञान') || lower.includes('i.sc') || lower.includes('isc')) {
+    return 'Science (I.Sc)';
+  }
+  if (lower.includes('voc') || lower.includes('व्यावसायिक')) {
+    return 'Vocational';
+  }
+  return 'Science (I.Sc)';
+}
+
+export function isStreamMatching(stuStream: string = '', filterStream: string): boolean {
+  if (!filterStream || filterStream === 'ALL') return true;
+  const s = (stuStream || '').toLowerCase().trim();
+  const f = filterStream.toLowerCase().trim();
+  if (f.includes('com') || f.includes('वाणिज्य') || f.includes('i.com')) {
+    return s.includes('com') || s.includes('वाणिज्य') || s.includes('i.com');
+  }
+  if (f.includes('art') || f.includes('कला') || f.includes('i.a')) {
+    return s.includes('art') || s.includes('कला') || s.includes('i.a') || s.includes('ia');
+  }
+  if (f.includes('sci') || f.includes('विज्ञान') || f.includes('i.sc')) {
+    return s.includes('sci') || s.includes('विज्ञान') || s.includes('i.sc') || s.includes('isc');
+  }
+  if (f.includes('voc') || f.includes('व्यावसायिक')) {
+    return s.includes('voc') || s.includes('व्यावसायिक');
+  }
+  return s.includes(f);
 }
 
 export interface Student {

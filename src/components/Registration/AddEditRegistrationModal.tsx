@@ -13,7 +13,8 @@ import {
   Phone,
   BookOpen,
   School,
-  IdCard
+  IdCard,
+  FileCheck
 } from 'lucide-react';
 import { 
   RegistrationStudent, 
@@ -22,7 +23,8 @@ import {
   PaymentMode,
   RegistrationDocStatus,
   calculateRegistrationFee,
-  isBSEBBoard
+  isBSEBBoard,
+  normalizeStream
 } from '../../types';
 import { getNextRegistrationReceiptNumber } from '../../services/storageService';
 
@@ -69,7 +71,7 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
     (studentToEdit?.casteCategory as CasteCategory) || 'BC'
   );
   const [stream, setStream] = useState<string>(
-    studentToEdit?.stream || 'Science (I.Sc)'
+    normalizeStream(studentToEdit?.stream || 'Science (I.Sc)')
   );
   const [mobile, setMobile] = useState(studentToEdit?.mobile || '');
   const [email, setEmail] = useState(studentToEdit?.email || '');
@@ -96,16 +98,16 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
     studentToEdit?.transactionRef || (paymentMode === 'CASH' ? 'CASH-REG' : `UPI-${Date.now().toString().slice(-6)}`)
   );
 
-  // Documents State
+  // Documents State (By default PENDING / NO)
   const [aadharStatus, setAadharStatus] = useState<RegistrationDocStatus>(
-    studentToEdit?.documents?.aadhar?.status || 'SUBMITTED'
+    studentToEdit?.documents?.aadhar?.status || 'PENDING'
   );
   const [aadharNumber, setAadharNumber] = useState(
     studentToEdit?.documents?.aadhar?.docNumber || ''
   );
 
   const [apaarStatus, setApaarStatus] = useState<RegistrationDocStatus>(
-    studentToEdit?.documents?.apaar?.status || 'SUBMITTED'
+    studentToEdit?.documents?.apaar?.status || 'PENDING'
   );
   const [apaarNumber, setApaarNumber] = useState(
     studentToEdit?.documents?.apaar?.docNumber || ''
@@ -116,7 +118,7 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
   const [customApaarReason, setCustomApaarReason] = useState('');
 
   const [tcStatus, setTcStatus] = useState<RegistrationDocStatus>(
-    studentToEdit?.documents?.transferCertificate?.status || 'SUBMITTED'
+    studentToEdit?.documents?.transferCertificate?.status || 'PENDING'
   );
   const [tcNumber, setTcNumber] = useState(
     studentToEdit?.documents?.transferCertificate?.docNumber || ''
@@ -127,14 +129,28 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
 
   const isCasteCertMandatory = casteCategory === 'EBC' || casteCategory === 'SC' || casteCategory === 'ST';
   const [casteStatus, setCasteStatus] = useState<RegistrationDocStatus>(
-    studentToEdit?.documents?.casteCertificate?.status || (isCasteCertMandatory ? 'SUBMITTED' : 'EXEMPTED')
+    studentToEdit?.documents?.casteCertificate?.status || (isCasteCertMandatory ? 'PENDING' : 'EXEMPTED')
   );
   const [casteNumber, setCasteNumber] = useState(
     studentToEdit?.documents?.casteCertificate?.docNumber || ''
   );
 
   const [marksheetStatus, setMarksheetStatus] = useState<RegistrationDocStatus>(
-    studentToEdit?.documents?.matricMarksheet?.status || 'SUBMITTED'
+    studentToEdit?.documents?.matricMarksheet?.status || 'PENDING'
+  );
+
+  // Form Issue & Submission Status (Default NO / false)
+  const [isFormIssued, setIsFormIssued] = useState<boolean>(
+    studentToEdit?.isFormIssued || false
+  );
+  const [formIssuedDate, setFormIssuedDate] = useState<string>(
+    studentToEdit?.formIssuedDate || ''
+  );
+  const [isFormSubmitted, setIsFormSubmitted] = useState<boolean>(
+    studentToEdit?.isFormSubmitted || false
+  );
+  const [formSubmittedDate, setFormSubmittedDate] = useState<string>(
+    studentToEdit?.formSubmittedDate || ''
   );
 
   const [remarks, setRemarks] = useState(studentToEdit?.remarks || '');
@@ -225,6 +241,11 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
       registrationStatus: isFeePaid 
         ? (tcStatus === 'SUBMITTED' && (casteStatus === 'SUBMITTED' || !isCasteCertMandatory) ? 'COMPLETED' : 'FEE_PAID')
         : 'PENDING_DOCS',
+      // Form Track Status (Default NO / false)
+      isFormIssued,
+      formIssuedDate: isFormIssued ? (formIssuedDate || dateStr.slice(0, 10)) : undefined,
+      isFormSubmitted,
+      formSubmittedDate: isFormSubmitted ? (formSubmittedDate || dateStr.slice(0, 10)) : undefined,
       remarks: remarks.trim(),
       createdAt: studentToEdit?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -665,7 +686,98 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
             </div>
           </div>
 
-          {/* Section 3: Registration Fee Collection (₹515 for BSEB / ₹715 for Other Boards) */}
+          {/* Section 3: Form Distribution & Submission Status (फॉर्म लिया / फॉर्म जमा) */}
+          <div className="bg-white/80 p-5 rounded-2xl border border-blue-200 shadow-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-[#E8E4D5] pb-2">
+              <h3 className="text-sm font-bold text-[#2E5B50] flex items-center gap-2">
+                <FileCheck className="w-4 h-4 text-blue-600" />
+                <span>3. फॉर्म वितरण एवं संकलन ट्रैकिंग (Form Issue & Submission Status)</span>
+              </h3>
+              <span className="text-[11px] text-gray-500 font-medium">
+                डिफ़ॉल्ट: NO (आवश्यकतानुसार टॉगल करें)
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              {/* Form Issued / Taken */}
+              <div className={`p-4 rounded-xl border transition ${
+                isFormIssued ? 'bg-emerald-50/80 border-emerald-300' : 'bg-rose-50/50 border-rose-200'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold text-gray-800 flex items-center gap-1.5">
+                    <span>1. क्या छात्र ने फॉर्म लिया है?</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !isFormIssued;
+                      setIsFormIssued(next);
+                      if (!next) setIsFormSubmitted(false);
+                    }}
+                    className={`px-3 py-1 rounded-lg text-xs font-black shadow-xs transition flex items-center gap-1 cursor-pointer ${
+                      isFormIssued 
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                        : 'bg-rose-600 text-white hover:bg-rose-700'
+                    }`}
+                  >
+                    <span>{isFormIssued ? 'YES (फॉर्म लिया ✓)' : 'NO (नहीं लिया ✗)'}</span>
+                  </button>
+                </div>
+                {isFormIssued && (
+                  <div>
+                    <label className="block text-[10.5px] font-semibold text-gray-600 mb-1">फॉर्म लेने / वितरण की तिथि</label>
+                    <input
+                      type="text"
+                      value={formIssuedDate}
+                      onChange={(e) => setFormIssuedDate(e.target.value)}
+                      placeholder="DD-MM-YYYY (e.g. 10-09-2026)"
+                      className="w-full px-3 py-1.5 bg-white rounded-lg border border-emerald-300 text-xs font-mono"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Form Submitted */}
+              <div className={`p-4 rounded-xl border transition ${
+                isFormSubmitted ? 'bg-blue-50/80 border-blue-300' : 'bg-rose-50/50 border-rose-200'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold text-gray-800 flex items-center gap-1.5">
+                    <span>2. क्या छात्र ने फॉर्म जमा किया है?</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !isFormSubmitted;
+                      setIsFormSubmitted(next);
+                      if (next) setIsFormIssued(true);
+                    }}
+                    className={`px-3 py-1 rounded-lg text-xs font-black shadow-xs transition flex items-center gap-1 cursor-pointer ${
+                      isFormSubmitted 
+                        ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                        : 'bg-rose-600 text-white hover:bg-rose-700'
+                    }`}
+                  >
+                    <span>{isFormSubmitted ? 'YES (फॉर्म जमा ✓)' : 'NO (जमा नहीं ✗)'}</span>
+                  </button>
+                </div>
+                {isFormSubmitted && (
+                  <div>
+                    <label className="block text-[10.5px] font-semibold text-gray-600 mb-1">फॉर्म जमा करने की तिथि</label>
+                    <input
+                      type="text"
+                      value={formSubmittedDate}
+                      onChange={(e) => setFormSubmittedDate(e.target.value)}
+                      placeholder="DD-MM-YYYY (e.g. 10-09-2026)"
+                      className="w-full px-3 py-1.5 bg-white rounded-lg border border-blue-300 text-xs font-mono"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4: Registration Fee Collection (₹515 for BSEB / ₹715 for Other Boards) */}
           <div className={`p-5 rounded-2xl border space-y-3 ${
             feeInfo.isBseb 
               ? 'bg-linear-to-r from-emerald-50 to-teal-50 border-emerald-200' 
@@ -676,7 +788,7 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
                 <CreditCard className={`w-5 h-5 ${feeInfo.isBseb ? 'text-[#2E5B50]' : 'text-amber-800'}`} />
                 <div>
                   <h3 className={`text-sm font-bold ${feeInfo.isBseb ? 'text-[#2E5B50]' : 'text-amber-900'}`}>
-                    3. पंजीकरण शुल्क रसीद (Registration Fee ₹{feeInfo.totalFee})
+                    4. पंजीकरण शुल्क रसीद (Registration Fee ₹{feeInfo.totalFee})
                   </h3>
                   <p className="text-[11px] text-gray-600">
                     {feeInfo.isBseb 
