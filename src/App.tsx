@@ -23,7 +23,7 @@ import {
   deleteTransactionFromCloud,
   clearSchoolCloudData 
 } from './services/firebaseSyncService';
-import { Student, RegistrationStudent, Transaction, InstituteSettings, PaymentMode, FormIssueStatus } from './types';
+import { Student, RegistrationStudent, Transaction, InstituteSettings, PaymentMode, FormIssueStatus, FeeStageKey, FEE_STAGES_CONFIG, PaymentStatus } from './types';
 import { initialStudents, initialTransactions, initialRegistrationStudents } from './data/mockStudents';
 import { Header } from './components/Header';
 import { StudentList } from './components/StudentList';
@@ -42,6 +42,7 @@ import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { DailySettlementModal } from './components/DailySettlementModal';
 import { MainDashboardHub } from './components/MainDashboardHub';
 import { RegistrationModule } from './components/Registration/RegistrationModule';
+import { StudentLifecycleModule } from './components/Lifecycle/StudentLifecycleModule';
 import { OfflineIndicator } from './components/PWA/OfflineIndicator';
 import { RotateCcw, CheckCircle2, X, ArrowLeft, School, BookOpen, Layers } from 'lucide-react';
 
@@ -58,8 +59,8 @@ export default function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [settings, setSettings] = useState<InstituteSettings>(getStoredSettings());
 
-  // Top-Level Module Navigation: 'HUB' (2-Card Landing) | 'EXAMINATION' (Card 1) | 'REGISTRATION' (Card 2)
-  const [activeModule, setActiveModule] = useState<'HUB' | 'EXAMINATION' | 'REGISTRATION'>('HUB');
+  // Top-Level Module Navigation: 'HUB' | 'EXAMINATION' | 'REGISTRATION' | 'LIFECYCLE'
+  const [activeModule, setActiveModule] = useState<'HUB' | 'EXAMINATION' | 'REGISTRATION' | 'LIFECYCLE'>('HUB');
 
   // Accidental Deletion Protection & Undo state
   const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
@@ -725,6 +726,260 @@ export default function App() {
     updateStudentsState(updatedStudents);
   };
 
+  // Save 4-Stage Lifecycle Fee Payment
+  const handleSaveStagePayment = (
+    studentId: string, 
+    stageKey: FeeStageKey, 
+    paymentData: {
+      paidAmount: number;
+      paymentMode: PaymentMode;
+      receiptNo: string;
+      paymentDate: string;
+      transactionRef?: string;
+      remarks?: string;
+    }
+  ) => {
+    const stageConf = FEE_STAGES_CONFIG[stageKey];
+    const targetExamStudent = students.find(s => s.id === studentId);
+    const targetRegStudent = registrationStudents.find(s => s.id === studentId);
+
+    const studentName = targetExamStudent?.studentName || targetRegStudent?.studentName || 'Student';
+    const fatherName = targetExamStudent?.fatherName || targetRegStudent?.fatherName || '';
+    const regNo = targetExamStudent?.registrationNo || targetRegStudent?.formNo || studentId;
+    const stream = targetExamStudent?.classOrStream || targetRegStudent?.stream || 'Intermediate Science';
+
+    // 1. Log transaction to Day Book
+    const newTxn: Transaction = {
+      id: `txn-stage-${Date.now()}`,
+      receiptNo: paymentData.receiptNo,
+      studentId: studentId,
+      studentName: studentName,
+      registrationNo: regNo,
+      fatherName: fatherName,
+      classOrStream: stream,
+      baseFee: paymentData.paidAmount,
+      onlineCharges: 0,
+      totalAmount: paymentData.paidAmount,
+      paidAmount: paymentData.paidAmount,
+      dueAmount: 0,
+      paymentMode: paymentData.paymentMode,
+      transactionRef: paymentData.transactionRef || '',
+      paymentDate: paymentData.paymentDate,
+      collectedBy: settings.cashierName || 'Cashier Counter',
+      remarks: `${stageConf.name} (${stageConf.hindi}) - ${paymentData.remarks || 'Collected'}`,
+      transactionType: stageConf.name
+    };
+
+    updateTransactionsState([newTxn, ...transactions]);
+    if (currentSchoolCode) {
+      saveTransactionToCloud(newTxn, currentSchoolCode);
+    }
+
+    // 2. If Exam Form stage, also update examination student if matched
+    if (stageKey === 'EXAM_12' && targetExamStudent) {
+      const updatedStudents = students.map(s => {
+        if (s.id === studentId) {
+          const updated: Student = {
+            ...s,
+            paidAmount: paymentData.paidAmount,
+            paymentStatus: 'PAID',
+            paymentDate: paymentData.paymentDate,
+            paymentMode: paymentData.paymentMode,
+            lastReceiptNo: paymentData.receiptNo,
+            transactionRef: paymentData.transactionRef,
+            updatedAt: new Date().toISOString()
+          };
+          if (currentSchoolCode) saveStudentToCloud(updated, currentSchoolCode);
+          return updated;
+        }
+        return s;
+      });
+      updateStudentsState(updatedStudents);
+    }
+
+    // 3. If Registration stage, also update registration student if matched
+    if (stageKey === 'REG_11' && targetRegStudent) {
+      const updatedRegs = registrationStudents.map(s => {
+        if (s.id === studentId) {
+          const updated: RegistrationStudent = {
+            ...s,
+            paidAmount: paymentData.paidAmount,
+            paymentStatus: 'PAID',
+            paymentDate: paymentData.paymentDate,
+            paymentMode: paymentData.paymentMode,
+            receiptNo: paymentData.receiptNo,
+            transactionRef: paymentData.transactionRef,
+            registrationStatus: 'FEE_PAID',
+            updatedAt: new Date().toISOString()
+          };
+          if (currentSchoolCode) saveRegistrationStudentToCloud(updated, currentSchoolCode);
+          return updated;
+        }
+        return s;
+      });
+      updateRegistrationStudentsState(updatedRegs);
+    }
+  };
+
+  // Update student registration number, session and 4-stage custom fee amounts
+  const handleUpdateStudentLifecycleDetails = (
+    studentId: string,
+    updates: {
+      registrationNo?: string;
+      session?: string;
+      stagesData?: Record<FeeStageKey, { expectedFee: number; paidAmount: number; status: PaymentStatus; receiptNo?: string }>;
+    }
+  ) => {
+    let matchedInExam = false;
+
+    // Check in examination students
+    const updatedStudents = students.map(s => {
+      if (s.id === studentId) {
+        matchedInExam = true;
+        const examStage = updates.stagesData?.EXAM_12;
+        const updated: Student = {
+          ...s,
+          registrationNo: updates.registrationNo !== undefined ? updates.registrationNo : s.registrationNo,
+          session: updates.session || s.session,
+          totalFee: examStage ? examStage.expectedFee : s.totalFee,
+          paidAmount: examStage ? examStage.paidAmount : s.paidAmount,
+          paymentStatus: examStage ? examStage.status : s.paymentStatus,
+          feeLifecycle: {
+            adm_11: updates.stagesData?.ADM_11 ? {
+              stageKey: 'ADM_11',
+              stageName: '11th Admission',
+              stageHindi: '11वीं नामांकन शुल्क',
+              stageClass: '11th',
+              targetSession: updates.session || s.session || '2025-2027',
+              expectedFee: updates.stagesData.ADM_11.expectedFee,
+              paidAmount: updates.stagesData.ADM_11.paidAmount,
+              dueAmount: Math.max(0, updates.stagesData.ADM_11.expectedFee - updates.stagesData.ADM_11.paidAmount),
+              paymentStatus: updates.stagesData.ADM_11.status,
+              receiptNo: updates.stagesData.ADM_11.receiptNo
+            } : s.feeLifecycle?.adm_11,
+            reg_11: updates.stagesData?.REG_11 ? {
+              stageKey: 'REG_11',
+              stageName: '11th Registration',
+              stageHindi: '11वीं BSEB पंजीयन शुल्क',
+              stageClass: '11th',
+              targetSession: updates.session || s.session || '2025-2027',
+              expectedFee: updates.stagesData.REG_11.expectedFee,
+              paidAmount: updates.stagesData.REG_11.paidAmount,
+              dueAmount: Math.max(0, updates.stagesData.REG_11.expectedFee - updates.stagesData.REG_11.paidAmount),
+              paymentStatus: updates.stagesData.REG_11.status,
+              receiptNo: updates.stagesData.REG_11.receiptNo
+            } : s.feeLifecycle?.reg_11,
+            adm_12: updates.stagesData?.ADM_12 ? {
+              stageKey: 'ADM_12',
+              stageName: '12th Admission',
+              stageHindi: '12वीं नामांकन शुल्क',
+              stageClass: '12th',
+              targetSession: updates.session || s.session || '2025-2027',
+              expectedFee: updates.stagesData.ADM_12.expectedFee,
+              paidAmount: updates.stagesData.ADM_12.paidAmount,
+              dueAmount: Math.max(0, updates.stagesData.ADM_12.expectedFee - updates.stagesData.ADM_12.paidAmount),
+              paymentStatus: updates.stagesData.ADM_12.status,
+              receiptNo: updates.stagesData.ADM_12.receiptNo
+            } : s.feeLifecycle?.adm_12,
+            exam_12: examStage ? {
+              stageKey: 'EXAM_12',
+              stageName: '12th Exam Form',
+              stageHindi: '12वीं BSEB परीक्षा प्रपत्र शुल्क',
+              stageClass: '12th',
+              targetSession: updates.session || s.session || '2025-2027',
+              expectedFee: examStage.expectedFee,
+              paidAmount: examStage.paidAmount,
+              dueAmount: Math.max(0, examStage.expectedFee - examStage.paidAmount),
+              paymentStatus: examStage.status,
+              receiptNo: examStage.receiptNo
+            } : s.feeLifecycle?.exam_12
+          },
+          updatedAt: new Date().toISOString()
+        };
+        if (currentSchoolCode) saveStudentToCloud(updated, currentSchoolCode);
+        return updated;
+      }
+      return s;
+    });
+
+    if (matchedInExam) {
+      updateStudentsState(updatedStudents);
+    }
+
+    // Check in registration students
+    const updatedRegs = registrationStudents.map(s => {
+      if (s.id === studentId) {
+        const regStage = updates.stagesData?.REG_11;
+        const updated: RegistrationStudent = {
+          ...s,
+          formNo: updates.registrationNo !== undefined ? updates.registrationNo : s.formNo,
+          session: updates.session || s.session,
+          registrationFee: regStage ? regStage.expectedFee : s.registrationFee,
+          paidAmount: regStage ? regStage.paidAmount : s.paidAmount,
+          paymentStatus: regStage ? regStage.status : s.paymentStatus,
+          feeLifecycle: {
+            adm_11: updates.stagesData?.ADM_11 ? {
+              stageKey: 'ADM_11',
+              stageName: '11th Admission',
+              stageHindi: '11वीं नामांकन शुल्क',
+              stageClass: '11th',
+              targetSession: updates.session || s.session || '2026-2028',
+              expectedFee: updates.stagesData.ADM_11.expectedFee,
+              paidAmount: updates.stagesData.ADM_11.paidAmount,
+              dueAmount: Math.max(0, updates.stagesData.ADM_11.expectedFee - updates.stagesData.ADM_11.paidAmount),
+              paymentStatus: updates.stagesData.ADM_11.status,
+              receiptNo: updates.stagesData.ADM_11.receiptNo
+            } : s.feeLifecycle?.adm_11,
+            reg_11: regStage ? {
+              stageKey: 'REG_11',
+              stageName: '11th Registration',
+              stageHindi: '11वीं BSEB पंजीयन शुल्क',
+              stageClass: '11th',
+              targetSession: updates.session || s.session || '2026-2028',
+              expectedFee: regStage.expectedFee,
+              paidAmount: regStage.paidAmount,
+              dueAmount: Math.max(0, regStage.expectedFee - regStage.paidAmount),
+              paymentStatus: regStage.status,
+              receiptNo: regStage.receiptNo
+            } : s.feeLifecycle?.reg_11,
+            adm_12: updates.stagesData?.ADM_12 ? {
+              stageKey: 'ADM_12',
+              stageName: '12th Admission',
+              stageHindi: '12वीं नामांकन शुल्क',
+              stageClass: '12th',
+              targetSession: updates.session || s.session || '2026-2028',
+              expectedFee: updates.stagesData.ADM_12.expectedFee,
+              paidAmount: updates.stagesData.ADM_12.paidAmount,
+              dueAmount: Math.max(0, updates.stagesData.ADM_12.expectedFee - updates.stagesData.ADM_12.paidAmount),
+              paymentStatus: updates.stagesData.ADM_12.status,
+              receiptNo: updates.stagesData.ADM_12.receiptNo
+            } : s.feeLifecycle?.adm_12,
+            exam_12: updates.stagesData?.EXAM_12 ? {
+              stageKey: 'EXAM_12',
+              stageName: '12th Exam Form',
+              stageHindi: '12वीं BSEB परीक्षा प्रपत्र शुल्क',
+              stageClass: '12th',
+              targetSession: updates.session || s.session || '2026-2028',
+              expectedFee: updates.stagesData.EXAM_12.expectedFee,
+              paidAmount: updates.stagesData.EXAM_12.paidAmount,
+              dueAmount: Math.max(0, updates.stagesData.EXAM_12.expectedFee - updates.stagesData.EXAM_12.paidAmount),
+              paymentStatus: updates.stagesData.EXAM_12.status,
+              receiptNo: updates.stagesData.EXAM_12.receiptNo
+            } : s.feeLifecycle?.exam_12
+          },
+          updatedAt: new Date().toISOString()
+        };
+        if (currentSchoolCode) saveRegistrationStudentToCloud(updated, currentSchoolCode);
+        return updated;
+      }
+      return s;
+    });
+
+    if (!matchedInExam) {
+      updateRegistrationStudentsState(updatedRegs);
+    }
+  };
+
   // Import extracted students from PDF / Image OCR
   const handleImportStudents = (newExtractedStudents: Student[]) => {
     const updatedList = [...newExtractedStudents, ...students];
@@ -747,7 +1002,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#FDFCF8] font-sans text-[#4A453E] pb-24 md:pb-12">
       
-      {/* 1. Landing Hub View (Two Card Selector) */}
+      {/* 1. Landing Hub View (Module Selector) */}
       {activeModule === 'HUB' && (
         <div className="pt-6 px-3 sm:px-6">
           <MainDashboardHub
@@ -757,6 +1012,7 @@ export default function App() {
             settings={settings}
             onSelectExamination={() => setActiveModule('EXAMINATION')}
             onSelectRegistration={() => setActiveModule('REGISTRATION')}
+            onSelectLifecycle={() => setActiveModule('LIFECYCLE')}
             onOpenDailySettlement={() => setIsDailySettlementOpen(true)}
             onOpenSettings={() => {
               setActiveModule('EXAMINATION');
@@ -766,7 +1022,21 @@ export default function App() {
         </div>
       )}
 
-      {/* 2. Registration Module View (Card 2) */}
+      {/* 2. 4-Stage Student Lifecycle Master View */}
+      {activeModule === 'LIFECYCLE' && (
+        <div className="max-w-7xl mx-auto pt-6 px-3 sm:px-6">
+          <StudentLifecycleModule
+            students={students}
+            registrationStudents={registrationStudents}
+            settings={settings}
+            onBackToHub={() => setActiveModule('HUB')}
+            onSaveStagePayment={handleSaveStagePayment}
+            onUpdateStudentDetails={handleUpdateStudentLifecycleDetails}
+          />
+        </div>
+      )}
+
+      {/* 3. Registration Module View (Session 2026-2028 - 11th Registration) */}
       {activeModule === 'REGISTRATION' && (
         <div className="max-w-7xl mx-auto pt-6 px-3 sm:px-6">
           <RegistrationModule
@@ -781,30 +1051,37 @@ export default function App() {
         </div>
       )}
 
-      {/* 3. Examination Module View (Card 1 - All existing working modules) */}
+      {/* 4. Examination Module View (Session 2025-2027 - 12th Board Exam Form) */}
       {activeModule === 'EXAMINATION' && (
         <>
           {/* Top Quick Module Switch Bar */}
-          <div className="bg-linear-to-r from-[#2E5B50] to-[#1F3D36] text-white px-4 py-2 border-b border-emerald-900/40">
+          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white px-4 py-2 border-b border-indigo-900/40">
             <div className="max-w-7xl mx-auto flex items-center justify-between text-xs">
               <button
                 onClick={() => setActiveModule('HUB')}
-                className="flex items-center gap-1.5 font-bold hover:text-emerald-200 transition bg-white/10 hover:bg-white/20 px-3 py-1 rounded-xl"
+                className="flex items-center gap-1.5 font-bold hover:text-indigo-200 transition bg-white/10 hover:bg-white/20 px-3 py-1 rounded-xl"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>← मुख्य डैशबोर्ड (Main Dashboard)</span>
               </button>
 
               <div className="flex items-center gap-2">
-                <span className="text-emerald-200 hidden sm:inline">
-                  सक्रिय मॉड्यूल: <strong>परीक्षा प्रपत्र एवं परीक्षा शुल्क</strong>
+                <span className="text-indigo-200 hidden sm:inline">
+                  सत्र: <strong>2025-2027 (12वीं परीक्षा प्रपत्र)</strong>
                 </span>
+                <button
+                  onClick={() => setActiveModule('LIFECYCLE')}
+                  className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition flex items-center gap-1 shadow-xs"
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>4-चरणीय पासबुक</span>
+                </button>
                 <button
                   onClick={() => setActiveModule('REGISTRATION')}
                   className="px-3 py-1 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-xl transition flex items-center gap-1 shadow-xs"
                 >
                   <BookOpen className="w-3.5 h-3.5" />
-                  <span>📝 इंटर पंजीकरण पर जाएं (₹515)</span>
+                  <span>11वीं पंजीयन (2026-28)</span>
                 </button>
               </div>
             </div>

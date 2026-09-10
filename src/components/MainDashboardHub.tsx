@@ -30,6 +30,7 @@ interface MainDashboardHubProps {
   settings: InstituteSettings;
   onSelectExamination: () => void;
   onSelectRegistration: () => void;
+  onSelectLifecycle?: () => void;
   onOpenDailySettlement: () => void;
   onOpenSettings: () => void;
 }
@@ -41,6 +42,7 @@ export const MainDashboardHub: React.FC<MainDashboardHubProps> = ({
   settings,
   onSelectExamination,
   onSelectRegistration,
+  onSelectLifecycle,
   onOpenDailySettlement,
   onOpenSettings,
 }) => {
@@ -162,7 +164,7 @@ export const MainDashboardHub: React.FC<MainDashboardHubProps> = ({
         </div>
       </div>
 
-      {/* SECTION: TWO MAIN VIBRANT GRADIENT MODULE CARDS (Material 3 Style) */}
+      {/* SECTION: THREE VIBRANT GRADIENT MODULE CARDS (Material 3 Style) */}
       <div>
         <div className="text-center max-w-xl mx-auto mb-6">
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-indigo-50 border border-indigo-200/80 text-indigo-700 text-xs font-bold uppercase tracking-wider shadow-xs">
@@ -173,187 +175,237 @@ export const MainDashboardHub: React.FC<MainDashboardHubProps> = ({
             प्रबंधन मॉड्यूल का चयन करें
           </h2>
           <p className="text-xs sm:text-sm text-slate-600 mt-1">
-            परीक्षा फॉर्म एवं परीक्षा शुल्क अथवा नए 11वीं/12वीं इंटर पंजीकरण में से चुनें।
+            सत्र 2025-2027 (12th Exam Form), सत्र 2026-2028 (11th Registration) अथवा 4-चरणीय छात्र पासबुक में से चुनें।
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* ========================================================= */}
-          {/* CARD 1: EXAMINATION MODULE (Modern Indigo Gradient Card) */}
+          {/* CARD 1: EXAMINATION MODULE (Session 2025-2027) */}
           {/* ========================================================= */}
           <div 
             onClick={onSelectExamination}
-            className="group relative cursor-pointer overflow-hidden rounded-3xl bg-white border border-indigo-100 shadow-xl shadow-indigo-500/10 hover:shadow-2xl hover:shadow-indigo-500/20 transition-all duration-300 p-7 flex flex-col justify-between hover:-translate-y-1.5 active:scale-[0.99]"
+            className="group relative cursor-pointer overflow-hidden rounded-3xl bg-white border border-indigo-100 shadow-xl shadow-indigo-500/10 hover:shadow-2xl hover:shadow-indigo-500/20 transition-all duration-300 p-6 flex flex-col justify-between hover:-translate-y-1.5 active:scale-[0.99]"
           >
             {/* Top Accent Gradient Ribbon */}
             <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500" />
 
             <div>
               {/* Header inside Card */}
-              <div className="flex items-start justify-between gap-4 mb-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition">
-                  <GraduationCap className="w-9 h-9 text-indigo-100" />
+              <div className="flex items-start justify-between gap-3 mb-3.5">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition">
+                  <GraduationCap className="w-8 h-8 text-indigo-100" />
                 </div>
-                <span className="px-3 py-1.5 bg-indigo-50 text-indigo-700 font-bold rounded-full text-xs border border-indigo-200 flex items-center gap-1 shadow-2xs">
-                  <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
-                  <span>कार्ड 1 &bull; सक्रिय मॉड्यूल</span>
-                </span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="px-2.5 py-1 bg-amber-50 text-amber-800 font-bold rounded-full text-[11px] border border-amber-200 shadow-2xs">
+                    सत्र: 2025-2027 (12th)
+                  </span>
+                  <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 font-semibold rounded-full text-[10px]">
+                    सक्रिय परीक्षा फॉर्म
+                  </span>
+                </div>
               </div>
 
-              <h3 className="text-2xl font-black text-slate-900 group-hover:text-indigo-600 transition tracking-tight font-heading">
-                1. परीक्षा मॉड्यूल (Examination Module)
+              <h3 className="text-xl font-black text-slate-900 group-hover:text-indigo-600 transition tracking-tight font-heading">
+                1. 12वीं परीक्षा फॉर्म मॉड्यूल
               </h3>
-              <p className="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed">
-                मैट्रिक (10वीं) एवं इंटर (12वीं) बोर्ड परीक्षा फॉर्म वितरण, परीक्षा फॉर्म जमा ट्रैकिंग, ₹1400 / ₹1140 शुल्क रसीद, OCR इम्पोर्ट एवं दैनिक रोकड़ प्रबंधन।
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                सत्र 2025-2027 (12th) के लिए BSEB बोर्ड परीक्षा फॉर्म वितरण, जमा ट्रैकिंग एवं ₹1400 / ₹1140 परीक्षा शुल्क संकलन।
               </p>
 
               {/* Feature Chips */}
-              <div className="grid grid-cols-2 gap-2.5 my-5 text-xs">
-                <div className="p-3 bg-indigo-50/60 rounded-2xl border border-indigo-100/80 flex items-center gap-2.5 transition group-hover:bg-indigo-50">
-                  <div className="p-1.5 rounded-xl bg-indigo-600 text-white shrink-0">
-                    <FileText className="w-3.5 h-3.5" />
-                  </div>
-                  <span className="text-slate-800 font-semibold">परीक्षा फॉर्म वितरण/जमा</span>
+              <div className="grid grid-cols-2 gap-2 my-4 text-xs">
+                <div className="p-2 bg-indigo-50/60 rounded-xl border border-indigo-100 flex items-center gap-2">
+                  <FileText className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                  <span className="text-slate-800 font-semibold text-[11px]">फॉर्म वितरण/जमा</span>
                 </div>
-                <div className="p-3 bg-indigo-50/60 rounded-2xl border border-indigo-100/80 flex items-center gap-2.5 transition group-hover:bg-indigo-50">
-                  <div className="p-1.5 rounded-xl bg-indigo-600 text-white shrink-0">
-                    <CreditCard className="w-3.5 h-3.5" />
-                  </div>
-                  <span className="text-slate-800 font-semibold">शुल्क ₹1400 / ₹1140</span>
-                </div>
-                <div className="p-3 bg-indigo-50/60 rounded-2xl border border-indigo-100/80 flex items-center gap-2.5 transition group-hover:bg-indigo-50">
-                  <div className="p-1.5 rounded-xl bg-indigo-600 text-white shrink-0">
-                    <Sparkles className="w-3.5 h-3.5" />
-                  </div>
-                  <span className="text-slate-800 font-semibold">AI PDF/इमेज OCR रीडर</span>
-                </div>
-                <div className="p-3 bg-indigo-50/60 rounded-2xl border border-indigo-100/80 flex items-center gap-2.5 transition group-hover:bg-indigo-50">
-                  <div className="p-1.5 rounded-xl bg-indigo-600 text-white shrink-0">
-                    <Receipt className="w-3.5 h-3.5" />
-                  </div>
-                  <span className="text-slate-800 font-semibold">दैनिक रोकड़ (Day Book)</span>
+                <div className="p-2 bg-indigo-50/60 rounded-xl border border-indigo-100 flex items-center gap-2">
+                  <CreditCard className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                  <span className="text-slate-800 font-semibold text-[11px]">₹1400 / ₹1140</span>
                 </div>
               </div>
 
               {/* Progress Summary Card */}
-              <div className="p-4.5 bg-gradient-to-br from-indigo-50/90 to-purple-50/60 rounded-2xl border border-indigo-100 space-y-2.5">
+              <div className="p-3.5 bg-gradient-to-br from-indigo-50/90 to-purple-50/60 rounded-2xl border border-indigo-100 space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-indigo-950 font-bold">फॉर्म जमा प्रगति (Submission Status):</span>
+                  <span className="text-indigo-950 font-bold">फॉर्म जमा:</span>
                   <strong className="text-indigo-700 font-mono font-bold">
                     {examFormsSubmitted} / {examTotalCount} ({examTotalCount > 0 ? Math.round((examFormsSubmitted / examTotalCount) * 100) : 0}%)
                   </strong>
                 </div>
-                <div className="w-full h-2.5 bg-indigo-200/80 rounded-full overflow-hidden p-0.5">
+                <div className="w-full h-2 bg-indigo-200/80 rounded-full overflow-hidden p-0.5">
                   <div 
                     className="h-full bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full transition-all duration-500 shadow-sm"
                     style={{ width: `${examTotalCount > 0 ? (examFormsSubmitted / examTotalCount) * 100 : 0}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-[11px] text-indigo-900 pt-0.5 font-medium">
-                  <span>पूर्ण भुगतान: <strong>{examPaidCount} छात्र</strong></span>
-                  <span className="font-mono font-bold text-indigo-700">संकलन: ₹{examTotalFee.toLocaleString('en-IN')}</span>
+                <div className="flex justify-between text-[10px] text-indigo-900 pt-0.5">
+                  <span>पूर्ण: <strong>{examPaidCount} छात्र</strong></span>
+                  <span className="font-mono font-bold text-indigo-700">₹{examTotalFee.toLocaleString('en-IN')}</span>
                 </div>
               </div>
             </div>
 
             {/* Bottom Button */}
-            <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+            <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between">
               <span className="text-xs font-bold text-indigo-600 group-hover:underline">
-                परीक्षा कार्यप्रणाली खोलें &rarr;
+                12वीं परीक्षा फॉर्म &rarr;
               </span>
-              <div className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 group-hover:from-indigo-700 group-hover:to-purple-700 text-white font-bold text-xs shadow-md shadow-indigo-600/30 flex items-center gap-2 transition">
-                <span>परीक्षा मॉड्यूल खोलें</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
+              <div className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-xs shadow-md flex items-center gap-1.5 transition">
+                <span>खोलें</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
               </div>
             </div>
           </div>
 
           {/* ========================================================= */}
-          {/* CARD 2: REGISTRATION MODULE (Modern Emerald & Teal Gradient Card) */}
+          {/* CARD 2: REGISTRATION MODULE (Session 2026-2028) */}
           {/* ========================================================= */}
           <div 
             onClick={onSelectRegistration}
-            className="group relative cursor-pointer overflow-hidden rounded-3xl bg-white border border-teal-100 shadow-xl shadow-teal-500/10 hover:shadow-2xl hover:shadow-teal-500/20 transition-all duration-300 p-7 flex flex-col justify-between hover:-translate-y-1.5 active:scale-[0.99]"
+            className="group relative cursor-pointer overflow-hidden rounded-3xl bg-white border border-teal-100 shadow-xl shadow-teal-500/10 hover:shadow-2xl hover:shadow-teal-500/20 transition-all duration-300 p-6 flex flex-col justify-between hover:-translate-y-1.5 active:scale-[0.99]"
           >
             {/* Top Accent Gradient Ribbon */}
             <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-500" />
 
             <div>
               {/* Header inside Card */}
-              <div className="flex items-start justify-between gap-4 mb-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-600 via-emerald-600 to-cyan-700 text-white flex items-center justify-center shadow-lg shadow-teal-500/30 group-hover:scale-105 transition">
-                  <UserCheck className="w-9 h-9 text-teal-100" />
+              <div className="flex items-start justify-between gap-3 mb-3.5">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-600 via-emerald-600 to-cyan-700 text-white flex items-center justify-center shadow-lg shadow-teal-500/30 group-hover:scale-105 transition">
+                  <UserCheck className="w-8 h-8 text-teal-100" />
                 </div>
-                <span className="px-3 py-1.5 bg-teal-50 text-teal-800 font-bold rounded-full text-xs border border-teal-200 flex items-center gap-1 shadow-2xs">
-                  <Sparkles className="w-3.5 h-3.5 text-teal-600" />
-                  <span>कार्ड 2 &bull; नया पंजीकरण मॉड्यूल</span>
-                </span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="px-2.5 py-1 bg-emerald-50 text-emerald-800 font-bold rounded-full text-[11px] border border-emerald-200 shadow-2xs">
+                    सत्र: 2026-2028 (11th)
+                  </span>
+                  <span className="px-2.5 py-0.5 bg-teal-50 text-teal-700 font-semibold rounded-full text-[10px]">
+                    सक्रिय 11th पंजीयन
+                  </span>
+                </div>
               </div>
 
-              <h3 className="text-2xl font-black text-slate-900 group-hover:text-teal-700 transition tracking-tight font-heading">
-                2. पंजीकरण मॉड्यूल (Registration Module)
+              <h3 className="text-xl font-black text-slate-900 group-hover:text-teal-700 transition tracking-tight font-heading">
+                2. 11वीं पंजीयन मॉड्यूल
               </h3>
-              <p className="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed">
-                इंटरमीडिएट (Science, Arts, Commerce, Vocational) छात्रों का नया ऑनलाइन पंजीकरण, <strong>₹515 / ₹715 शुल्क संकलन</strong>, तथा आधार, अपार (कारण सहित), TC एवं जाति प्रमाणपत्र ऑडिट।
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                सत्र 2026-2028 (11th) का BSEB ऑनलाइन सूचीकरण, <strong>₹515 / ₹715 शुल्क संकलन</strong> एवं आधार/अपार/TC दस्तावेज सत्यापन।
               </p>
 
               {/* Feature Chips */}
-              <div className="grid grid-cols-2 gap-2.5 my-5 text-xs">
-                <div className="p-3 bg-teal-50/60 rounded-2xl border border-teal-100/80 flex items-center gap-2.5 transition group-hover:bg-teal-50">
-                  <div className="p-1.5 rounded-xl bg-teal-600 text-white shrink-0">
-                    <CreditCard className="w-3.5 h-3.5" />
-                  </div>
-                  <span className="text-slate-800 font-semibold">शुल्क: ₹515 / ₹715</span>
+              <div className="grid grid-cols-2 gap-2 my-4 text-xs">
+                <div className="p-2 bg-teal-50/60 rounded-xl border border-teal-100 flex items-center gap-2">
+                  <CreditCard className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                  <span className="text-slate-800 font-semibold text-[11px]">₹515 / ₹715 शुल्क</span>
                 </div>
-                <div className="p-3 bg-teal-50/60 rounded-2xl border border-teal-100/80 flex items-center gap-2.5 transition group-hover:bg-teal-50">
-                  <div className="p-1.5 rounded-xl bg-teal-600 text-white shrink-0">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                  </div>
-                  <span className="text-slate-800 font-semibold">AADHAR, APAAR (Reason)</span>
-                </div>
-                <div className="p-3 bg-teal-50/60 rounded-2xl border border-teal-100/80 flex items-center gap-2.5 transition group-hover:bg-teal-50">
-                  <div className="p-1.5 rounded-xl bg-teal-600 text-white shrink-0">
-                    <FileCheck2 className="w-3.5 h-3.5" />
-                  </div>
-                  <span className="text-slate-800 font-semibold">TC & जाति (EBC/SC/ST)</span>
-                </div>
-                <div className="p-3 bg-teal-50/60 rounded-2xl border border-teal-100/80 flex items-center gap-2.5 transition group-hover:bg-teal-50">
-                  <div className="p-1.5 rounded-xl bg-teal-600 text-white shrink-0">
-                    <Sparkles className="w-3.5 h-3.5" />
-                  </div>
-                  <span className="text-slate-800 font-semibold">इमेज / PDF / OCR अपलोड</span>
+                <div className="p-2 bg-teal-50/60 rounded-xl border border-teal-100 flex items-center gap-2">
+                  <ShieldCheck className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                  <span className="text-slate-800 font-semibold text-[11px]">दस्तावेज ऑडिट</span>
                 </div>
               </div>
 
               {/* Registration Metrics Box */}
-              <div className="p-4.5 bg-gradient-to-br from-teal-50/90 to-emerald-50/60 rounded-2xl border border-teal-100 space-y-2.5">
+              <div className="p-3.5 bg-gradient-to-br from-teal-50/90 to-emerald-50/60 rounded-2xl border border-teal-100 space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-teal-950 font-bold">पंजीकरण स्थिति (Registration Status):</span>
+                  <span className="text-teal-950 font-bold">पंजीकरण स्थिति:</span>
                   <strong className="text-teal-800 font-mono font-bold">
                     {regPaidCount} / {regTotalCount} छात्र शुल्क प्राप्त
                   </strong>
                 </div>
-                <div className="w-full h-2.5 bg-teal-200/80 rounded-full overflow-hidden p-0.5">
+                <div className="w-full h-2 bg-teal-200/80 rounded-full overflow-hidden p-0.5">
                   <div 
                     className="h-full bg-gradient-to-r from-teal-600 to-emerald-600 rounded-full transition-all duration-500 shadow-sm"
                     style={{ width: `${regTotalCount > 0 ? (regPaidCount / regTotalCount) * 100 : 0}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-[11px] text-teal-900 pt-0.5 font-medium">
-                  <span>दस्तावेज अलर्ट: <strong>{regMissingDocs} छात्र</strong></span>
-                  <span className="font-mono font-bold text-teal-700">कुल संकलन: ₹{regTotalFee.toLocaleString('en-IN')}</span>
+                <div className="flex justify-between text-[10px] text-teal-900 pt-0.5">
+                  <span>अलर्ट: <strong>{regMissingDocs} छात्र</strong></span>
+                  <span className="font-mono font-bold text-teal-700">₹{regTotalFee.toLocaleString('en-IN')}</span>
                 </div>
               </div>
             </div>
 
             {/* Bottom Button */}
-            <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+            <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between">
               <span className="text-xs font-bold text-teal-700 group-hover:underline">
-                नया पंजीकरण एवं शुल्क लें &rarr;
+                11वीं पंजीयन खोलें &rarr;
               </span>
-              <div className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 group-hover:from-teal-700 group-hover:to-emerald-700 text-white font-bold text-xs shadow-md shadow-teal-600/30 flex items-center gap-2 transition">
-                <span>पंजीकरण मॉड्यूल खोलें</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
+              <div className="px-4 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold text-xs shadow-md flex items-center gap-1.5 transition">
+                <span>खोलें</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
+              </div>
+            </div>
+          </div>
+
+          {/* ========================================================= */}
+          {/* CARD 3: 4-STAGE STUDENT LIFECYCLE PASSBOOK (Both Sessions) */}
+          {/* ========================================================= */}
+          <div 
+            onClick={onSelectLifecycle}
+            className="group relative cursor-pointer overflow-hidden rounded-3xl bg-white border border-purple-100 shadow-xl shadow-purple-500/10 hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 p-6 flex flex-col justify-between hover:-translate-y-1.5 active:scale-[0.99]"
+          >
+            {/* Top Accent Gradient Ribbon */}
+            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-purple-600 via-fuchsia-600 to-amber-500" />
+
+            <div>
+              {/* Header inside Card */}
+              <div className="flex items-start justify-between gap-3 mb-3.5">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-600 via-fuchsia-600 to-indigo-700 text-white flex items-center justify-center shadow-lg shadow-purple-500/30 group-hover:scale-105 transition">
+                  <Layers className="w-8 h-8 text-purple-100" />
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="px-2.5 py-1 bg-purple-50 text-purple-800 font-bold rounded-full text-[11px] border border-purple-200 shadow-2xs">
+                    4-चरणीय शुल्क पासबुक
+                  </span>
+                  <span className="px-2.5 py-0.5 bg-fuchsia-50 text-fuchsia-700 font-semibold rounded-full text-[10px]">
+                    2025-27 + 2026-28
+                  </span>
+                </div>
+              </div>
+
+              <h3 className="text-xl font-black text-slate-900 group-hover:text-purple-700 transition tracking-tight font-heading">
+                3. छात्र 4-चरणीय पासबुक
+              </h3>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                एक छात्र से 4 बार शुल्क प्रबंधन: <strong>11वीं Admission &bull; 11वीं Reg &bull; 12वीं Admission &bull; 12वीं Exam Form</strong> की संपूर्ण डिजिटल पासबुक।
+              </p>
+
+              {/* 4 Stages Visual Badges */}
+              <div className="grid grid-cols-2 gap-2 my-4 text-xs">
+                <div className="p-2 bg-purple-50/60 rounded-xl border border-purple-100 flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-purple-600 text-white text-[10px] font-black flex items-center justify-center">1</span>
+                  <span className="text-slate-800 font-semibold text-[10px]">11th Admission</span>
+                </div>
+                <div className="p-2 bg-purple-50/60 rounded-xl border border-purple-100 flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] font-black flex items-center justify-center">2</span>
+                  <span className="text-slate-800 font-semibold text-[10px]">11th Registration</span>
+                </div>
+                <div className="p-2 bg-purple-50/60 rounded-xl border border-purple-100 flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-fuchsia-600 text-white text-[10px] font-black flex items-center justify-center">3</span>
+                  <span className="text-slate-800 font-semibold text-[10px]">12th Admission</span>
+                </div>
+                <div className="p-2 bg-purple-50/60 rounded-xl border border-purple-100 flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-amber-600 text-white text-[10px] font-black flex items-center justify-center">4</span>
+                  <span className="text-slate-800 font-semibold text-[10px]">12th Exam Form</span>
+                </div>
+              </div>
+
+              {/* Quick Summary Pill */}
+              <div className="p-3 bg-gradient-to-br from-purple-50/90 to-fuchsia-50/60 rounded-2xl border border-purple-100 flex items-center justify-between text-xs">
+                <span className="text-purple-950 font-bold">कुल पंजीकृत छात्र:</span>
+                <span className="font-mono font-bold text-purple-700">
+                  {examTotalCount + regTotalCount} छात्र (2 सत्र)
+                </span>
+              </div>
+            </div>
+
+            {/* Bottom Button */}
+            <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs font-bold text-purple-700 group-hover:underline">
+                4-चरणीय पासबुक खोलें &rarr;
+              </span>
+              <div className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white font-bold text-xs shadow-md flex items-center gap-1.5 transition">
+                <span>पासबुक खोलें</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
               </div>
             </div>
           </div>

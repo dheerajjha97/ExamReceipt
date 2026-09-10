@@ -32,6 +32,7 @@ export interface RegistrationDocuments {
 export interface RegistrationStudent {
   id: string;
   sNo: number;
+  session?: string;            // e.g. "2026-2028" (11th Registration) or "2025-2027"
   formNo: string;              // e.g. "REG-2026-001"
   ofssNo?: string;             // OFSS Reference / CAF Number e.g. "24J1029384"
   bsebUniqueId?: string;       // BSEB Unique ID if allotted
@@ -64,6 +65,22 @@ export interface RegistrationStudent {
   paymentDate?: string;
   receiptNo?: string;
   transactionRef?: string;
+  feeBreakup?: {
+    permissionFee: number;
+    applicationFee: number;
+    registrationFee: number;
+    processingFee: number;
+    otherBoardFee: number;
+    totalFee: number;
+  };
+
+  // 4-Stage Lifecycle Fee Records
+  feeLifecycle?: {
+    adm_11?: StageFeeRecord;
+    reg_11?: StageFeeRecord;
+    adm_12?: StageFeeRecord;
+    exam_12?: StageFeeRecord;
+  };
 
   // Mandatory Document Collection
   documents: RegistrationDocuments;
@@ -137,9 +154,76 @@ export function isStreamMatching(stuStream: string = '', filterStream: string): 
   return s.includes(f);
 }
 
+export type FeeStageKey = 'ADM_11' | 'REG_11' | 'ADM_12' | 'EXAM_12';
+
+export interface StageFeeRecord {
+  stageKey: FeeStageKey;
+  stageName: string;
+  stageHindi: string;
+  stageClass: '11th' | '12th';
+  targetSession: string; // e.g. '2025-2027' or '2026-2028'
+  expectedFee: number;
+  paidAmount: number;
+  dueAmount: number;
+  paymentStatus: PaymentStatus;
+  receiptNo?: string;
+  paymentDate?: string;
+  paymentMode?: PaymentMode;
+  transactionRef?: string;
+  remarks?: string;
+}
+
+export const FEE_STAGES_CONFIG: Record<FeeStageKey, { 
+  key: FeeStageKey; 
+  name: string; 
+  hindi: string; 
+  class: '11th' | '12th';
+  defaultFee: number; 
+  description: string;
+  color: string;
+}> = {
+  ADM_11: {
+    key: 'ADM_11',
+    name: '11th Admission',
+    hindi: '11वीं नामांकन शुल्क',
+    class: '11th',
+    defaultFee: 0,
+    description: 'कक्षा 11वीं नामांकन एवं प्रवेश शुल्क (Admission Fee)',
+    color: 'emerald'
+  },
+  REG_11: {
+    key: 'REG_11',
+    name: '11th Registration',
+    hindi: '11वीं BSEB पंजीयन शुल्क',
+    class: '11th',
+    defaultFee: 0,
+    description: 'बिहार बोर्ड (BSEB) 11वीं सूचीकरण / पंजीयन प्रपत्र शुल्क',
+    color: 'indigo'
+  },
+  ADM_12: {
+    key: 'ADM_12',
+    name: '12th Admission',
+    hindi: '12वीं नामांकन शुल्क',
+    class: '12th',
+    defaultFee: 0,
+    description: 'कक्षा 12वीं (द्वितीय वर्ष) पुनः नामांकन शुल्क (Re-Admission Fee)',
+    color: 'purple'
+  },
+  EXAM_12: {
+    key: 'EXAM_12',
+    name: '12th Exam Form',
+    hindi: '12वीं BSEB परीक्षा प्रपत्र शुल्क',
+    class: '12th',
+    defaultFee: 0,
+    description: 'बिहार बोर्ड (BSEB) 12वीं वार्षिक परीक्षा प्रपत्र एवं परीक्षा शुल्क',
+    color: 'amber'
+  }
+};
+
 export interface Student {
   id: string;
   sNo: number;
+  session?: string; // e.g. "2025-2027" (12th Exam Form) or "2026-2028" (11th Reg)
   registrationNo: string;
   rollNo?: string;
   studentName: string;
@@ -161,6 +245,14 @@ export interface Student {
   transactionRef?: string;
   remarks?: string;
   
+  // 4-Stage Lifecycle Fee Records
+  feeLifecycle?: {
+    adm_11?: StageFeeRecord;
+    reg_11?: StageFeeRecord;
+    adm_12?: StageFeeRecord;
+    exam_12?: StageFeeRecord;
+  };
+
   // Examination Form Collection & Submission Management
   formIssueStatus?: FormIssueStatus; // 'NOT_ISSUED' | 'ISSUED' | 'SUBMITTED'
   formNo?: string;                   // e.g. "FORM-2026-0108-001"
