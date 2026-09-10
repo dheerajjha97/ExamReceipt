@@ -117,7 +117,22 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
       }
 
       // Payment Status filter
-      if (selectedPaymentStatus !== 'ALL' && stu.paymentStatus !== selectedPaymentStatus) {
+      if (selectedPaymentStatus === 'PAID' && stu.paymentStatus !== 'PAID') {
+        return false;
+      }
+      if (selectedPaymentStatus === 'PAID_515') {
+        const isBsebOr515 = isBSEBBoard(stu.boardName || stu.matricBoard) || stu.registrationFee === 515 || (stu.feeBreakup?.totalFee === 515);
+        if (stu.paymentStatus !== 'PAID' || !isBsebOr515) {
+          return false;
+        }
+      }
+      if (selectedPaymentStatus === 'PAID_715') {
+        const isOtherOr715 = !isBSEBBoard(stu.boardName || stu.matricBoard) || stu.registrationFee === 715 || (stu.feeBreakup?.totalFee === 715);
+        if (stu.paymentStatus !== 'PAID' || !isOtherOr715) {
+          return false;
+        }
+      }
+      if (selectedPaymentStatus === 'UNPAID' && stu.paymentStatus === 'PAID') {
         return false;
       }
 
@@ -192,6 +207,10 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
   const artsCount = students.filter(s => isStreamMatching(s.stream, 'Arts')).length;
   const commerceCount = students.filter(s => isStreamMatching(s.stream, 'Commerce')).length;
   const vocationalCount = students.filter(s => isStreamMatching(s.stream, 'Vocational')).length;
+
+  // Fee counts by board rate
+  const paid515Count = students.filter(s => s.paymentStatus === 'PAID' && (isBSEBBoard(s.boardName || s.matricBoard) || s.registrationFee === 515 || (s.feeBreakup?.totalFee === 515))).length;
+  const paid715Count = students.filter(s => s.paymentStatus === 'PAID' && (!isBSEBBoard(s.boardName || s.matricBoard) || s.registrationFee === 715 || (s.feeBreakup?.totalFee === 715))).length;
 
   // Handlers
   const handleStreamChange = (studentId: string, newStream: string) => {
@@ -576,11 +595,15 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
           <div>
             <div className="text-xs text-[#5A5A40] font-semibold">कुल संकलित पंजीकरण शुल्क</div>
             <div className="text-2xl font-black text-emerald-700 mt-1">₹{totalCollectedFee.toLocaleString('en-IN')}</div>
-            <div className="text-[11px] text-emerald-800 mt-0.5 font-medium">
-              {paidCount} छात्रों द्वारा पूर्ण भुगतान
+            <div className="text-[11px] text-emerald-800 mt-1 font-medium flex items-center gap-1.5 flex-wrap">
+              <span>{paidCount} पूर्ण भुगतान</span>
+              <span>&bull;</span>
+              <span className="font-bold text-[#2E5B50] bg-emerald-100/80 px-1.5 py-0.5 rounded-md">₹515 (BSEB): {paid515Count}</span>
+              <span>&bull;</span>
+              <span className="font-bold text-blue-900 bg-blue-100/80 px-1.5 py-0.5 rounded-md">₹715 (अन्य बोर्ड): {paid715Count}</span>
             </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
             <CreditCard className="w-6 h-6" />
           </div>
         </div>
@@ -699,9 +722,11 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
               onChange={(e) => setSelectedPaymentStatus(e.target.value)}
               className="w-full px-3 py-2.5 bg-white/90 rounded-2xl border border-[#DDD8C5] text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-[#2E5B50]"
             >
-              <option value="ALL">शुल्क स्थिति</option>
-              <option value="PAID">₹515 प्राप्त</option>
-              <option value="UNPAID">बकाया</option>
+              <option value="ALL">शुल्क स्थिति (All)</option>
+              <option value="PAID">✓ सभी पूर्ण प्राप्त ({paidCount})</option>
+              <option value="PAID_515">₹515 प्राप्त (BSEB)</option>
+              <option value="PAID_715">₹715 प्राप्त (अन्य बोर्ड / CBSE)</option>
+              <option value="UNPAID">✗ बकाया ({unpaidCount})</option>
             </select>
           </div>
 
@@ -721,60 +746,74 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
         </div>
 
         {/* Quick Audit Bar & Actions */}
-        <div className="flex items-center justify-between pt-2 border-t border-[#E8E4D5] text-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-3 border-t border-[#E8E4D5] text-xs">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[#5A5A40] font-medium">
-              दर्शाए गए छात्र: <strong>{filteredStudents.length}</strong> / {totalCount}
+            <span className="text-[#5A5A40] font-semibold whitespace-nowrap">
+              दर्शाए गए छात्र: <strong className="text-[#2E5B50]">{filteredStudents.length}</strong> / {totalCount}
             </span>
             {/* Form stats pill */}
-            <span className="px-2 py-0.5 bg-blue-50 text-blue-800 rounded-full font-bold text-[10.5px] border border-blue-200">
-              फॉर्म लिया: {formIssuedCount} &bull; फॉर्म जमा: {formSubmittedCount} &bull; फॉर्म जमा बाकी: {formPendingSubmitCount}
+            <span className="px-2.5 py-1 bg-blue-50 text-blue-900 rounded-xl font-bold text-[11px] border border-blue-200 whitespace-nowrap">
+              फॉर्म लिया: {formIssuedCount} &bull; फॉर्म जमा: {formSubmittedCount} &bull; बाकी: {formPendingSubmitCount}
             </span>
             {selectedFormStatus !== 'ALL' && (
-              <span className="px-2 py-0.5 bg-blue-100 text-blue-900 rounded-full font-bold text-[10px]">
+              <span className="px-2.5 py-1 bg-blue-100 text-blue-900 rounded-xl font-bold text-[10.5px] whitespace-nowrap">
                 फॉर्म फ़िल्टर सक्रिय
               </span>
             )}
             {selectedDocFilter !== 'ALL' && (
-              <span className="px-2 py-0.5 bg-amber-100 text-amber-900 rounded-full font-bold text-[10px]">
+              <span className="px-2.5 py-1 bg-amber-100 text-amber-900 rounded-xl font-bold text-[10.5px] whitespace-nowrap">
                 दस्तावेज फ़िल्टर सक्रिय
+              </span>
+            )}
+            {selectedPaymentStatus !== 'ALL' && (
+              <span className="px-2.5 py-1 bg-emerald-100 text-emerald-900 rounded-xl font-bold text-[10.5px] whitespace-nowrap">
+                शुल्क फ़िल्टर सक्रिय
+              </span>
+            )}
+            {selectedCategory !== 'ALL' && (
+              <span className="px-2.5 py-1 bg-purple-100 text-purple-900 rounded-xl font-bold text-[10.5px] whitespace-nowrap">
+                कोटि: {selectedCategory}
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
             {students.length > 0 && (
               <button
+                type="button"
                 onClick={handleSetAllStudentsDocsNo}
-                className="px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-800 font-bold text-xs flex items-center gap-1 transition shadow-2xs"
+                className="px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-800 font-bold text-xs flex items-center gap-1.5 transition shadow-2xs whitespace-nowrap cursor-pointer"
                 title="सभी छात्रों के आवश्यक दस्तावेजों को 'NO' (लंबित) पर सेट करें"
               >
-                <X className="w-3.5 h-3.5 text-orange-600" />
+                <X className="w-3.5 h-3.5 text-orange-600 shrink-0" />
                 <span>सबको No करें</span>
               </button>
             )}
             {students.length > 0 && (
               <button
+                type="button"
                 onClick={() => setIsConfirmClearAllOpen(true)}
-                className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold text-xs flex items-center gap-1 transition shadow-2xs"
+                className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold text-xs flex items-center gap-1.5 transition shadow-2xs whitespace-nowrap cursor-pointer"
                 title="सभी पंजीकरण रिकॉर्ड हटाएं (Clear All Data)"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-3.5 h-3.5 shrink-0" />
                 <span>सभी हटाएं ({students.length})</span>
               </button>
             )}
             <button
+              type="button"
               onClick={() => setIsAuditOpen(true)}
-              className="px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs flex items-center gap-1 transition"
+              className="px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs flex items-center gap-1.5 transition shadow-2xs whitespace-nowrap cursor-pointer"
             >
-              <ShieldCheck className="w-3.5 h-3.5" />
+              <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
               <span>दस्तावेज ऑडिट रिपोर्ट</span>
             </button>
             <button
+              type="button"
               onClick={handlePrintRegister}
-              className="px-3 py-1.5 rounded-xl bg-[#FAF9F5] hover:bg-[#EFECE1] border border-[#DDD8C5] text-[#2E5B50] font-bold text-xs flex items-center gap-1 transition"
+              className="px-3 py-1.5 rounded-xl bg-[#FAF9F5] hover:bg-[#EFECE1] border border-[#DDD8C5] text-[#2E5B50] font-bold text-xs flex items-center gap-1.5 transition shadow-2xs whitespace-nowrap cursor-pointer"
             >
-              <Printer className="w-3.5 h-3.5" />
+              <Printer className="w-3.5 h-3.5 shrink-0" />
               <span>रजिस्टर प्रिंट</span>
             </button>
           </div>
