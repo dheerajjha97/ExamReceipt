@@ -16,6 +16,7 @@ import {
 import { motion } from 'motion/react';
 import { InstituteSettings } from '../types';
 import feeReceiptHero from '../assets/images/fee_receipt_hero_1787937064672.jpg';
+import { PWAInstallButton } from './PWA/PWAInstallButton';
 
 interface HeaderProps {
   activeTab: 'students' | 'upload' | 'transactions' | 'settings';
@@ -186,6 +187,8 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Action Buttons (Flutter FilledButton & Tonal Button) */}
           <div className="hidden sm:flex items-center gap-2 shrink-0">
+            <PWAInstallButton />
+
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.96 }}

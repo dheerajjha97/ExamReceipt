@@ -168,17 +168,23 @@ app.post("/api/extract-registration-students", async (req, res) => {
     const systemPrompt = `You are an expert OCR & admission data parser for Intermediate Registration in Indian high schools and intermediate colleges (BSEB / State Board 11th & 12th Registration, OFSS Bihar, Science, Arts, Commerce).
 
 Extract student registration records from the provided content (image/PDF or raw text list).
-Standard registration fee for all streams is ₹515.
+
+FEE CALCULATION RULES:
+1. BSEB (Bihar School Examination Board): Base Fee = ₹485, Online/Service Charge = ₹30 => Total Registration Fee = ₹515.
+2. OTHER BOARDS (CBSE, ICSE, NIOS, Delhi, UP Board, or any other non-BSEB board): Base Fee = ₹685, Online/Service Charge = ₹30 => Total Registration Fee = ₹715 (685+30).
 
 Key columns to identify and extract:
 - sNo: Serial integer
-- ofssNo: OFSS Reference / Application / CAF Number (e.g., "24J1029384", "24J...", or reference number if found)
+- ofssNo: OFSS Reference / Application / CAF Number (e.g., "26J54670842", "24J...", or reference number if found)
 - formNo: Form number (e.g., "REG-2026-001" or as detected)
 - studentName: Full name in UPPERCASE (NAME)
 - fatherName: Father's name in UPPERCASE (FATHER NAME)
 - motherName: Mother's name in UPPERCASE (MOTHER NAME, or empty string if not given)
 - dob: Date of Birth in DD-MM-YYYY (DOB)
-- boardName: 10th/Matric Board Name (e.g., "BSEB", "CBSE", "ICSE", "NIOS", or as given)
+- boardName: 10th/Matric Board Name (e.g., "BSEB,Bihar", "CBSE,Delhi", "ICSE", "NIOS", or as given)
+- baseFee: Base fee integer (485 for BSEB, 685 for Other Boards)
+- serviceCharge: Service/Online fee integer (always 30)
+- totalFee: Total fee (515 for BSEB, 715 for Other Boards)
 - casteCategory: Caste Category ("General", "BC", "EBC", "SC", "ST")
 - gender: "MALE", "FEMALE", or "OTHER"
 - stream: "Science (I.Sc)", "Arts (I.A)", "Commerce (I.Com)", or "Vocational"

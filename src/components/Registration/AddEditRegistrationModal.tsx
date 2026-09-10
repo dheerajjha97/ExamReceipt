@@ -20,7 +20,9 @@ import {
   InstituteSettings, 
   CasteCategory, 
   PaymentMode,
-  RegistrationDocStatus
+  RegistrationDocStatus,
+  calculateRegistrationFee,
+  isBSEBBoard
 } from '../../types';
 import { getNextRegistrationReceiptNumber } from '../../services/storageService';
 
@@ -80,9 +82,12 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
   const [prevSchoolName, setPrevSchoolName] = useState(studentToEdit?.prevSchoolName || '');
   const [address, setAddress] = useState(studentToEdit?.address || '');
 
-  // Fee Details (Fixed ₹515)
+  // Calculate dynamic registration fee based on Board (BSEB: ₹515 [485+30], Other Boards: ₹715 [685+30])
+  const feeInfo = calculateRegistrationFee(boardName, settings.defaultOnlineCharge || 30);
+
+  // Fee Details
   const [isFeePaid, setIsFeePaid] = useState<boolean>(
-    studentToEdit ? studentToEdit.paidAmount >= 515 : true
+    studentToEdit ? studentToEdit.paidAmount > 0 : true
   );
   const [paymentMode, setPaymentMode] = useState<PaymentMode>(
     studentToEdit?.paymentMode || 'CASH'
@@ -177,8 +182,10 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
       matricPassingYear: matricPassingYear.trim(),
       prevSchoolName: prevSchoolName.trim(),
       address: address.trim(),
-      registrationFee: 515,
-      paidAmount: isFeePaid ? 515 : 0,
+      baseFee: feeInfo.baseFee,
+      serviceCharge: feeInfo.serviceCharge,
+      registrationFee: feeInfo.totalFee,
+      paidAmount: isFeePaid ? feeInfo.totalFee : 0,
       paymentStatus: isFeePaid ? 'PAID' : 'UNPAID',
       paymentMode: isFeePaid ? paymentMode : undefined,
       paymentDate: isFeePaid ? (studentToEdit?.paymentDate || dateStr) : undefined,
@@ -262,12 +269,63 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
                 <BookOpen className="w-4 h-4 text-[#2E5B50]" />
                 <span>1. छात्र का विवरण एवं संकाय (Student & Stream)</span>
               </h3>
-              <span className="px-3 py-1 bg-emerald-100 text-[#2E5B50] font-mono font-bold rounded-full text-xs border border-emerald-300">
-                शुल्क: ₹515
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={`px-3 py-1 font-mono font-bold rounded-full text-xs border ${
+                  feeInfo.isBseb 
+                    ? 'bg-emerald-100 text-[#2E5B50] border-emerald-300' 
+                    : 'bg-amber-100 text-amber-900 border-amber-300'
+                }`}>
+                  {feeInfo.isBseb ? 'BSEB शुल्क: ₹515' : 'अन्य बोर्ड शुल्क: ₹715'}
+                </span>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 text-xs">
+              <div>
+                <label className="block text-[#5A5A40] font-semibold mb-1">
+                  10वीं बोर्ड (Matric Board) *
+                </label>
+                <select
+                  value={
+                    boardName.toUpperCase().includes('BSEB') || boardName.toUpperCase().includes('BIHAR')
+                      ? 'BSEB PATNA'
+                      : boardName.toUpperCase().includes('CBSE')
+                      ? 'CBSE'
+                      : boardName.toUpperCase().includes('ICSE')
+                      ? 'ICSE'
+                      : boardName.toUpperCase().includes('NIOS')
+                      ? 'NIOS'
+                      : 'OTHER'
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === 'BSEB PATNA') setBoardName('BSEB PATNA');
+                    else if (val === 'CBSE') setBoardName('CBSE');
+                    else if (val === 'ICSE') setBoardName('ICSE');
+                    else if (val === 'NIOS') setBoardName('NIOS');
+                    else setBoardName('OTHER BOARD');
+                  }}
+                  className={`w-full px-3 py-2 bg-white rounded-xl border font-bold text-xs ${
+                    feeInfo.isBseb 
+                      ? 'border-[#2E5B50] text-[#2E5B50]' 
+                      : 'border-amber-500 text-amber-900 bg-amber-50/50'
+                  }`}
+                >
+                  <option value="BSEB PATNA">BSEB PATNA (बिहार बोर्ड) • ₹515 (485+30)</option>
+                  <option value="CBSE">CBSE (Central Board) • ₹715 (685+30)</option>
+                  <option value="ICSE">ICSE / CISCE • ₹715 (685+30)</option>
+                  <option value="NIOS">NIOS (Open Board) • ₹715 (685+30)</option>
+                  <option value="OTHER">अन्य बोर्ड (Other State Board) • ₹715 (685+30)</option>
+                </select>
+                <input
+                  type="text"
+                  value={boardName}
+                  onChange={(e) => setBoardName(e.target.value)}
+                  placeholder="बोर्ड का पूरा नाम (e.g. BSEB PATNA or CBSE)"
+                  className="w-full mt-1.5 px-3 py-1 bg-white rounded-lg border border-[#DDD8C5] text-[11px]"
+                />
+              </div>
+
               <div>
                 <label className="block text-[#5A5A40] font-semibold mb-1">
                   पंजीकरण फॉर्म सं. (Form No.) *
@@ -607,18 +665,33 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
             </div>
           </div>
 
-          {/* Section 3: Registration Fee Collection (₹515) */}
-          <div className="bg-linear-to-r from-emerald-50 to-teal-50 p-5 rounded-2xl border border-emerald-200 space-y-3">
+          {/* Section 3: Registration Fee Collection (₹515 for BSEB / ₹715 for Other Boards) */}
+          <div className={`p-5 rounded-2xl border space-y-3 ${
+            feeInfo.isBseb 
+              ? 'bg-linear-to-r from-emerald-50 to-teal-50 border-emerald-200' 
+              : 'bg-linear-to-r from-amber-50 to-orange-50 border-amber-300'
+          }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-[#2E5B50]" />
-                <h3 className="text-sm font-bold text-[#2E5B50]">
-                  3. पंजीकरण शुल्क रसीद (Registration Fee ₹515)
-                </h3>
+                <CreditCard className={`w-5 h-5 ${feeInfo.isBseb ? 'text-[#2E5B50]' : 'text-amber-800'}`} />
+                <div>
+                  <h3 className={`text-sm font-bold ${feeInfo.isBseb ? 'text-[#2E5B50]' : 'text-amber-900'}`}>
+                    3. पंजीकरण शुल्क रसीद (Registration Fee ₹{feeInfo.totalFee})
+                  </h3>
+                  <p className="text-[11px] text-gray-600">
+                    {feeInfo.isBseb 
+                      ? 'BSEB बिहार बोर्ड: ₹485 (मूल शुल्क) + ₹30 (ऑनलाइन शुल्क) = ₹515' 
+                      : `${boardName || 'अन्य बोर्ड'}: ₹685 (मूल शुल्क) + ₹30 (ऑनलाइन शुल्क) = ₹715`}
+                  </p>
+                </div>
               </div>
               <div className="text-right">
-                <span className="text-xl font-black text-[#2E5B50]">₹515</span>
-                <span className="text-[10px] text-[#5A5A40] block">निर्धारित शुल्क</span>
+                <span className={`text-2xl font-black ${feeInfo.isBseb ? 'text-[#2E5B50]' : 'text-amber-900'}`}>
+                  ₹{feeInfo.totalFee}
+                </span>
+                <span className="text-[10px] text-gray-600 block">
+                  {feeInfo.isBseb ? 'BSEB शुल्क' : 'अन्य बोर्ड शुल्क'}
+                </span>
               </div>
             </div>
 
@@ -626,14 +699,18 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
               <div>
                 <label className="block text-[#5A5A40] font-semibold mb-1">भुगतान स्थिति</label>
                 <div className="flex items-center gap-2">
-                  <label className="flex items-center gap-1.5 px-3 py-2 bg-white rounded-xl border border-emerald-300 font-bold text-[#2E5B50] cursor-pointer">
+                  <label className={`flex items-center gap-1.5 px-3 py-2 bg-white rounded-xl border font-bold cursor-pointer ${
+                    feeInfo.isBseb 
+                      ? 'border-emerald-300 text-[#2E5B50]' 
+                      : 'border-amber-300 text-amber-900'
+                  }`}>
                     <input
                       type="checkbox"
                       checked={isFeePaid}
                       onChange={(e) => setIsFeePaid(e.target.checked)}
                       className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"
                     />
-                    <span>₹515 प्राप्त (Fee Paid)</span>
+                    <span>₹{feeInfo.totalFee} प्राप्त (Fee Paid)</span>
                   </label>
                 </div>
               </div>
@@ -702,7 +779,7 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
               className="px-6 py-2.5 rounded-xl bg-[#2E5B50] hover:bg-[#23463E] text-white font-bold text-xs shadow-md transition flex items-center gap-2"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>{isEditing ? 'पंजीकरण अपडेट करें' : 'पंजीकरण सुरक्षित करें एवं ₹515 रसीद बनाएं'}</span>
+              <span>{isEditing ? 'पंजीकरण अपडेट करें' : `पंजीकरण सुरक्षित करें एवं ₹${feeInfo.totalFee} रसीद बनाएं`}</span>
             </button>
           </div>
         </form>

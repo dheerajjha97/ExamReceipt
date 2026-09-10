@@ -10,7 +10,7 @@ import {
   User,
   BookOpen
 } from 'lucide-react';
-import { RegistrationStudent, InstituteSettings, PaymentMode } from '../../types';
+import { RegistrationStudent, InstituteSettings, PaymentMode, calculateRegistrationFee } from '../../types';
 import { getNextRegistrationReceiptNumber, numberToWordsInINR } from '../../services/storageService';
 
 interface RegistrationRecordPaymentModalProps {
@@ -30,9 +30,12 @@ export const RegistrationRecordPaymentModal: React.FC<RegistrationRecordPaymentM
 }) => {
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('CASH');
   const [transactionRef, setTransactionRef] = useState<string>('CASH-REG');
-  const [collectedAmount, setCollectedAmount] = useState<number>(515);
 
   if (!isOpen || !student) return null;
+
+  const boardName = student.boardName || student.matricBoard || 'BSEB PATNA';
+  const feeInfo = calculateRegistrationFee(boardName, settings.defaultOnlineCharge || 30);
+  const targetFee = student.registrationFee > 0 ? student.registrationFee : feeInfo.totalFee;
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,8 +46,10 @@ export const RegistrationRecordPaymentModal: React.FC<RegistrationRecordPaymentM
 
     const updatedStudent: RegistrationStudent = {
       ...student,
-      registrationFee: 515,
-      paidAmount: 515,
+      baseFee: feeInfo.baseFee,
+      serviceCharge: feeInfo.serviceCharge,
+      registrationFee: targetFee,
+      paidAmount: targetFee,
       paymentStatus: 'PAID',
       paymentMode,
       paymentDate: dateStr,
@@ -59,21 +64,27 @@ export const RegistrationRecordPaymentModal: React.FC<RegistrationRecordPaymentM
   };
 
   const upiId = 'principal.school@sbi'; // Institutional UPI ID
-  const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(settings.name)}&am=515&tn=${encodeURIComponent('Inter Registration Fee ' + student.formNo)}&cu=INR`;
+  const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(settings.name)}&am=${targetFee}&tn=${encodeURIComponent('Inter Registration Fee ' + student.formNo)}&cu=INR`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiUrl)}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md overflow-y-auto">
       <div className="relative w-full max-w-lg bg-white/95 backdrop-blur-2xl rounded-3xl border border-white/60 shadow-2xl overflow-hidden my-auto">
         {/* Header */}
-        <div className="px-6 py-4 bg-linear-to-r from-[#2E5B50] to-[#1F3D36] text-white flex items-center justify-between">
+        <div className={`px-6 py-4 text-white flex items-center justify-between ${
+          feeInfo.isBseb 
+            ? 'bg-linear-to-r from-[#2E5B50] to-[#1F3D36]' 
+            : 'bg-linear-to-r from-amber-700 to-amber-900'
+        }`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-white/15 flex items-center justify-center border border-white/20">
               <CreditCard className="w-5 h-5 text-emerald-300" />
             </div>
             <div>
-              <h2 className="text-base font-bold">पंजीकरण शुल्क भुगतान (Collect ₹515)</h2>
-              <p className="text-xs text-emerald-100">फॉर्म सं: {student.formNo}</p>
+              <h2 className="text-base font-bold">पंजीकरण शुल्क भुगतान (Collect ₹{targetFee})</h2>
+              <p className="text-xs text-emerald-100">
+                फॉर्म सं: {student.formNo} &bull; {feeInfo.isBseb ? 'BSEB बिहार बोर्ड' : `अन्य बोर्ड (${boardName})`}
+              </p>
             </div>
           </div>
           <button
@@ -86,15 +97,27 @@ export const RegistrationRecordPaymentModal: React.FC<RegistrationRecordPaymentM
 
         {/* Student Mini Card */}
         <form onSubmit={handleSave} className="p-6 space-y-4">
-          <div className="p-4 bg-[#FAF9F5] rounded-2xl border border-[#E8E4D5] flex items-center justify-between">
+          <div className={`p-4 rounded-2xl border flex items-center justify-between ${
+            feeInfo.isBseb 
+              ? 'bg-[#FAF9F5] border-[#E8E4D5]' 
+              : 'bg-amber-50/70 border-amber-300'
+          }`}>
             <div>
-              <div className="text-xs text-[#5A5A40]">छात्र / संकाय</div>
+              <div className="text-xs text-[#5A5A40]">छात्र / संकाय &bull; 10वीं बोर्ड</div>
               <div className="font-bold text-sm text-gray-900 uppercase">{student.studentName}</div>
               <div className="text-xs text-gray-600">पिता: {student.fatherName} &bull; {student.stream}</div>
+              <div className="text-[11px] font-semibold text-emerald-800 mt-0.5">
+                बोर्ड: {boardName} ({feeInfo.isBseb ? '₹485 + ₹30 = ₹515' : '₹685 + ₹30 = ₹715'})
+              </div>
             </div>
             <div className="text-right">
               <div className="text-xs text-[#5A5A40]">देय राशि</div>
-              <div className="text-2xl font-black text-[#2E5B50]">₹515</div>
+              <div className={`text-2xl font-black ${feeInfo.isBseb ? 'text-[#2E5B50]' : 'text-amber-900'}`}>
+                ₹{targetFee}
+              </div>
+              <span className="text-[10px] text-gray-500 font-semibold block">
+                {feeInfo.isBseb ? 'BSEB' : 'अन्य बोर्ड'}
+              </span>
             </div>
           </div>
 
@@ -136,7 +159,7 @@ export const RegistrationRecordPaymentModal: React.FC<RegistrationRecordPaymentM
           {paymentMode === 'UPI' && (
             <div className="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-200 text-center space-y-2">
               <span className="text-xs font-bold text-[#2E5B50] block">
-                ₹515 प्राप्त करने हेतु QR स्कैन करवाएं
+                ₹{targetFee} प्राप्त करने हेतु QR स्कैन करवाएं
               </span>
               <img
                 src={qrCodeUrl}
@@ -178,7 +201,7 @@ export const RegistrationRecordPaymentModal: React.FC<RegistrationRecordPaymentM
               className="px-6 py-2.5 rounded-xl bg-[#2E5B50] hover:bg-[#23463E] text-white font-bold text-xs shadow-md flex items-center gap-2"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>₹515 भुगतान स्वीकार करें & रसीद बनाएं</span>
+              <span>₹{targetFee} भुगतान स्वीकार करें & रसीद बनाएं</span>
             </button>
           </div>
         </form>

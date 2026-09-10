@@ -74,6 +74,26 @@ export interface RegistrationStudent {
   updatedAt: string;
 }
 
+export function isBSEBBoard(boardName?: string): boolean {
+  if (!boardName) return true; // default to BSEB
+  const b = boardName.trim().toUpperCase();
+  if (b.includes('BSEB') || b.includes('BIHAR') || b.includes('PATNA') || b.includes('बिहार')) {
+    return true;
+  }
+  return false;
+}
+
+export function calculateRegistrationFee(boardName?: string, serviceCharge = 30): { baseFee: number; serviceCharge: number; totalFee: number; isBseb: boolean } {
+  const isBseb = isBSEBBoard(boardName);
+  const baseFee = isBseb ? 485 : 685;
+  return {
+    isBseb,
+    baseFee,
+    serviceCharge,
+    totalFee: baseFee + serviceCharge,
+  };
+}
+
 export interface Student {
   id: string;
   sNo: number;

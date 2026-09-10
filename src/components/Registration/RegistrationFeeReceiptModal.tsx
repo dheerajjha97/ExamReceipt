@@ -12,7 +12,7 @@ import {
   ShieldCheck,
   AlertTriangle
 } from 'lucide-react';
-import { RegistrationStudent, InstituteSettings } from '../../types';
+import { RegistrationStudent, InstituteSettings, calculateRegistrationFee } from '../../types';
 import { numberToWordsInINR } from '../../services/storageService';
 
 interface RegistrationFeeReceiptModalProps {
@@ -33,8 +33,10 @@ export const RegistrationFeeReceiptModal: React.FC<RegistrationFeeReceiptModalPr
 
   if (!isOpen || !student) return null;
 
-  const feeAmount = student.registrationFee || 515;
-  const baseFee = student.baseFee || (student.boardName?.toLowerCase().includes('cbse') || student.boardName?.toLowerCase().includes('delhi') ? 685 : 485);
+  const boardName = student.boardName || student.matricBoard || 'BSEB PATNA';
+  const feeCalc = calculateRegistrationFee(boardName, student.serviceCharge ?? (settings.defaultOnlineCharge || 30));
+  const feeAmount = student.registrationFee || (student.paidAmount > 0 ? student.paidAmount : feeCalc.totalFee);
+  const baseFee = student.baseFee || feeCalc.baseFee;
   const serviceCharge = student.serviceCharge !== undefined ? student.serviceCharge : (feeAmount - baseFee);
   const receiptNo = student.receiptNo || `REG/26-27/${student.sNo.toString().padStart(4, '0')}`;
   const paymentDate = student.paymentDate || new Date().toLocaleDateString('en-GB');

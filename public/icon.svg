@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1C3B34" />
+      <stop offset="50%" stop-color="#2E5B50" />
+      <stop offset="100%" stop-color="#0F2520" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FCD34D" />
+      <stop offset="100%" stop-color="#F59E0B" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- Background rounded rect -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+
+  <!-- Inner accent ring -->
+  <rect x="24" y="24" width="464" height="464" rx="92" fill="none" stroke="#529B87" stroke-width="4" stroke-opacity="0.4" />
+
+  <!-- Receipt / Document base card -->
+  <g filter="url(#shadow)">
+    <rect x="116" y="110" width="280" height="300" rx="20" fill="#FFFFFF" />
+    
+    <!-- Receipt top notches / header -->
+    <path d="M 116 130 C 116 118.954 124.954 110 136 110 L 376 110 C 387.046 110 396 118.954 396 130 L 396 170 L 116 170 Z" fill="#2E5B50" />
+    
+    <!-- Header title bar -->
+    <circle cx="150" cy="140" r="10" fill="url(#goldGrad)" />
+    <rect x="175" y="134" width="160" height="12" rx="6" fill="#A7F3D0" />
+    
+    <!-- Receipt content lines -->
+    <rect x="146" y="196" width="130" height="14" rx="7" fill="#1C3B34" />
+    <rect x="310" y="196" width="56" height="14" rx="7" fill="#059669" />
+
+    <rect x="146" y="228" width="160" height="10" rx="5" fill="#E2E8F0" />
+    <rect x="146" y="250" width="110" height="10" rx="5" fill="#E2E8F0" />
+    <rect x="146" y="272" width="180" height="10" rx="5" fill="#E2E8F0" />
+
+    <!-- Dashed divider line -->
+    <line x1="146" y1="304" x2="366" y2="304" stroke="#CBD5E1" stroke-width="3" stroke-dasharray="8 6" />
+
+    <!-- Total Fee badge in receipt -->
+    <rect x="146" y="324" width="90" height="12" rx="6" fill="#64748B" />
+    <rect x="290" y="318" width="76" height="24" rx="8" fill="url(#goldGrad)" />
+    <text x="328" y="335" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="900" fill="#78350F" text-anchor="middle">₹515</text>
+
+    <!-- Stamp mark -->
+    <circle cx="340" cy="380" r="28" fill="none" stroke="#059669" stroke-width="3" stroke-opacity="0.85" />
+    <text x="340" y="384" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="900" fill="#059669" text-anchor="middle">PAID</text>
+  </g>
+
+  <!-- Graduation Cap Icon floating at top left -->
+  <g filter="url(#shadow)">
+    <!-- Cap Diamond -->
+    <path d="M 120 110 L 210 68 L 300 110 L 210 152 Z" fill="url(#goldGrad)" />
+    <!-- Cap Base -->
+    <path d="M 155 125 L 155 158 C 155 178 265 178 265 158 L 265 125 Z" fill="#D97706" />
+    <!-- Tassel -->
+    <path d="M 285 118 L 305 150 L 302 185" fill="none" stroke="#FEF3C7" stroke-width="4" stroke-linecap="round" />
+    <circle cx="302" cy="188" r="5" fill="#FEF3C7" />
+  </g>
+
+  <!-- Bottom Brand Text -->
+  <text x="256" y="470" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="900" fill="#E6F4F1" letter-spacing="3" text-anchor="middle">BSEB PORTAL</text>
+</svg>

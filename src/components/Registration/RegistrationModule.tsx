@@ -29,13 +29,16 @@ import {
   RegistrationStudent, 
   InstituteSettings, 
   CasteCategory, 
-  PaymentStatus 
+  PaymentStatus,
+  calculateRegistrationFee,
+  isBSEBBoard
 } from '../../types';
 import { AddEditRegistrationModal } from './AddEditRegistrationModal';
 import { RegistrationFeeReceiptModal } from './RegistrationFeeReceiptModal';
 import { RegistrationUploadModal } from './RegistrationUploadModal';
 import { RegistrationDocAuditModal } from './RegistrationDocAuditModal';
 import { RegistrationRecordPaymentModal } from './RegistrationRecordPaymentModal';
+import { PWAInstallButton } from '../PWA/PWAInstallButton';
 
 interface RegistrationModuleProps {
   students: RegistrationStudent[];
@@ -134,8 +137,20 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
   const totalCount = students.length;
   const paidCount = students.filter(s => s.paymentStatus === 'PAID').length;
   const unpaidCount = totalCount - paidCount;
-  const totalCollectedFee = paidCount * 515;
-  const totalPendingFee = unpaidCount * 515;
+  const totalCollectedFee = students.reduce((sum, s) => {
+    if (s.paymentStatus === 'PAID') {
+      const fee = s.paidAmount > 0 ? s.paidAmount : (s.registrationFee || (isBSEBBoard(s.boardName || s.matricBoard) ? 515 : 715));
+      return sum + fee;
+    }
+    return sum;
+  }, 0);
+  const totalPendingFee = students.reduce((sum, s) => {
+    if (s.paymentStatus !== 'PAID') {
+      const fee = s.registrationFee || (isBSEBBoard(s.boardName || s.matricBoard) ? 515 : 715);
+      return sum + fee;
+    }
+    return sum;
+  }, 0);
 
   const missingTcCount = students.filter(s => s.documents?.transferCertificate?.status !== 'SUBMITTED').length;
   const missingApaarCount = students.filter(s => s.documents?.apaar?.status !== 'SUBMITTED').length;
@@ -204,16 +219,18 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
                 मॉड्यूल 2 &bull; पंजीकरण
               </span>
               <h1 className="text-base sm:text-lg font-black text-[#2E5B50] tracking-tight">
-                इंटरमीडिएट पंजीकरण एवं शुल्क प्रबंधन (₹515)
+                इंटरमीडिएट पंजीकरण एवं शुल्क प्रबंधन
               </h1>
             </div>
             <p className="text-xs text-[#5A5A40]">
-              {settings.name} &bull; सत्र 2026-2027 (I.Sc, I.A, I.Com, Vocational)
+              {settings.name} &bull; सत्र 2026-2027 (BSEB: ₹515 &bull; अन्य बोर्ड: ₹715)
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <PWAInstallButton />
+
           <button
             onClick={onSwitchToExamination}
             className="px-3.5 py-2 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 font-bold text-xs flex items-center gap-1.5 transition shadow-xs"
@@ -259,10 +276,10 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
           </div>
         </div>
 
-        {/* Metric 2: Total ₹515 Fee Collected */}
+        {/* Metric 2: Total Fee Collected */}
         <div className="bg-white/70 backdrop-blur-xl p-5 rounded-3xl border border-white/60 shadow-md flex items-center justify-between">
           <div>
-            <div className="text-xs text-[#5A5A40] font-semibold">कुल संकलित शुल्क (₹515 दर)</div>
+            <div className="text-xs text-[#5A5A40] font-semibold">कुल संकलित पंजीकरण शुल्क</div>
             <div className="text-2xl font-black text-emerald-700 mt-1">₹{totalCollectedFee.toLocaleString('en-IN')}</div>
             <div className="text-[11px] text-emerald-800 mt-0.5 font-medium">
               {paidCount} छात्रों द्वारा पूर्ण भुगतान
@@ -449,7 +466,7 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
                 <th className="p-3.5">BOARD NAME</th>
                 <th className="p-3.5">CATEGORY</th>
                 <th className="p-3.5">संकाय (Stream)</th>
-                <th className="p-3.5 text-center">शुल्क (₹515)</th>
+                <th className="p-3.5 text-center">शुल्क (Fee)</th>
                 <th className="p-3.5 text-right">कार्रवाई (Actions)</th>
               </tr>
             </thead>
@@ -480,7 +497,7 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
                             className="px-4 py-2.5 bg-[#2E5B50] hover:bg-[#23463E] text-white font-bold rounded-2xl text-xs flex items-center gap-2 shadow-md transition"
                           >
                             <Plus className="w-4 h-4" />
-                            <span>+ नया पंजीकरण जोड़ें (₹515)</span>
+                            <span>+ नया पंजीकरण जोड़ें</span>
                           </button>
                           <button
                             onClick={() => setIsUploadOpen(true)}
@@ -497,6 +514,7 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
               ) : (
                 filteredStudents.map((stu, index) => {
                   const isPaid = stu.paymentStatus === 'PAID';
+                  const expectedFee = stu.registrationFee || (stu.paidAmount > 0 ? stu.paidAmount : (isBSEBBoard(stu.boardName || stu.matricBoard) ? 515 : 715));
 
                   return (
                     <tr key={stu.id} className="hover:bg-amber-50/30 transition">
@@ -569,13 +587,13 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
                         </span>
                       </td>
 
-                      {/* Registration Fee Status (₹515) */}
+                      {/* Registration Fee Status */}
                       <td className="p-3.5 text-center">
                         {isPaid ? (
                           <div className="inline-flex flex-col items-center">
                             <span className="px-2.5 py-1 bg-emerald-100 text-emerald-900 font-bold rounded-full text-xs border border-emerald-300 flex items-center gap-1 shadow-2xs">
                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
-                              <span>₹515 प्राप्त</span>
+                              <span>₹{expectedFee} प्राप्त</span>
                             </span>
                             <span className="text-[10px] text-gray-500 font-mono mt-0.5">
                               {stu.paymentMode || 'CASH'} &bull; {stu.receiptNo || 'REC'}
@@ -591,7 +609,7 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
                               className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-full text-xs shadow-xs transition flex items-center gap-1"
                             >
                               <CreditCard className="w-3.5 h-3.5" />
-                              <span>₹515 स्वीकारें</span>
+                              <span>₹{expectedFee} स्वीकारें</span>
                             </button>
                             <span className="text-[10px] text-rose-700 font-semibold mt-0.5">
                               शुल्क बकाया

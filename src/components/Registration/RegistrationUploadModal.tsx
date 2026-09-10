@@ -14,7 +14,7 @@ import {
   Trash2,
   BookOpen
 } from 'lucide-react';
-import { RegistrationStudent, InstituteSettings, CasteCategory } from '../../types';
+import { RegistrationStudent, InstituteSettings, CasteCategory, calculateRegistrationFee, isBSEBBoard } from '../../types';
 
 interface RegistrationUploadModalProps {
   isOpen: boolean;
@@ -174,11 +174,15 @@ export const RegistrationUploadModal: React.FC<RegistrationUploadModalProps> = (
       if (cols[idx] && /^\d+$/.test(cols[idx])) {
         baseFee = parseInt(cols[idx], 10);
         idx++;
+      } else {
+        // Fallback base fee logic based on Board
+        const feeCalc = calculateRegistrationFee(boardName, extraFee);
+        baseFee = feeCalc.baseFee;
       }
 
-      // Fallback base fee logic based on Board if not explicitly provided
-      if (boardName.toLowerCase().includes('cbse') || boardName.toLowerCase().includes('icse') || boardName.toLowerCase().includes('delhi')) {
-        if (baseFee === 485) baseFee = 685;
+      // If board is not BSEB, ensure baseFee is 685 unless explicitly specified differently
+      if (!isBSEBBoard(boardName) && baseFee === 485) {
+        baseFee = 685;
       }
 
       const totalFee = baseFee + extraFee; // 485 + 30 = 515, or 685 + 30 = 715
@@ -337,8 +341,8 @@ export const RegistrationUploadModal: React.FC<RegistrationUploadModalProps> = (
         const now = new Date();
         const dateStr = `${now.toISOString().slice(0, 10)} 10:00`;
         const bName = s.boardName || 'BSEB,Bihar';
-        const isCbse = bName.toLowerCase().includes('cbse') || bName.toLowerCase().includes('icse') || bName.toLowerCase().includes('delhi');
-        const base = isCbse ? 685 : 485;
+        const feeCalc = calculateRegistrationFee(bName, serviceCharge);
+        const base = s.baseFee || feeCalc.baseFee;
         const total = base + serviceCharge;
 
         const studentObj: RegistrationStudent = {

@@ -42,6 +42,7 @@ import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { DailySettlementModal } from './components/DailySettlementModal';
 import { MainDashboardHub } from './components/MainDashboardHub';
 import { RegistrationModule } from './components/Registration/RegistrationModule';
+import { OfflineIndicator } from './components/PWA/OfflineIndicator';
 import { RotateCcw, CheckCircle2, X, ArrowLeft, School, BookOpen, Layers } from 'lucide-react';
 
 interface UndoAction {
@@ -1107,6 +1108,8 @@ export default function App() {
         </div>
       )}
 
+      {/* PWA Offline / Online Network Connectivity Indicator */}
+      <OfflineIndicator />
     </div>
   );
 }
