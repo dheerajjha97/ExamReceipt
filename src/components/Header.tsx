@@ -55,52 +55,52 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   return (
-    <header className="sticky top-0 z-30 bg-[#FDFCF8]/95 backdrop-blur-xl border-b border-[#E6E2D3] text-[#4A453E] shadow-[0_2px_12px_rgba(0,0,0,0.03)] transition-all">
-      {/* Top Flutter Tonal System Bar */}
-      <div className="bg-[#F5F2E8] px-4 py-1.5 border-b border-[#E8E4D5]">
+    <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b border-slate-200/80 text-slate-800 shadow-sm transition-all">
+      {/* Top Tonal System Bar */}
+      <div className="bg-slate-900 text-white px-4 py-1.5 border-b border-slate-800">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2">
-            <span className="bg-[#EAE8DD] text-[#5A5A40] font-mono font-bold px-2.5 py-0.5 rounded-full border border-[#DDD8C5] text-[11px] shadow-2xs">
-              {settings.code ? `CODE: ${settings.code}` : 'EXAM CELL'}
+            <span className="bg-indigo-500/30 text-indigo-300 font-mono font-bold px-2.5 py-0.5 rounded-full border border-indigo-400/30 text-[11px] shadow-2xs">
+              {settings.code ? `BSEB CODE: ${settings.code}` : 'EXAM CELL'}
             </span>
-            <span className="text-[#5A5A40] font-semibold truncate max-w-[220px] sm:max-w-md">
+            <span className="text-slate-200 font-semibold truncate max-w-[220px] sm:max-w-md">
               {settings.name} &bull; {settings.academicYear}
             </span>
           </div>
 
-          <div className="flex items-center gap-2.5 text-[#5A5A40]">
-            <span className="hidden sm:flex items-center gap-1 text-xs text-[#787267]">
-              <span>Online Portal Charge:</span>
-              <strong className="text-[#2E5B50] font-bold">+₹{settings.defaultOnlineCharge || 30}</strong>
+          <div className="flex items-center gap-2.5 text-slate-300">
+            <span className="hidden sm:flex items-center gap-1 text-xs">
+              <span className="text-slate-400">पोर्टल चार्ज:</span>
+              <strong className="text-emerald-400 font-bold">+₹{settings.defaultOnlineCharge || 30}</strong>
             </span>
 
-            {/* Cloud Sync Status Pill (Flutter Status Badge) */}
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#E2ECE9] text-[#2E5B50] border border-[#C5DDD6] shadow-2xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Cloud Active</span>
+            {/* Cloud Sync Status Pill */}
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>क्लाउड सक्रिय</span>
             </div>
 
             {/* User Cashier Badge & Actions */}
-            <div className="flex items-center gap-1.5 border-l border-[#DDD8C5] pl-2.5">
-              <span className="hidden md:inline-flex text-[11px] font-medium text-[#787267]">
+            <div className="flex items-center gap-1.5 border-l border-slate-700 pl-2.5">
+              <span className="hidden md:inline-flex text-[11px] font-medium text-slate-300">
                 {settings.cashierName || 'Admin'}
               </span>
 
               <button
                 onClick={onChangePasswordClick}
-                className="px-2 py-1 bg-white hover:bg-[#FAF9F5] text-[#5A5A40] rounded-xl text-xs font-medium flex items-center gap-1 transition border border-[#DDD8C5] shadow-2xs"
+                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-xl text-xs font-medium flex items-center gap-1 transition border border-slate-700 shadow-2xs"
                 title="पासवर्ड बदलें"
               >
-                <KeyRound className="w-3.5 h-3.5 text-amber-600" />
+                <KeyRound className="w-3.5 h-3.5 text-amber-400" />
                 <span className="hidden sm:inline">पासवर्ड</span>
               </button>
 
               <button
                 onClick={onLogoutClick}
-                className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-medium flex items-center gap-1 transition border border-rose-200"
+                className="px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 rounded-xl text-xs font-medium flex items-center gap-1 transition border border-rose-500/30"
                 title="लॉगआउट"
               >
-                <LogOut className="w-3.5 h-3.5 text-rose-500" />
+                <LogOut className="w-3.5 h-3.5 text-rose-400" />
                 <span className="hidden sm:inline">लॉगआउट</span>
               </button>
             </div>
@@ -108,14 +108,14 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Main Flutter App Bar */}
+      {/* Main Material 3 App Bar */}
       <div className="max-w-7xl mx-auto px-4 py-3">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           
-          {/* Brand Logo & Title with Flutter Squircle */}
+          {/* Brand Logo & Title */}
           <div className="flex items-center gap-3">
             <div className="relative group">
-              <div className="w-11 h-11 rounded-2xl bg-white p-0.5 shadow-sm border border-[#DDD8C5] overflow-hidden transform-gpu group-hover:scale-105 transition duration-300">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-0.5 shadow-md overflow-hidden transform-gpu group-hover:scale-105 transition duration-300">
                 <img 
                   src={feeReceiptHero} 
                   alt="College Fee Logo" 
@@ -128,64 +128,64 @@ export const Header: React.FC<HeaderProps> = ({
 
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-lg font-black tracking-tight text-[#2D2A26]">
+                <h1 className="text-base sm:text-lg font-black tracking-tight text-slate-900 font-heading">
                   Matric & Inter Fee Portal
                 </h1>
-                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] bg-[#E2ECE9] text-[#2E5B50] border border-[#C5DDD6] px-2.5 py-0.5 rounded-full font-bold">
-                  <Sparkles className="w-3 h-3" />
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-0.5 rounded-full font-bold shadow-2xs">
+                  <Sparkles className="w-3 h-3 text-indigo-600" />
                   BSEB Exam 2026
                 </span>
               </div>
-              <p className="text-xs text-[#787267] font-medium">
-                Constituent Unit &bull; B.R.A. Bihar University &bull; Live Ledger
+              <p className="text-xs text-slate-500 font-medium">
+                बिहार विद्यालय परीक्षा समिति &bull; लाइव परीक्षा काउंटर &bull; डिजिटल लेज़र
               </p>
             </div>
           </div>
 
           {/* Quick Stat Chips Bar in Header */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-            <div className="bg-white border border-[#E6E2D3] rounded-2xl px-3 py-1.5 flex items-center gap-2.5 min-w-max shadow-2xs">
-              <div className="w-7 h-7 rounded-xl bg-[#EAE8DD] text-[#5A5A40] flex items-center justify-center">
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl px-3 py-1.5 flex items-center gap-2.5 min-w-max shadow-2xs">
+              <div className="w-7 h-7 rounded-xl bg-slate-200/80 text-slate-700 flex items-center justify-center">
                 <Users className="w-3.5 h-3.5" />
               </div>
               <div>
-                <p className="text-[9px] uppercase tracking-wider text-[#787267] font-bold">छात्र (Total)</p>
-                <p className="text-xs font-black text-[#2D2A26]">{totalStudentsCount}</p>
+                <p className="text-[9px] uppercase tracking-wider text-slate-500 font-bold">छात्र (Total)</p>
+                <p className="text-xs font-black text-slate-900">{totalStudentsCount}</p>
               </div>
             </div>
 
-            <div className="bg-white border border-[#D5E5E0] rounded-2xl px-3 py-1.5 flex items-center gap-2.5 min-w-max shadow-2xs">
-              <div className="w-7 h-7 rounded-xl bg-[#E2ECE9] text-[#2E5B50] flex items-center justify-center">
+            <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl px-3 py-1.5 flex items-center gap-2.5 min-w-max shadow-2xs">
+              <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
                 <CheckCircle2 className="w-3.5 h-3.5" />
               </div>
               <div>
-                <p className="text-[9px] uppercase tracking-wider text-[#2E5B50] font-bold">जमा (Paid)</p>
-                <p className="text-xs font-black text-[#2E5B50]">{paidStudentsCount} <span className="text-[10px] text-[#787267] font-normal">/ {totalStudentsCount}</span></p>
+                <p className="text-[9px] uppercase tracking-wider text-emerald-800 font-bold">जमा (Paid)</p>
+                <p className="text-xs font-black text-emerald-700">{paidStudentsCount} <span className="text-[10px] text-slate-500 font-normal">/ {totalStudentsCount}</span></p>
               </div>
             </div>
 
-            <div className="bg-white border border-amber-200 rounded-2xl px-3 py-1.5 flex items-center gap-2.5 min-w-max shadow-2xs">
-              <div className="w-7 h-7 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+            <div className="bg-rose-50/70 border border-rose-200 rounded-2xl px-3 py-1.5 flex items-center gap-2.5 min-w-max shadow-2xs">
+              <div className="w-7 h-7 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-xs">
                 <Clock className="w-3.5 h-3.5" />
               </div>
               <div>
-                <p className="text-[9px] uppercase tracking-wider text-amber-800 font-bold">बकाया (Due)</p>
-                <p className="text-xs font-black text-amber-800">{unpaidCount}</p>
+                <p className="text-[9px] uppercase tracking-wider text-rose-800 font-bold">बकाया (Due)</p>
+                <p className="text-xs font-black text-rose-700">{unpaidCount}</p>
               </div>
             </div>
 
-            <div className="bg-white border border-[#D5E5E0] rounded-2xl px-3 py-1.5 flex items-center gap-2.5 min-w-max shadow-2xs">
-              <div className="w-7 h-7 rounded-xl bg-[#E2ECE9] text-[#2E5B50] flex items-center justify-center">
+            <div className="bg-indigo-50/70 border border-indigo-200 rounded-2xl px-3 py-1.5 flex items-center gap-2.5 min-w-max shadow-2xs">
+              <div className="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
                 <IndianRupee className="w-3.5 h-3.5" />
               </div>
               <div>
-                <p className="text-[9px] uppercase tracking-wider text-[#787267] font-bold">राजस्व (Revenue)</p>
-                <p className="text-xs font-black text-[#2E5B50] font-mono">₹{totalCollected.toLocaleString('en-IN')}</p>
+                <p className="text-[9px] uppercase tracking-wider text-indigo-800 font-bold">राजस्व (Revenue)</p>
+                <p className="text-xs font-black text-indigo-700 font-mono">₹{totalCollected.toLocaleString('en-IN')}</p>
               </div>
             </div>
           </div>
 
-          {/* Action Buttons (Flutter FilledButton & Tonal Button) */}
+          {/* Action Buttons */}
           <div className="hidden sm:flex items-center gap-2 shrink-0">
             <PWAInstallButton />
 
@@ -193,9 +193,9 @@ export const Header: React.FC<HeaderProps> = ({
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.96 }}
               onClick={onOpenUploadPdf}
-              className="flex items-center gap-1.5 bg-white hover:bg-[#FAF9F5] text-[#4A453E] px-3.5 py-2 rounded-2xl text-xs font-bold border border-[#DDD8C5] shadow-xs transition"
+              className="flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-2xl text-xs font-bold border border-slate-200 shadow-sm transition"
             >
-              <UploadCloud className="w-3.5 h-3.5 text-teal-600" />
+              <UploadCloud className="w-3.5 h-3.5 text-indigo-600" />
               <span>Import List</span>
             </motion.button>
 
@@ -203,7 +203,7 @@ export const Header: React.FC<HeaderProps> = ({
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.96 }}
               onClick={onOpenAddStudent}
-              className="flex items-center gap-1.5 bg-[#2E5B50] hover:bg-[#254A41] text-white px-3.5 py-2 rounded-2xl text-xs font-bold shadow-sm shadow-[#2E5B50]/20 transition"
+              className="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-3.5 py-2 rounded-2xl text-xs font-bold shadow-md shadow-indigo-500/20 transition"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Student</span>
@@ -211,9 +211,9 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Flutter Material 3 Segmented Navigation Bar (Desktop/Tablet) */}
-        <div className="hidden md:flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-[#EAE6D9] text-xs">
-          <div className="bg-[#F4F1EA] p-1 rounded-2xl border border-[#E2DDD0] flex items-center gap-1">
+        {/* Material 3 Segmented Navigation Bar (Desktop/Tablet) */}
+        <div className="hidden md:flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-slate-200/80 text-xs">
+          <div className="bg-slate-100/80 p-1 rounded-2xl border border-slate-200 flex items-center gap-1">
             {navTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -223,21 +223,21 @@ export const Header: React.FC<HeaderProps> = ({
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`relative flex items-center gap-2 px-4 py-1.5 rounded-xl font-bold transition-colors ${
-                    isActive ? 'text-[#2E5B50]' : 'text-[#787267] hover:text-[#2D2A26]'
+                    isActive ? 'text-indigo-700' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   {isActive && (
                     <motion.div
                       layoutId="activeHeaderNavPill"
-                      className="absolute inset-0 bg-white rounded-xl shadow-xs border border-[#DDD8C5]"
+                      className="absolute inset-0 bg-white rounded-xl shadow-xs border border-slate-200"
                       transition={{ type: 'spring', stiffness: 450, damping: 32 }}
                     />
                   )}
                   <span className="relative z-10 flex items-center gap-1.5">
-                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#2E5B50]' : 'text-[#787267]'}`} />
+                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-indigo-600' : 'text-slate-500'}`} />
                     <span>{tab.label}</span>
                     {tab.badge && (
-                      <span className="bg-[#E2ECE9] text-[#2E5B50] text-[9px] px-1.5 py-0.5 rounded-full font-mono font-bold">
+                      <span className="bg-indigo-100 text-indigo-700 text-[9px] px-1.5 py-0.5 rounded-full font-mono font-bold">
                         {tab.badge}
                       </span>
                     )}
