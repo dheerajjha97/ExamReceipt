@@ -33,6 +33,9 @@ export const RegistrationFeeReceiptModal: React.FC<RegistrationFeeReceiptModalPr
 
   if (!isOpen || !student) return null;
 
+  const feeAmount = student.registrationFee || 515;
+  const baseFee = student.baseFee || (student.boardName?.toLowerCase().includes('cbse') || student.boardName?.toLowerCase().includes('delhi') ? 685 : 485);
+  const serviceCharge = student.serviceCharge !== undefined ? student.serviceCharge : (feeAmount - baseFee);
   const receiptNo = student.receiptNo || `REG/26-27/${student.sNo.toString().padStart(4, '0')}`;
   const paymentDate = student.paymentDate || new Date().toLocaleDateString('en-GB');
 
@@ -45,15 +48,19 @@ export const RegistrationFeeReceiptModal: React.FC<RegistrationFeeReceiptModalPr
 *इंटरमीडिएट पंजीकरण शुल्क रसीद (Session 2026-2027)*
 -----------------------------------
 रसीद सं. (Receipt No): ${receiptNo}
+OFSS सं. (OFSS No): ${student.ofssNo || student.formNo}
 फॉर्म सं. (Form No): ${student.formNo}
 छात्र का नाम: ${student.studentName}
 पिता का नाम: ${student.fatherName}
+माता का नाम: ${student.motherName || '-'}
+जन्म तिथि: ${student.dob || '-'}
+10वीं बोर्ड: ${student.boardName || student.matricBoard || 'BSEB PATNA'}
 संकाय (Stream): ${student.stream}
 जाति कोटि: ${student.casteCategory}
-मैट्रिक रोल कोड-नं: ${student.matricRollCode || '-'}-${student.matricRollNo || '-'}
 -----------------------------------
-पंजीकरण शुल्क (Registration Fee): ₹515
-प्राप्त राशि (Paid Amount): ₹515 (${numberToWordsInINR(515)})
+मूल पंजीकरण शुल्क: ₹${baseFee}
+सेवा/ऑनलाइन शुल्क: ₹${serviceCharge}
+कुल प्राप्त राशि (Total Paid): ₹${feeAmount} (${numberToWordsInINR(feeAmount)})
 भुगतान माध्यम: ${student.paymentMode || 'CASH'} (Ref: ${student.transactionRef || 'CASH'})
 भुगतान तिथि: ${paymentDate}
 -----------------------------------
@@ -71,7 +78,7 @@ ${settings.address}`;
   };
 
   const handleCopyText = () => {
-    const summary = `रसीद सं: ${receiptNo} | छात्र: ${student.studentName} | संकाय: ${student.stream} | शुल्क: ₹515 | स्थिति: PAID`;
+    const summary = `रसीद सं: ${receiptNo} | OFSS: ${student.ofssNo || '-'} | छात्र: ${student.studentName} | संकाय: ${student.stream} | शुल्क: ₹${feeAmount} | स्थिति: PAID`;
     navigator.clipboard.writeText(summary);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -99,7 +106,7 @@ ${settings.address}`;
           </div>
           <div className="text-right text-[10px] font-mono border border-black p-1 rounded-sm">
             <span className="font-bold block uppercase bg-gray-200 px-1">{copyTitle}</span>
-            <span>₹515/-</span>
+            <span className="font-bold">₹{feeAmount}/-</span>
           </div>
         </div>
       </div>
@@ -164,25 +171,33 @@ ${settings.address}`;
       <table className="w-full text-xs border border-black mb-3">
         <thead>
           <tr className="bg-gray-100 border-b border-black">
-            <th className="p-1.5 text-left border-r border-black">क्र.</th>
+            <th className="p-1.5 text-left border-r border-black w-8">क्र.</th>
             <th className="p-1.5 text-left border-r border-black">मद का विवरण (Fee Particulars)</th>
-            <th className="p-1.5 text-right">राशि (₹)</th>
+            <th className="p-1.5 text-right w-24">राशि (₹)</th>
           </tr>
         </thead>
         <tbody>
-          <tr className="border-b border-gray-300">
-            <td className="p-1.5 border-r border-black font-mono">1</td>
+          <tr className="border-b border-gray-200">
+            <td className="p-1.5 border-r border-black font-mono text-center">1</td>
             <td className="p-1.5 border-r border-black">
-              <strong>इंटरमीडिएट सत्र 2026-2027 ऑनलाइन पंजीकरण एवं अनुमति शुल्क</strong>
-              <div className="text-[10px] text-gray-600">BSEB Intermediate Registration & Processing Charge</div>
+              <strong>इंटरमीडिएट सत्र 2026-2027 मूल पंजीकरण शुल्क (Base Registration Fee)</strong>
+              <div className="text-[10px] text-gray-600">BSEB / Board Prescribed Registration Fee</div>
             </td>
-            <td className="p-1.5 text-right font-mono font-bold">₹515.00</td>
+            <td className="p-1.5 text-right font-mono font-bold">₹{baseFee}.00</td>
+          </tr>
+          <tr className="border-b border-gray-300">
+            <td className="p-1.5 border-r border-black font-mono text-center">2</td>
+            <td className="p-1.5 border-r border-black">
+              <strong>ऑनलाइन आवेदन एवं सेवा/प्रोसेसिंग शुल्क (Online Service Charge)</strong>
+              <div className="text-[10px] text-gray-600">Portal & Documentation Processing Charges</div>
+            </td>
+            <td className="p-1.5 text-right font-mono font-bold">₹{serviceCharge}.00</td>
           </tr>
           <tr className="bg-gray-50 font-bold border-t border-black">
             <td colSpan={2} className="p-1.5 text-right border-r border-black">
               कुल प्राप्त राशि (Total Amount Received):
             </td>
-            <td className="p-1.5 text-right font-mono text-sm">₹515.00</td>
+            <td className="p-1.5 text-right font-mono text-sm">₹{feeAmount}.00</td>
           </tr>
         </tbody>
       </table>
@@ -191,7 +206,7 @@ ${settings.address}`;
       <div className="text-xs mb-3 p-1.5 bg-gray-50 border border-gray-300 rounded-xs flex items-center justify-between">
         <div>
           <span className="text-gray-600">शब्दों में (In Words): </span>
-          <strong className="font-bold text-black uppercase">{numberToWordsInINR(515)}</strong>
+          <strong className="font-bold text-black uppercase">{numberToWordsInINR(feeAmount)}</strong>
         </div>
         <div className="text-[11px] font-mono font-bold bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-xs border border-emerald-300">
           भुगतान माध्यम: {student.paymentMode || 'CASH'} ({student.transactionRef || 'SUCCESS'})

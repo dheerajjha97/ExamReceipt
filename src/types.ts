@@ -54,8 +54,10 @@ export interface RegistrationStudent {
   prevSchoolName?: string;     // School from where TC was issued
   address?: string;
 
-  // Registration Fee details (Flat ₹515 for all streams)
-  registrationFee: number;     // 515
+  // Registration Fee details (Base Fee e.g. ₹485/₹685 + ₹30 Service Charge = ₹515/₹715)
+  baseFee?: number;            // e.g. 485 for BSEB, 685 for Other Boards
+  serviceCharge?: number;      // e.g. 30
+  registrationFee: number;     // e.g. 515 or 715
   paidAmount: number;
   paymentStatus: PaymentStatus;
   paymentMode?: PaymentMode;
