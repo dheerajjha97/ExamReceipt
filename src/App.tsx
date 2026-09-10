@@ -17,6 +17,8 @@ import {
   saveRegistrationStudentToCloud,
   deleteRegistrationStudentFromCloud,
   clearRegistrationCloudData,
+  clearExamStudentsFromCloud,
+  clearTransactionsFromCloud,
   saveTransactionToCloud, 
   saveSettingsToCloud, 
   deleteStudentFromCloud, 
@@ -43,6 +45,7 @@ import { DailySettlementModal } from './components/DailySettlementModal';
 import { MainDashboardHub } from './components/MainDashboardHub';
 import { RegistrationModule } from './components/Registration/RegistrationModule';
 import { StudentLifecycleModule } from './components/Lifecycle/StudentLifecycleModule';
+import { SessionManagerModal } from './components/SessionManagerModal';
 import { OfflineIndicator } from './components/PWA/OfflineIndicator';
 import { RotateCcw, CheckCircle2, X, ArrowLeft, School, BookOpen, Layers } from 'lucide-react';
 
@@ -95,6 +98,7 @@ export default function App() {
   const [isLogTransactionOpen, setIsLogTransactionOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isDailySettlementOpen, setIsDailySettlementOpen] = useState(false);
+  const [isSessionManagerOpen, setIsSessionManagerOpen] = useState(false);
 
   const handleLoginSuccess = (schoolCode: string) => {
     setCurrentSchoolCode(schoolCode);
@@ -695,13 +699,141 @@ export default function App() {
     }
   };
 
-  // Clear All Students
+  // Clear All Students (Complete Reset)
   const handleClearAllStudents = () => {
     setStudents([]);
     saveStudentsToStorage([]);
     if (currentSchoolCode) {
       clearSchoolCloudData(currentSchoolCode);
     }
+  };
+
+  // Clear Only 12th Board Exam Students (Post-Exam batch completion)
+  const handleClearExamStudents = () => {
+    const previousStudents = [...students];
+    updateStudentsState([]);
+    if (currentSchoolCode) {
+      clearExamStudentsFromCloud(currentSchoolCode);
+    }
+
+    setUndoAction({
+      id: `clear-exam-${Date.now()}`,
+      message: `${previousStudents.length} 12वीं परीक्षा फॉर्म छात्र रिकॉर्ड हटाए गए`,
+      subMessage: 'सत्र क्लियर हो गया। गलती से हुआ? पूर्ववत (Undo) दबाएं।',
+      onUndo: () => {
+        updateStudentsState(previousStudents);
+        if (currentSchoolCode) {
+          previousStudents.forEach(s => saveStudentToCloud(s, currentSchoolCode));
+        }
+      }
+    });
+  };
+
+  // Promote 11th Registration Batch to 12th Examination Batch & Open 11th for Fresh Session
+  const handlePromote11thTo12th = (newSession: string) => {
+    const previousStudents = [...students];
+    const previousRegs = [...registrationStudents];
+    const targetSession = newSession.trim() || '2026-2028';
+
+    // Map 11th Registration students into 12th Examination batch
+    const promotedStudents: Student[] = registrationStudents.map((reg, idx) => ({
+      id: `stu-promoted-${reg.id || Date.now()}-${idx}`,
+      sNo: idx + 1,
+      registrationNo: reg.formNo || `R-${settings.code || '31337'}${1000 + idx + 1}-${targetSession.slice(-2)}`,
+      studentName: reg.studentName,
+      fatherName: reg.fatherName,
+      motherName: reg.motherName || '',
+      dob: reg.dob || '',
+      casteCategory: reg.casteCategory || 'General',
+      examType: 'REGULAR',
+      classOrStream: reg.stream || 'Intermediate Science (12th)',
+      phone: reg.phone || '',
+      baseFee: 1400,
+      onlineCharges: settings.defaultOnlineCharge || 30,
+      totalFee: 1430,
+      paidAmount: 0,
+      paymentStatus: 'UNPAID',
+      formIssueStatus: 'NOT_ISSUED',
+      formNo: '',
+      session: targetSession,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }));
+
+    // Set promoted students to 12th Examination Module
+    updateStudentsState(promotedStudents);
+    if (currentSchoolCode) {
+      clearExamStudentsFromCloud(currentSchoolCode);
+      promotedStudents.forEach(stu => saveStudentToCloud(stu, currentSchoolCode));
+    }
+
+    // Clear 11th Registration list for fresh incoming students
+    updateRegistrationStudentsState([]);
+    if (currentSchoolCode) {
+      clearRegistrationCloudData(currentSchoolCode);
+    }
+
+    // Update Academic Year in Settings
+    const newSettings: InstituteSettings = { ...settings, academicYear: targetSession };
+    handleSaveSettings(newSettings);
+
+    setUndoAction({
+      id: `promote-${Date.now()}`,
+      message: `${promotedStudents.length} छात्र 12वीं में प्रमोट हुए, 11वीं नए सत्र (${targetSession}) हेतु खाली की गई`,
+      subMessage: 'गलती से हुआ? पूर्ववत (Undo) दबाकर वापस लाएं।',
+      onUndo: () => {
+        updateStudentsState(previousStudents);
+        updateRegistrationStudentsState(previousRegs);
+        if (currentSchoolCode) {
+          previousStudents.forEach(s => saveStudentToCloud(s, currentSchoolCode));
+          previousRegs.forEach(r => saveRegistrationStudentToCloud(r, currentSchoolCode));
+        }
+      }
+    });
+  };
+
+  // Full Session Reset (Clean Slate for Brand New Academic Session)
+  const handleFullSessionReset = (newSession: string, clearTxns: boolean) => {
+    const previousStudents = [...students];
+    const previousRegs = [...registrationStudents];
+    const previousTxns = [...transactions];
+    const targetSession = newSession.trim() || '2026-2028';
+
+    // Clear student lists
+    updateStudentsState([]);
+    updateRegistrationStudentsState([]);
+    if (currentSchoolCode) {
+      clearExamStudentsFromCloud(currentSchoolCode);
+      clearRegistrationCloudData(currentSchoolCode);
+    }
+
+    // Clear transactions if chosen
+    if (clearTxns) {
+      updateTransactionsState([]);
+      if (currentSchoolCode) {
+        clearTransactionsFromCloud(currentSchoolCode);
+      }
+    }
+
+    // Update settings
+    const newSettings: InstituteSettings = { ...settings, academicYear: targetSession };
+    handleSaveSettings(newSettings);
+
+    setUndoAction({
+      id: `full-reset-${Date.now()}`,
+      message: `नया सत्र ${targetSession} प्रारंभ किया गया। पुराना रिकॉर्ड रीसेट हुआ।`,
+      subMessage: 'गलती से हुआ? पूर्ववत (Undo) दबाकर वापस लाएं।',
+      onUndo: () => {
+        updateStudentsState(previousStudents);
+        updateRegistrationStudentsState(previousRegs);
+        if (clearTxns) updateTransactionsState(previousTxns);
+        if (currentSchoolCode) {
+          previousStudents.forEach(s => saveStudentToCloud(s, currentSchoolCode));
+          previousRegs.forEach(r => saveRegistrationStudentToCloud(r, currentSchoolCode));
+          if (clearTxns) previousTxns.forEach(t => saveTransactionToCloud(t, currentSchoolCode));
+        }
+      }
+    });
   };
 
   // Clear All Transactions
@@ -1018,6 +1150,7 @@ export default function App() {
               setActiveModule('EXAMINATION');
               setActiveTab('settings');
             }}
+            onOpenSessionManager={() => setIsSessionManagerOpen(true)}
           />
         </div>
       )}
@@ -1196,6 +1329,7 @@ export default function App() {
               <SettingsModal
                 settings={settings}
                 onSaveSettings={handleSaveSettings}
+                onOpenSessionManager={() => setIsSessionManagerOpen(true)}
                 onForceSync={() => {
                   if (currentSchoolCode) {
                     const loadedStudents = getStoredStudents();
@@ -1330,6 +1464,21 @@ export default function App() {
         isOpen={isChangePasswordOpen}
         onClose={() => setIsChangePasswordOpen(false)}
         schoolCode={currentSchoolCode}
+      />
+
+      {/* Academic Session Transition & Reset Manager Modal */}
+      <SessionManagerModal
+        isOpen={isSessionManagerOpen}
+        onClose={() => setIsSessionManagerOpen(false)}
+        currentSettings={settings}
+        students={students}
+        registrationStudents={registrationStudents}
+        transactions={transactions}
+        onClearExamStudents={handleClearExamStudents}
+        onClearAllRegistrationStudents={handleClearAllRegistrationStudents}
+        onPromote11thTo12th={handlePromote11thTo12th}
+        onFullSessionReset={handleFullSessionReset}
+        onUpdateAcademicYear={(newYear) => handleSaveSettings({ ...settings, academicYear: newYear })}
       />
 
       {/* Accidental Deletion Protection: Floating Undo Toast Notification */}

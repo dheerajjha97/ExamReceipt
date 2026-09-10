@@ -96,6 +96,32 @@ export async function saveSettingsToCloud(settings: InstituteSettings, schoolCod
   }
 }
 
+export async function clearExamStudentsFromCloud(schoolCode: string): Promise<void> {
+  try {
+    const studentsSnap = await getDocs(collection(db, `schools/${schoolCode}/students`));
+    const deletePromises = studentsSnap.docs.map((docSnap) =>
+      deleteDoc(doc(db, `schools/${schoolCode}/students`, docSnap.id))
+    );
+    await Promise.all(deletePromises);
+    console.log(`Cleared all ${deletePromises.length} examination students from cloud.`);
+  } catch (error) {
+    console.error('Failed to clear exam students from cloud:', error);
+  }
+}
+
+export async function clearTransactionsFromCloud(schoolCode: string): Promise<void> {
+  try {
+    const txnsSnap = await getDocs(collection(db, `schools/${schoolCode}/transactions`));
+    const deletePromises = txnsSnap.docs.map((docSnap) =>
+      deleteDoc(doc(db, `schools/${schoolCode}/transactions`, docSnap.id))
+    );
+    await Promise.all(deletePromises);
+    console.log(`Cleared all ${deletePromises.length} transactions from cloud.`);
+  } catch (error) {
+    console.error('Failed to clear transactions from cloud:', error);
+  }
+}
+
 export async function clearRegistrationCloudData(schoolCode: string): Promise<void> {
   try {
     const regSnap = await getDocs(collection(db, `schools/${schoolCode}/registrationStudents`));
@@ -103,6 +129,7 @@ export async function clearRegistrationCloudData(schoolCode: string): Promise<vo
       deleteDoc(doc(db, `schools/${schoolCode}/registrationStudents`, document.id))
     );
     await Promise.all(deletePromises);
+    console.log(`Cleared all ${deletePromises.length} registration students from cloud.`);
   } catch (error) {
     console.error('Failed to clear registration cloud data:', error);
   }
@@ -110,18 +137,9 @@ export async function clearRegistrationCloudData(schoolCode: string): Promise<vo
 
 export async function clearSchoolCloudData(schoolCode: string): Promise<void> {
   try {
-    const studentsSnap = await getDocs(collection(db, `schools/${schoolCode}/students`));
-    studentsSnap.forEach(async (document) => {
-      await deleteDoc(doc(db, `schools/${schoolCode}/students`, document.id));
-    });
-    const regSnap = await getDocs(collection(db, `schools/${schoolCode}/registrationStudents`));
-    regSnap.forEach(async (document) => {
-      await deleteDoc(doc(db, `schools/${schoolCode}/registrationStudents`, document.id));
-    });
-    const txnsSnap = await getDocs(collection(db, `schools/${schoolCode}/transactions`));
-    txnsSnap.forEach(async (document) => {
-      await deleteDoc(doc(db, `schools/${schoolCode}/transactions`, document.id));
-    });
+    await clearExamStudentsFromCloud(schoolCode);
+    await clearRegistrationCloudData(schoolCode);
+    await clearTransactionsFromCloud(schoolCode);
   } catch (error) {
     console.error('Failed to clear cloud data:', error);
   }

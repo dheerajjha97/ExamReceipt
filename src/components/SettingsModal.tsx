@@ -6,12 +6,14 @@ interface SettingsModalProps {
   settings: InstituteSettings;
   onSaveSettings: (newSettings: InstituteSettings) => void;
   onForceSync?: () => void;
+  onOpenSessionManager?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   settings,
   onSaveSettings,
-  onForceSync
+  onForceSync,
+  onOpenSessionManager
 }) => {
   const [formData, setFormData] = useState<InstituteSettings>(settings);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -25,16 +27,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="bg-[#FDFCF8] p-6 rounded-2xl border border-[#E6E2D3] shadow-sm space-y-6 max-w-3xl mx-auto">
-      <div className="flex items-center gap-3 border-b border-[#E6E2D3] pb-4">
-        <div className="p-3 bg-[#EFECE1] text-[#5A5A40] rounded-xl border border-[#DDD8C5]">
-          <Building2 className="w-6 h-6" />
+      <div className="flex items-center justify-between border-b border-[#E6E2D3] pb-4 flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-[#EFECE1] text-[#5A5A40] rounded-xl border border-[#DDD8C5]">
+            <Building2 className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-[#4A453E]">College & Examination Cell Settings</h2>
+            <p className="text-xs text-[#787267]">
+              Configure header branding printed on traditional school fee receipts
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-base font-bold text-[#4A453E]">College & Examination Cell Settings</h2>
-          <p className="text-xs text-[#787267]">
-            Configure header branding printed on traditional school fee receipts
-          </p>
-        </div>
+
+        {onOpenSessionManager && (
+          <button
+            type="button"
+            onClick={onOpenSessionManager}
+            className="px-4 py-2 bg-gradient-to-r from-amber-600 to-red-600 hover:from-amber-500 hover:to-red-500 text-white rounded-xl text-xs font-bold shadow-sm flex items-center gap-2 transition transform hover:scale-105"
+          >
+            <span>🎓 नया सत्र व डेटा क्लियर करें</span>
+          </button>
+        )}
       </div>
 
       {savedSuccess && (

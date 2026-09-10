@@ -33,6 +33,7 @@ interface MainDashboardHubProps {
   onSelectLifecycle?: () => void;
   onOpenDailySettlement: () => void;
   onOpenSettings: () => void;
+  onOpenSessionManager?: () => void;
 }
 
 export const MainDashboardHub: React.FC<MainDashboardHubProps> = ({
@@ -45,6 +46,7 @@ export const MainDashboardHub: React.FC<MainDashboardHubProps> = ({
   onSelectLifecycle,
   onOpenDailySettlement,
   onOpenSettings,
+  onOpenSessionManager,
 }) => {
   // Exam metrics
   const examTotalCount = students.length;
@@ -114,6 +116,15 @@ export const MainDashboardHub: React.FC<MainDashboardHubProps> = ({
 
           <div className="flex items-center gap-3 w-full md:w-auto justify-end flex-wrap">
             <PWAInstallButton />
+            {onOpenSessionManager && (
+              <button
+                onClick={onOpenSessionManager}
+                className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-600 to-red-600 hover:from-amber-500 hover:to-red-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-amber-950/40 hover:shadow-amber-500/30 transition transform hover:-translate-y-0.5 active:scale-95"
+              >
+                <Calendar className="w-4 h-4 text-amber-200" />
+                <span>सत्र समापन व नया सत्र</span>
+              </button>
+            )}
             <button
               onClick={onOpenDailySettlement}
               className="px-4.5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-950/40 hover:shadow-emerald-500/30 transition transform hover:-translate-y-0.5 active:scale-95"
@@ -411,6 +422,44 @@ export const MainDashboardHub: React.FC<MainDashboardHubProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Post-Exam Academic Session Transition & Reset Card */}
+      {onOpenSessionManager && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-red-500/10 to-amber-500/10 border border-amber-300/80 rounded-3xl p-5 sm:p-6 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="p-3 bg-amber-500 text-white rounded-2xl shadow-sm shrink-0">
+                <Calendar className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 bg-amber-100 text-amber-900 font-bold rounded-full text-[10px] uppercase tracking-wider">
+                    सत्र समापन एवं नवीनीकरण (Session Lifecycle)
+                  </span>
+                  <span className="text-slate-500 text-xs font-semibold">
+                    सत्र {settings.academicYear || '2025-2027'}
+                  </span>
+                </div>
+                <h3 className="text-base sm:text-lg font-black text-slate-900 mt-1">
+                  बोर्ड परीक्षा उपरांत: पुराना सत्र रिकॉर्ड हटाएं एवं नया सत्र प्रारंभ करें
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5 leading-relaxed max-w-2xl">
+                  जब वर्तमान सत्र की 12वीं बोर्ड परीक्षा संपन्न हो जाए, तब पुराने छात्रों का एक्सेल/JSON बैकअप डाउनलोड करके 12वीं परीक्षा सूची क्लियर करें, 11वीं को 12वीं में प्रमोट करें, अथवा नए सत्र (New Session) के नए छात्रों हेतु पोर्टल फ्रेश रीसेट करें।
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={onOpenSessionManager}
+              className="px-5 py-2.5 bg-gradient-to-r from-amber-600 to-red-600 hover:from-amber-500 hover:to-red-500 text-white font-bold text-xs rounded-2xl shadow-md flex items-center gap-2 transition shrink-0 transform hover:scale-105 active:scale-95"
+            >
+              <Calendar className="w-4 h-4 text-amber-200" />
+              <span>सत्र रीसेट व नवीनीकरण टूल खोलें &rarr;</span>
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
