@@ -441,10 +441,14 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
             <thead className="bg-[#FAF9F5] text-[#5A5A40] border-b border-[#E8E4D5] uppercase font-bold tracking-wider">
               <tr>
                 <th className="p-3.5">क्र.</th>
-                <th className="p-3.5">फॉर्म सं.</th>
-                <th className="p-3.5">छात्र का नाम & माता-पिता</th>
-                <th className="p-3.5">संकाय & कोटि</th>
-                <th className="p-3.5">आवश्यक दस्तावेज स्थिति (AADHAR / APAAR / TC / CASTE)</th>
+                <th className="p-3.5">OFSS NO.</th>
+                <th className="p-3.5">NAME (छात्र का नाम)</th>
+                <th className="p-3.5">FATHER NAME</th>
+                <th className="p-3.5">MOTHER NAME</th>
+                <th className="p-3.5">DOB</th>
+                <th className="p-3.5">BOARD NAME</th>
+                <th className="p-3.5">CATEGORY</th>
+                <th className="p-3.5">संकाय (Stream)</th>
                 <th className="p-3.5 text-center">शुल्क (₹515)</th>
                 <th className="p-3.5 text-right">कार्रवाई (Actions)</th>
               </tr>
@@ -452,7 +456,7 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
             <tbody className="divide-y divide-[#E8E4D5]">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-12 text-center text-gray-500">
+                  <td colSpan={11} className="p-12 text-center text-gray-500">
                     <div className="max-w-md mx-auto py-4">
                       <div className="w-16 h-16 rounded-3xl bg-emerald-50 text-[#2E5B50] border border-emerald-200 flex items-center justify-center mx-auto mb-3 shadow-sm">
                         <BookOpen className="w-8 h-8" />
@@ -493,38 +497,29 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
               ) : (
                 filteredStudents.map((stu, index) => {
                   const isPaid = stu.paymentStatus === 'PAID';
-                  const isCasteReq = stu.casteCategory === 'EBC' || stu.casteCategory === 'SC' || stu.casteCategory === 'ST';
 
                   return (
                     <tr key={stu.id} className="hover:bg-amber-50/30 transition">
                       {/* S.No */}
                       <td className="p-3.5 font-mono text-gray-500 font-bold">{index + 1}</td>
 
-                      {/* Form No */}
+                      {/* OFSS NO. */}
                       <td className="p-3.5">
-                        <span className="font-mono font-bold text-[#2E5B50] bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
-                          {stu.formNo}
+                        <span className="font-mono font-bold text-[#2E5B50] bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 whitespace-nowrap block">
+                          {stu.ofssNo || stu.formNo}
                         </span>
                         {stu.bsebUniqueId && (
-                          <div className="text-[10px] text-gray-500 font-mono mt-1">
+                          <div className="text-[10px] text-gray-500 font-mono mt-0.5">
                             UID: {stu.bsebUniqueId}
                           </div>
                         )}
                       </td>
 
-                      {/* Name & Parents */}
+                      {/* NAME */}
                       <td className="p-3.5">
                         <strong className="text-sm font-bold text-gray-900 block uppercase">
                           {stu.studentName}
                         </strong>
-                        <div className="text-gray-600 text-[11px] uppercase">
-                          पिता: {stu.fatherName}
-                        </div>
-                        {stu.motherName && (
-                          <div className="text-gray-500 text-[10px] uppercase">
-                            माता: {stu.motherName}
-                          </div>
-                        )}
                         {stu.mobile && (
                           <div className="text-[10px] text-gray-500 font-mono mt-0.5">
                             📞 {stu.mobile}
@@ -532,75 +527,46 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
                         )}
                       </td>
 
-                      {/* Stream & Category */}
+                      {/* FATHER NAME */}
                       <td className="p-3.5">
-                        <span className="font-bold text-[#2E5B50] block">
-                          {stu.stream}
+                        <span className="font-medium text-gray-800 uppercase block">
+                          {stu.fatherName}
                         </span>
-                        <div className="flex items-center gap-1 mt-1">
-                          <span className="px-2 py-0.5 bg-gray-100 rounded text-[11px] font-bold text-gray-800">
-                            {stu.casteCategory}
-                          </span>
-                          <span className="text-[10px] text-gray-500">
-                            {stu.gender === 'FEMALE' ? 'छात्रा' : 'छात्र'}
-                          </span>
-                        </div>
                       </td>
 
-                      {/* Mandatory Document Checklist Status */}
-                      <td className="p-3.5 max-w-[320px]">
-                        <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-                          {/* Aadhaar */}
-                          <div className={`p-1.5 rounded-lg border flex items-center justify-between ${
-                            stu.documents?.aadhar?.status === 'SUBMITTED' ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900' : 'bg-rose-50 border-rose-200 text-rose-900'
-                          }`}>
-                            <span className="font-semibold">आधार (Aadhaar):</span>
-                            <span className="font-bold">
-                              {stu.documents?.aadhar?.status === 'SUBMITTED' ? '✓ जमा' : '✗ लंबित'}
-                            </span>
-                          </div>
+                      {/* MOTHER NAME */}
+                      <td className="p-3.5">
+                        <span className="font-medium text-gray-700 uppercase block">
+                          {stu.motherName || '—'}
+                        </span>
+                      </td>
 
-                          {/* APAAR */}
-                          <div className={`p-1.5 rounded-lg border flex items-center justify-between ${
-                            stu.documents?.apaar?.status === 'SUBMITTED' ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-300 text-amber-900'
-                          }`} title={stu.documents?.apaar?.notAvailableReason}>
-                            <span className="font-semibold">अपार (APAAR):</span>
-                            <span className="font-bold truncate max-w-[80px]">
-                              {stu.documents?.apaar?.status === 'SUBMITTED' ? '✓ उपलब्ध' : '! कारण दर्ज'}
-                            </span>
-                          </div>
+                      {/* DOB */}
+                      <td className="p-3.5">
+                        <span className="font-mono font-medium text-gray-700 whitespace-nowrap">
+                          {stu.dob || '—'}
+                        </span>
+                      </td>
 
-                          {/* TC / SLC (Mandatory for all) */}
-                          <div className={`p-1.5 rounded-lg border flex items-center justify-between ${
-                            stu.documents?.transferCertificate?.status === 'SUBMITTED' ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900' : 'bg-rose-50 border-rose-300 text-rose-900'
-                          }`}>
-                            <span className="font-semibold">स्थानांतरण (TC):</span>
-                            <span className="font-bold">
-                              {stu.documents?.transferCertificate?.status === 'SUBMITTED' ? '✓ मूल जमा' : '✗ लंबित (अनिवार्य)'}
-                            </span>
-                          </div>
+                      {/* BOARD NAME */}
+                      <td className="p-3.5">
+                        <span className="px-2 py-1 bg-blue-50 border border-blue-200 text-blue-900 rounded-lg font-bold text-[11px] whitespace-nowrap">
+                          {stu.boardName || stu.matricBoard || 'BSEB PATNA'}
+                        </span>
+                      </td>
 
-                          {/* Caste Certificate (Mandatory for EBC, SC, ST) */}
-                          <div className={`p-1.5 rounded-lg border flex items-center justify-between ${
-                            !isCasteReq 
-                              ? 'bg-gray-50 border-gray-200 text-gray-500' 
-                              : (stu.documents?.casteCertificate?.status === 'SUBMITTED' ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900' : 'bg-purple-50 border-purple-300 text-purple-900')
-                          }`}>
-                            <span className="font-semibold">जाति प्रमाण:</span>
-                            <span className="font-bold">
-                              {!isCasteReq 
-                                ? '— लागू नहीं' 
-                                : (stu.documents?.casteCertificate?.status === 'SUBMITTED' ? '✓ जमा' : '✗ लंबित')}
-                            </span>
-                          </div>
-                        </div>
+                      {/* CATEGORY */}
+                      <td className="p-3.5">
+                        <span className="px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg text-xs font-bold">
+                          {stu.casteCategory}
+                        </span>
+                      </td>
 
-                        {/* APAAR reason tooltip callout if not available */}
-                        {stu.documents?.apaar?.status === 'NOT_AVAILABLE' && stu.documents?.apaar?.notAvailableReason && (
-                          <div className="mt-1 text-[9px] text-amber-800 bg-amber-50/90 px-1.5 py-0.5 rounded border border-amber-200 truncate">
-                            <strong>APAAR कारण:</strong> {stu.documents.apaar.notAvailableReason}
-                          </div>
-                        )}
+                      {/* STREAM */}
+                      <td className="p-3.5">
+                        <span className="font-semibold text-[#2E5B50] whitespace-nowrap block">
+                          {stu.stream}
+                        </span>
                       </td>
 
                       {/* Registration Fee Status (₹515) */}
@@ -635,7 +601,7 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
                       </td>
 
                       {/* Actions */}
-                      <td className="p-3.5 text-right space-x-1">
+                      <td className="p-3.5 text-right space-x-1 whitespace-nowrap">
                         {isPaid && (
                           <button
                             onClick={() => handleOpenReceipt(stu)}

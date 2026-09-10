@@ -120,12 +120,14 @@ export const RegistrationUploadModal: React.FC<RegistrationUploadModalProps> = (
         const studentObj: RegistrationStudent = {
           id: `REG-${Date.now()}-${idx}`,
           sNo: currentTotalStudents + idx + 1,
+          ofssNo: s.ofssNo || s.formNo || '',
           formNo: s.formNo || `REG-2026-${(currentTotalStudents + idx + 1).toString().padStart(3, '0')}`,
           bsebUniqueId: s.bsebUniqueId || '',
           studentName: (s.studentName || 'STUDENT').toUpperCase(),
           fatherName: (s.fatherName || 'FATHER').toUpperCase(),
           motherName: (s.motherName || '').toUpperCase(),
-          dob: s.dob || '2008-01-01',
+          dob: s.dob || '15-05-2008',
+          boardName: s.boardName || 'BSEB',
           gender: s.gender || 'MALE',
           casteCategory: cat,
           stream: stStream,
@@ -397,15 +399,16 @@ export const RegistrationUploadModal: React.FC<RegistrationUploadModalProps> = (
               {/* Table Preview */}
               <div className="border border-[#E8E4D5] rounded-2xl overflow-hidden max-h-[50vh] overflow-y-auto">
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-[#FAF9F5] text-[#5A5A40] sticky top-0 border-b border-[#E8E4D5]">
+                  <thead className="bg-[#FAF9F5] text-[#5A5A40] sticky top-0 border-b border-[#E8E4D5] uppercase font-bold tracking-wider">
                     <tr>
                       <th className="p-2.5">क्र.</th>
-                      <th className="p-2.5">फॉर्म सं.</th>
-                      <th className="p-2.5">छात्र का नाम</th>
-                      <th className="p-2.5">पिता का नाम</th>
-                      <th className="p-2.5">संकाय</th>
-                      <th className="p-2.5">कोटि</th>
-                      <th className="p-2.5">दस्तावेज चेक</th>
+                      <th className="p-2.5">OFSS सं.</th>
+                      <th className="p-2.5">छात्र का नाम (Name)</th>
+                      <th className="p-2.5">पिता का नाम (Father)</th>
+                      <th className="p-2.5">माता का नाम (Mother)</th>
+                      <th className="p-2.5">जन्म तिथि (DOB)</th>
+                      <th className="p-2.5">बोर्ड (Board)</th>
+                      <th className="p-2.5">कोटि (Category)</th>
                       <th className="p-2.5 text-right">शुल्क</th>
                       <th className="p-2.5 text-center">हटाएं</th>
                     </tr>
@@ -413,44 +416,31 @@ export const RegistrationUploadModal: React.FC<RegistrationUploadModalProps> = (
                   <tbody className="divide-y divide-[#E8E4D5]">
                     {extractedStudents.map((stu, i) => (
                       <tr key={stu.id} className="hover:bg-amber-50/40">
-                        <td className="p-2.5 font-mono text-gray-500">{i + 1}</td>
-                        <td className="p-2.5 font-mono font-bold text-[#2E5B50]">{stu.formNo}</td>
-                        <td className="p-2.5 font-bold uppercase">{stu.studentName}</td>
-                        <td className="p-2.5 text-gray-600 uppercase">{stu.fatherName}</td>
-                        <td className="p-2.5 text-[#2E5B50] font-medium">{stu.stream}</td>
+                        <td className="p-2.5 font-mono text-gray-500 font-bold">{i + 1}</td>
+                        <td className="p-2.5 font-mono font-bold text-[#2E5B50] whitespace-nowrap">
+                          {stu.ofssNo || stu.formNo || '—'}
+                        </td>
+                        <td className="p-2.5 font-bold uppercase text-gray-900">{stu.studentName}</td>
+                        <td className="p-2.5 text-gray-700 uppercase">{stu.fatherName}</td>
+                        <td className="p-2.5 text-gray-600 uppercase">{stu.motherName || '—'}</td>
+                        <td className="p-2.5 font-mono text-gray-700 whitespace-nowrap">{stu.dob || '—'}</td>
                         <td className="p-2.5">
-                          <span className="px-2 py-0.5 bg-gray-100 rounded text-[11px] font-bold">
-                            {stu.casteCategory}
+                          <span className="px-1.5 py-0.5 bg-blue-50 border border-blue-200 text-blue-900 rounded font-bold text-[10px]">
+                            {stu.boardName || 'BSEB'}
                           </span>
                         </td>
                         <td className="p-2.5">
-                          <div className="flex items-center gap-1 text-[10px]">
-                            <span className={`px-1.5 py-0.5 rounded font-bold ${
-                              stu.documents?.aadhar?.status === 'SUBMITTED' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                            }`}>
-                              आधार
-                            </span>
-                            <span className={`px-1.5 py-0.5 rounded font-bold ${
-                              stu.documents?.apaar?.status === 'SUBMITTED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                            }`}>
-                              अपार
-                            </span>
-                            <span className="px-1.5 py-0.5 rounded font-bold bg-blue-100 text-blue-800">
-                              TC
-                            </span>
-                            {(stu.casteCategory === 'EBC' || stu.casteCategory === 'SC' || stu.casteCategory === 'ST') && (
-                              <span className="px-1.5 py-0.5 rounded font-bold bg-purple-100 text-purple-800">
-                                जाति
-                              </span>
-                            )}
-                          </div>
+                          <span className="px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-900 rounded text-[11px] font-bold">
+                            {stu.casteCategory}
+                          </span>
                         </td>
-                        <td className="p-2.5 text-right font-mono font-bold text-emerald-700">₹515</td>
+                        <td className="p-2.5 text-right font-mono font-bold text-emerald-700 whitespace-nowrap">₹515</td>
                         <td className="p-2.5 text-center">
                           <button
                             type="button"
                             onClick={() => handleRemoveRow(stu.id)}
-                            className="p-1 text-rose-500 hover:bg-rose-50 rounded"
+                            className="p-1 text-rose-500 hover:bg-rose-50 rounded transition"
+                            title="सूची से हटाएं"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>

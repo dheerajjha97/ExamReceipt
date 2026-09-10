@@ -165,20 +165,22 @@ app.post("/api/extract-registration-students", async (req, res) => {
 
     const ai = getGeminiAI();
 
-    const systemPrompt = `You are an expert OCR & admission data parser for Intermediate Registration in Indian high schools and intermediate colleges (BSEB / State Board 11th & 12th Registration, Science, Arts, Commerce).
+    const systemPrompt = `You are an expert OCR & admission data parser for Intermediate Registration in Indian high schools and intermediate colleges (BSEB / State Board 11th & 12th Registration, OFSS Bihar, Science, Arts, Commerce).
 
 Extract student registration records from the provided content (image/PDF or raw text list).
 Standard registration fee for all streams is ₹515.
 
-For each student extract:
+Key columns to identify and extract:
 - sNo: Serial integer
+- ofssNo: OFSS Reference / Application / CAF Number (e.g., "24J1029384", "24J...", or reference number if found)
 - formNo: Form number (e.g., "REG-2026-001" or as detected)
-- studentName: Full name in UPPERCASE
-- fatherName: Father's name in UPPERCASE
-- motherName: Mother's name in UPPERCASE (or empty string if not given)
-- dob: Date of Birth (DD-MM-YYYY or empty string)
-- gender: "MALE", "FEMALE", or "OTHER"
+- studentName: Full name in UPPERCASE (NAME)
+- fatherName: Father's name in UPPERCASE (FATHER NAME)
+- motherName: Mother's name in UPPERCASE (MOTHER NAME, or empty string if not given)
+- dob: Date of Birth in DD-MM-YYYY (DOB)
+- boardName: 10th/Matric Board Name (e.g., "BSEB", "CBSE", "ICSE", "NIOS", or as given)
 - casteCategory: Caste Category ("General", "BC", "EBC", "SC", "ST")
+- gender: "MALE", "FEMALE", or "OTHER"
 - stream: "Science (I.Sc)", "Arts (I.A)", "Commerce (I.Com)", or "Vocational"
 - mobile: 10-digit mobile number if present
 - email: email if present
@@ -217,11 +219,13 @@ Return a clean JSON object with instituteName, stream, and students list.`;
                   type: Type.OBJECT,
                   properties: {
                     sNo: { type: Type.INTEGER },
+                    ofssNo: { type: Type.STRING },
                     formNo: { type: Type.STRING },
                     studentName: { type: Type.STRING },
                     fatherName: { type: Type.STRING },
                     motherName: { type: Type.STRING },
                     dob: { type: Type.STRING },
+                    boardName: { type: Type.STRING },
                     gender: { type: Type.STRING },
                     casteCategory: { type: Type.STRING },
                     stream: { type: Type.STRING },
@@ -284,11 +288,13 @@ Return a clean JSON object with instituteName, stream, and students list.`;
                   type: Type.OBJECT,
                   properties: {
                     sNo: { type: Type.INTEGER },
+                    ofssNo: { type: Type.STRING },
                     formNo: { type: Type.STRING },
                     studentName: { type: Type.STRING },
                     fatherName: { type: Type.STRING },
                     motherName: { type: Type.STRING },
                     dob: { type: Type.STRING },
+                    boardName: { type: Type.STRING },
                     gender: { type: Type.STRING },
                     casteCategory: { type: Type.STRING },
                     stream: { type: Type.STRING },

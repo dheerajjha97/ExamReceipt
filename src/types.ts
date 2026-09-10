@@ -33,6 +33,7 @@ export interface RegistrationStudent {
   id: string;
   sNo: number;
   formNo: string;              // e.g. "REG-2026-001"
+  ofssNo?: string;             // OFSS Reference / CAF Number e.g. "24J1029384"
   bsebUniqueId?: string;       // BSEB Unique ID if allotted
   studentName: string;
   fatherName: string;
@@ -44,7 +45,8 @@ export interface RegistrationStudent {
   mobile: string;
   email?: string;
   
-  // Matriculation Academic Background
+  // 10th / Matriculation Academic Background
+  boardName?: string;          // e.g. "BSEB PATNA", "CBSE", "ICSE", "OTHER"
   matricRollCode?: string;
   matricRollNo?: string;
   matricPassingYear?: string;

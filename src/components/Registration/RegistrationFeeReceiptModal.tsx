@@ -105,17 +105,21 @@ ${settings.address}`;
       </div>
 
       {/* Metadata Row */}
-      <div className="grid grid-cols-3 gap-2 text-xs border-b border-gray-400 pb-2 mb-3 bg-gray-50 p-2 rounded-sm font-mono">
+      <div className="grid grid-cols-4 gap-2 text-xs border-b border-gray-400 pb-2 mb-3 bg-gray-50 p-2 rounded-sm font-mono">
         <div>
           <span className="text-gray-600 block text-[10px]">रसीद सं. (Receipt No):</span>
           <strong className="text-black font-bold text-xs">{receiptNo}</strong>
         </div>
         <div>
-          <span className="text-gray-600 block text-[10px]">पंजीकरण फॉर्म सं. (Form No):</span>
+          <span className="text-gray-600 block text-[10px]">OFSS सं. (OFSS NO.):</span>
+          <strong className="text-[#2E5B50] font-bold text-xs">{student.ofssNo || student.formNo}</strong>
+        </div>
+        <div>
+          <span className="text-gray-600 block text-[10px]">पंजीकरण फॉर्म सं.:</span>
           <strong className="text-black font-bold text-xs">{student.formNo}</strong>
         </div>
         <div className="text-right">
-          <span className="text-gray-600 block text-[10px]">दिनांक (Date & Time):</span>
+          <span className="text-gray-600 block text-[10px]">दिनांक (Date):</span>
           <strong className="text-black text-xs">{paymentDate}</strong>
         </div>
       </div>
@@ -123,7 +127,7 @@ ${settings.address}`;
       {/* Student Details Grid */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs mb-3">
         <div className="flex justify-between border-b border-gray-200 pb-0.5">
-          <span className="text-gray-600">छात्र/छात्रा का नाम:</span>
+          <span className="text-gray-600">छात्र/छात्रा का नाम (NAME):</span>
           <strong className="font-bold text-black uppercase">{student.studentName}</strong>
         </div>
         <div className="flex justify-between border-b border-gray-200 pb-0.5">
@@ -131,15 +135,15 @@ ${settings.address}`;
           <strong className="font-bold text-black bg-gray-100 px-1 rounded-xs">{student.stream}</strong>
         </div>
         <div className="flex justify-between border-b border-gray-200 pb-0.5">
-          <span className="text-gray-600">पिता का नाम:</span>
+          <span className="text-gray-600">पिता का नाम (FATHER NAME):</span>
           <span className="font-semibold text-black uppercase">{student.fatherName}</span>
         </div>
         <div className="flex justify-between border-b border-gray-200 pb-0.5">
-          <span className="text-gray-600">माता का नाम:</span>
+          <span className="text-gray-600">माता का नाम (MOTHER NAME):</span>
           <span className="font-semibold text-black uppercase">{student.motherName || '-'}</span>
         </div>
         <div className="flex justify-between border-b border-gray-200 pb-0.5">
-          <span className="text-gray-600">जाति कोटि (Category):</span>
+          <span className="text-gray-600">जाति कोटि (CATEGORY):</span>
           <strong className="font-bold text-black">{student.casteCategory}</strong>
         </div>
         <div className="flex justify-between border-b border-gray-200 pb-0.5">
@@ -147,12 +151,12 @@ ${settings.address}`;
           <span className="font-mono text-black">{student.dob || '-'}</span>
         </div>
         <div className="flex justify-between border-b border-gray-200 pb-0.5">
-          <span className="text-gray-600">मैट्रिक रोल कोड एवं नं.:</span>
-          <span className="font-mono text-black">{student.matricRollCode || '-'}-{student.matricRollNo || '-'} ({student.matricPassingYear || '2024'})</span>
+          <span className="text-gray-600">10वीं बोर्ड (BOARD NAME):</span>
+          <strong className="font-bold text-blue-900">{student.boardName || student.matricBoard || 'BSEB PATNA'}</strong>
         </div>
         <div className="flex justify-between border-b border-gray-200 pb-0.5">
-          <span className="text-gray-600">मोबाइल नंबर:</span>
-          <span className="font-mono text-black">{student.mobile || '-'}</span>
+          <span className="text-gray-600">मैट्रिक रोल कोड एवं नं.:</span>
+          <span className="font-mono text-black">{student.matricRollCode || '-'}-{student.matricRollNo || '-'} ({student.matricPassingYear || '2024'})</span>
         </div>
       </div>
 

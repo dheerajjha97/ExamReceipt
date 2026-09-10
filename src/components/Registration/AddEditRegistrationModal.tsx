@@ -53,6 +53,7 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
   const isEditing = Boolean(studentToEdit);
 
   // Basic Info
+  const [ofssNo, setOfssNo] = useState(studentToEdit?.ofssNo || '');
   const [formNo, setFormNo] = useState(
     studentToEdit?.formNo || `REG-2026-${(totalExistingCount + 1).toString().padStart(3, '0')}`
   );
@@ -60,6 +61,7 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
   const [fatherName, setFatherName] = useState(studentToEdit?.fatherName || '');
   const [motherName, setMotherName] = useState(studentToEdit?.motherName || '');
   const [dob, setDob] = useState(studentToEdit?.dob || '2008-05-15');
+  const [boardName, setBoardName] = useState(studentToEdit?.boardName || studentToEdit?.matricBoard || 'BSEB PATNA');
   const [gender, setGender] = useState<string>(studentToEdit?.gender || 'MALE');
   const [casteCategory, setCasteCategory] = useState<CasteCategory>(
     (studentToEdit?.casteCategory as CasteCategory) || 'BC'
@@ -157,12 +159,14 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
     const newStudent: RegistrationStudent = {
       id: studentToEdit?.id || `REG-${Date.now()}`,
       sNo: studentToEdit?.sNo || totalExistingCount + 1,
+      ofssNo: ofssNo.trim() || formNo.trim(),
       formNo: formNo.trim(),
       bsebUniqueId: bsebUniqueId.trim(),
       studentName: studentName.trim().toUpperCase(),
       fatherName: fatherName.trim().toUpperCase(),
       motherName: motherName.trim().toUpperCase(),
       dob,
+      boardName: boardName.trim(),
       gender,
       casteCategory,
       stream,
