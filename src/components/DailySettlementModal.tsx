@@ -21,6 +21,8 @@ interface DailySettlementModalProps {
   settings: InstituteSettings;
   selectedDate?: string;
   onClose: () => void;
+  onOpenLogTransaction?: () => void;
+  onLoadSampleTransactions?: () => void;
 }
 
 /**
@@ -66,6 +68,8 @@ export const DailySettlementModal: React.FC<DailySettlementModalProps> = ({
   settings,
   selectedDate: initialSelectedDate,
   onClose,
+  onOpenLogTransaction,
+  onLoadSampleTransactions,
 }) => {
   if (!isOpen) return null;
 
@@ -384,14 +388,49 @@ export const DailySettlementModal: React.FC<DailySettlementModalProps> = ({
                     <td colSpan={8} className="p-8 text-center bg-slate-50">
                       <div className="max-w-md mx-auto space-y-3">
                         <Clock className="w-8 h-8 text-slate-400 mx-auto" />
-                        <div>
-                          <p className="font-bold text-slate-700 text-sm">
-                            चयनित तिथि ({currentDate}) को कोई लेन-देन दर्ज नहीं मिला।
-                          </p>
-                          <p className="text-xs text-slate-500 mt-1">
-                            (No transactions logged for this date. Total recorded in system: {transactions.length})
-                          </p>
-                        </div>
+                        {transactions.length === 0 ? (
+                          <div className="space-y-2">
+                            <p className="font-bold text-slate-800 text-sm">
+                              रोकड़ बही (Day Book) में अभी तक कोई लेन-देन / रसीद दर्ज नहीं है।
+                            </p>
+                            <p className="text-xs text-slate-600">
+                              दैनिक रोकड़ पर्ची में लेन-देन तभी दिखाई देते हैं जब छात्रों की फीस जमा की जाती है।
+                            </p>
+                            <div className="pt-2 flex flex-wrap items-center justify-center gap-2 no-print">
+                              {onOpenLogTransaction && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onClose();
+                                    onOpenLogTransaction();
+                                  }}
+                                  className="px-4 py-2 bg-[#2E5B50] text-white rounded-xl text-xs font-bold hover:bg-[#254A41] transition shadow-xs"
+                                >
+                                  + फीस जमा करें (Log Payment)
+                                </button>
+                              )}
+                              {onLoadSampleTransactions && (
+                                <button
+                                  type="button"
+                                  onClick={onLoadSampleTransactions}
+                                  className="px-4 py-2 bg-[#5A5A40] text-white rounded-xl text-xs font-bold hover:bg-[#484833] transition shadow-xs"
+                                >
+                                  ⚡ 5 नमूना लेन-देन लोड करें (Load Demo)
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="font-bold text-slate-700 text-sm">
+                              चयनित तिथि ({currentDate}) को कोई लेन-देन दर्ज नहीं मिला।
+                            </p>
+                            <p className="text-xs text-slate-500 mt-1">
+                              (No transactions logged for this date. Total recorded in system: {transactions.length})
+                            </p>
+                          </div>
+                        )}
+
                         {availableDates.length > 0 && (
                           <div className="pt-2 flex flex-wrap items-center justify-center gap-2 no-print">
                             <button

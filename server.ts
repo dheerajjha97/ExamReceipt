@@ -1,11 +1,15 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
@@ -146,6 +150,187 @@ Please return a clean JSON object containing the list of extracted students. Ext
     res.status(500).json({
       success: false,
       error: error.message || "Failed to extract student data from file.",
+    });
+  }
+});
+
+// Intermediate Registration AI Extraction (Image, PDF, or Raw Text)
+app.post("/api/extract-registration-students", async (req, res) => {
+  try {
+    const { fileData, mimeType, filename, rawText } = req.body;
+
+    if (!fileData && !rawText) {
+      return res.status(400).json({ error: "Either fileData or rawText is required." });
+    }
+
+    const ai = getGeminiAI();
+
+    const systemPrompt = `You are an expert OCR & admission data parser for Intermediate Registration in Indian high schools and intermediate colleges (BSEB / State Board 11th & 12th Registration, Science, Arts, Commerce).
+
+Extract student registration records from the provided content (image/PDF or raw text list).
+Standard registration fee for all streams is ₹515.
+
+For each student extract:
+- sNo: Serial integer
+- formNo: Form number (e.g., "REG-2026-001" or as detected)
+- studentName: Full name in UPPERCASE
+- fatherName: Father's name in UPPERCASE
+- motherName: Mother's name in UPPERCASE (or empty string if not given)
+- dob: Date of Birth (DD-MM-YYYY or empty string)
+- gender: "MALE", "FEMALE", or "OTHER"
+- casteCategory: Caste Category ("General", "BC", "EBC", "SC", "ST")
+- stream: "Science (I.Sc)", "Arts (I.A)", "Commerce (I.Com)", or "Vocational"
+- mobile: 10-digit mobile number if present
+- email: email if present
+- aadharNo: 12-digit Aadhaar number if mentioned
+- apaarId: 12-digit APAAR/EduID if mentioned
+- matricRollCode: Matric Roll Code (5 digits)
+- matricRollNo: Matric Roll Number (7 digits)
+- matricPassingYear: e.g. "2024"
+- prevSchoolName: Previous school name for TC if mentioned
+- tcNo: Transfer Certificate number if mentioned
+- casteCertNo: Caste certificate number if mentioned
+
+Return a clean JSON object with instituteName, stream, and students list.`;
+
+    let response;
+
+    if (rawText) {
+      // Text parsing mode
+      response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [
+          {
+            text: `${systemPrompt}\n\nHere is the raw text / CSV / list to parse:\n\n${rawText}`,
+          },
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              instituteName: { type: Type.STRING },
+              stream: { type: Type.STRING },
+              students: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    sNo: { type: Type.INTEGER },
+                    formNo: { type: Type.STRING },
+                    studentName: { type: Type.STRING },
+                    fatherName: { type: Type.STRING },
+                    motherName: { type: Type.STRING },
+                    dob: { type: Type.STRING },
+                    gender: { type: Type.STRING },
+                    casteCategory: { type: Type.STRING },
+                    stream: { type: Type.STRING },
+                    mobile: { type: Type.STRING },
+                    email: { type: Type.STRING },
+                    aadharNo: { type: Type.STRING },
+                    apaarId: { type: Type.STRING },
+                    matricRollCode: { type: Type.STRING },
+                    matricRollNo: { type: Type.STRING },
+                    matricPassingYear: { type: Type.STRING },
+                    prevSchoolName: { type: Type.STRING },
+                    tcNo: { type: Type.STRING },
+                    casteCertNo: { type: Type.STRING },
+                  },
+                  required: ["studentName"],
+                },
+              },
+            },
+            required: ["students"],
+          },
+        },
+      });
+    } else {
+      // PDF or Image mode
+      const base64Content = fileData.includes(",") ? fileData.split(",")[1] : fileData;
+      let effectiveMimeType = mimeType || "application/pdf";
+      if (filename && filename.toLowerCase().endsWith(".pdf")) {
+        effectiveMimeType = "application/pdf";
+      } else if (filename && (filename.toLowerCase().endsWith(".jpg") || filename.toLowerCase().endsWith(".jpeg"))) {
+        effectiveMimeType = "image/jpeg";
+      } else if (filename && filename.toLowerCase().endsWith(".png")) {
+        effectiveMimeType = "image/png";
+      }
+
+      response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                data: base64Content,
+                mimeType: effectiveMimeType,
+              },
+            },
+            {
+              text: systemPrompt,
+            },
+          ],
+        },
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              instituteName: { type: Type.STRING },
+              stream: { type: Type.STRING },
+              students: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    sNo: { type: Type.INTEGER },
+                    formNo: { type: Type.STRING },
+                    studentName: { type: Type.STRING },
+                    fatherName: { type: Type.STRING },
+                    motherName: { type: Type.STRING },
+                    dob: { type: Type.STRING },
+                    gender: { type: Type.STRING },
+                    casteCategory: { type: Type.STRING },
+                    stream: { type: Type.STRING },
+                    mobile: { type: Type.STRING },
+                    email: { type: Type.STRING },
+                    aadharNo: { type: Type.STRING },
+                    apaarId: { type: Type.STRING },
+                    matricRollCode: { type: Type.STRING },
+                    matricRollNo: { type: Type.STRING },
+                    matricPassingYear: { type: Type.STRING },
+                    prevSchoolName: { type: Type.STRING },
+                    tcNo: { type: Type.STRING },
+                    casteCertNo: { type: Type.STRING },
+                  },
+                  required: ["studentName"],
+                },
+              },
+            },
+            required: ["students"],
+          },
+        },
+      });
+    }
+
+    const resultText = response.text || "{}";
+    let parsedData: any = {};
+    try {
+      parsedData = JSON.parse(resultText);
+    } catch (parseErr) {
+      const cleaned = resultText.replace(/```json\n?|\n?```/g, "").trim();
+      parsedData = JSON.parse(cleaned);
+    }
+
+    res.json({
+      success: true,
+      data: parsedData,
+    });
+  } catch (error: any) {
+    console.error("Error in Registration AI extraction:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to extract registration students.",
     });
   }
 });

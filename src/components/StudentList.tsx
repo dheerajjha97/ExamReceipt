@@ -44,6 +44,7 @@ interface StudentListProps {
   onClearAllStudents?: () => void;
   onOpenAddStudent: () => void;
   onOpenUploadPdf: () => void;
+  onOpenDailySettlement?: () => void;
 }
 
 export const StudentList: React.FC<StudentListProps> = ({
@@ -63,6 +64,7 @@ export const StudentList: React.FC<StudentListProps> = ({
   onClearAllStudents,
   onOpenAddStudent,
   onOpenUploadPdf,
+  onOpenDailySettlement,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -253,6 +255,7 @@ export const StudentList: React.FC<StudentListProps> = ({
         onOpenUploadPdf={onOpenUploadPdf}
         onSwitchToLedger={onSwitchToLedger}
         onFilterPendingDues={() => setStatusFilter('PENDING')}
+        onOpenDailySettlement={onOpenDailySettlement}
       />
 
       {/* Search & Filter Bar (Flutter Material 3 Surface) */}

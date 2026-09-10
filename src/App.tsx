@@ -2,23 +2,29 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   getStoredStudents, 
   saveStudentsToStorage, 
+  getStoredRegistrationStudents,
+  saveRegistrationStudentsToStorage,
   getStoredTransactions, 
   saveTransactionsToStorage, 
   getStoredSettings, 
   saveSettingsToStorage, 
   getNextReceiptNumber,
+  syncTransactionsFromStudents,
 } from './services/storageService';
 import { 
   subscribeSchoolData, 
   saveStudentToCloud, 
+  saveRegistrationStudentToCloud,
+  deleteRegistrationStudentFromCloud,
+  clearRegistrationCloudData,
   saveTransactionToCloud, 
   saveSettingsToCloud, 
   deleteStudentFromCloud, 
   deleteTransactionFromCloud,
   clearSchoolCloudData 
 } from './services/firebaseSyncService';
-import { Student, Transaction, InstituteSettings, PaymentMode, FormIssueStatus } from './types';
-import { initialStudents } from './data/mockStudents';
+import { Student, RegistrationStudent, Transaction, InstituteSettings, PaymentMode, FormIssueStatus } from './types';
+import { initialStudents, initialTransactions, initialRegistrationStudents } from './data/mockStudents';
 import { Header } from './components/Header';
 import { StudentList } from './components/StudentList';
 import { FeeReceiptModal } from './components/FeeReceiptModal';
@@ -33,7 +39,10 @@ import { SettingsModal } from './components/SettingsModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { LoginPage } from './components/LoginPage';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
-import { RotateCcw, CheckCircle2, X } from 'lucide-react';
+import { DailySettlementModal } from './components/DailySettlementModal';
+import { MainDashboardHub } from './components/MainDashboardHub';
+import { RegistrationModule } from './components/Registration/RegistrationModule';
+import { RotateCcw, CheckCircle2, X, ArrowLeft, School, BookOpen, Layers } from 'lucide-react';
 
 interface UndoAction {
   id: string;
@@ -44,8 +53,12 @@ interface UndoAction {
 
 export default function App() {
   const [students, setStudents] = useState<Student[]>([]);
+  const [registrationStudents, setRegistrationStudents] = useState<RegistrationStudent[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [settings, setSettings] = useState<InstituteSettings>(getStoredSettings());
+
+  // Top-Level Module Navigation: 'HUB' (2-Card Landing) | 'EXAMINATION' (Card 1) | 'REGISTRATION' (Card 2)
+  const [activeModule, setActiveModule] = useState<'HUB' | 'EXAMINATION' | 'REGISTRATION'>('HUB');
 
   // Accidental Deletion Protection & Undo state
   const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
@@ -79,6 +92,7 @@ export default function App() {
   const [isUploadPdfOpen, setIsUploadPdfOpen] = useState(false);
   const [isLogTransactionOpen, setIsLogTransactionOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isDailySettlementOpen, setIsDailySettlementOpen] = useState(false);
 
   const handleLoginSuccess = (schoolCode: string) => {
     setCurrentSchoolCode(schoolCode);
@@ -100,6 +114,7 @@ export default function App() {
   };
 
   const isFirstStudentFetch = useRef(true);
+  const isFirstRegStudentFetch = useRef(true);
   const isFirstTxnFetch = useRef(true);
   const isFirstSettingsFetch = useRef(true);
 
@@ -108,8 +123,10 @@ export default function App() {
     if (!currentSchoolCode) return;
 
     const loadedStudents = getStoredStudents();
+    const loadedRegStudents = getStoredRegistrationStudents();
     const loadedTxns = getStoredTransactions();
     setStudents(loadedStudents);
+    setRegistrationStudents(loadedRegStudents);
     setTransactions(loadedTxns);
 
     const schoolCode = currentSchoolCode;
@@ -148,6 +165,11 @@ export default function App() {
           saveSettingsToCloud(getStoredSettings(), schoolCode);
         }
         isFirstSettingsFetch.current = false;
+      },
+      (cloudRegStudents) => {
+        setRegistrationStudents(cloudRegStudents);
+        saveRegistrationStudentsToStorage(cloudRegStudents);
+        isFirstRegStudentFetch.current = false;
       }
     );
 
@@ -170,10 +192,68 @@ export default function App() {
     return () => clearInterval(interval);
   }, [undoAction?.id]);
 
-  // Update storage AND Cloud Firestore whenever students or transactions change
+  // Update storage AND Cloud Firestore whenever students, registrations or transactions change
   const updateStudentsState = (newStudents: Student[]) => {
     setStudents(newStudents);
     saveStudentsToStorage(newStudents);
+  };
+
+  const updateRegistrationStudentsState = (newRegStudents: RegistrationStudent[]) => {
+    setRegistrationStudents(newRegStudents);
+    saveRegistrationStudentsToStorage(newRegStudents);
+    if (currentSchoolCode) {
+      if (newRegStudents.length === 0) {
+        clearRegistrationCloudData(currentSchoolCode);
+      } else {
+        newRegStudents.forEach(reg => saveRegistrationStudentToCloud(reg, currentSchoolCode));
+      }
+    }
+  };
+
+  const handleDeleteRegistrationStudent = (studentId: string) => {
+    const studentToDelete = registrationStudents.find((s) => s.id === studentId);
+    const previousRegStudents = [...registrationStudents];
+    const updated = registrationStudents.filter((s) => s.id !== studentId);
+    setRegistrationStudents(updated);
+    saveRegistrationStudentsToStorage(updated);
+    if (currentSchoolCode) {
+      deleteRegistrationStudentFromCloud(studentId, currentSchoolCode);
+    }
+    if (studentToDelete) {
+      setUndoAction({
+        id: `reg-${studentId}-${Date.now()}`,
+        message: `पंजीकरण: ${studentToDelete.studentName} (${studentToDelete.formNo}) हटाया गया`,
+        subMessage: 'गलती से हटा? पूर्ववत (Undo) दबाकर तुरंत वापस लाएं।',
+        onUndo: () => {
+          setRegistrationStudents(previousRegStudents);
+          saveRegistrationStudentsToStorage(previousRegStudents);
+          if (currentSchoolCode) {
+            saveRegistrationStudentToCloud(studentToDelete, currentSchoolCode);
+          }
+        },
+      });
+    }
+  };
+
+  const handleClearAllRegistrationStudents = () => {
+    const previousRegStudents = [...registrationStudents];
+    setRegistrationStudents([]);
+    saveRegistrationStudentsToStorage([]);
+    if (currentSchoolCode) {
+      clearRegistrationCloudData(currentSchoolCode);
+    }
+    setUndoAction({
+      id: `reg-clear-all-${Date.now()}`,
+      message: `सभी ${previousRegStudents.length} पंजीकरण रिकॉर्ड हटाए गए`,
+      subMessage: 'गलती से हटा? पूर्ववत (Undo) दबाकर तुरंत वापस लाएं।',
+      onUndo: () => {
+        setRegistrationStudents(previousRegStudents);
+        saveRegistrationStudentsToStorage(previousRegStudents);
+        if (currentSchoolCode) {
+          previousRegStudents.forEach((s) => saveRegistrationStudentToCloud(s, currentSchoolCode));
+        }
+      },
+    });
   };
 
   const updateTransactionsState = (newTxns: Transaction[]) => {
@@ -231,7 +311,8 @@ export default function App() {
     const newPaidAmount = targetStudent.paidAmount + paidAmount;
     const isFullPaid = newPaidAmount >= totalFee;
     const newReceiptNo = getNextReceiptNumber();
-    const nowStr = new Date().toLocaleString('en-IN');
+    const now = new Date();
+    const nowStr = `${now.toISOString().slice(0, 10)} ${now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}`;
 
     // 1. Update Student
     const updatedStudent: Student = {
@@ -293,6 +374,9 @@ export default function App() {
     const newReceiptNo = getNextReceiptNumber();
     let updatedStudentsList = [...students];
 
+    const now = new Date();
+    const defaultDateStr = `${now.toISOString().slice(0, 10)} ${now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}`;
+
     if (targetStudentId) {
       const studentIndex = students.findIndex((s) => s.id === targetStudentId);
       if (studentIndex >= 0) {
@@ -305,7 +389,7 @@ export default function App() {
           ...target,
           paidAmount: newPaidAmount,
           paymentStatus: isFull ? 'PAID' : 'PARTIAL',
-          paymentDate: newTxnData.paymentDate || new Date().toLocaleString('en-IN'),
+          paymentDate: newTxnData.paymentDate || defaultDateStr,
           paymentMode: newTxnData.paymentMode || 'UPI',
           lastReceiptNo: newReceiptNo,
           transactionRef: newTxnData.transactionRef || '',
@@ -335,7 +419,7 @@ export default function App() {
       dueAmount: newTxnData.dueAmount || 0,
       paymentMode: newTxnData.paymentMode || 'UPI',
       transactionRef: newTxnData.transactionRef || `REF-${Date.now().toString().slice(-6)}`,
-      paymentDate: newTxnData.paymentDate || new Date().toLocaleString('en-IN'),
+      paymentDate: newTxnData.paymentDate || defaultDateStr,
       collectedBy: newTxnData.collectedBy || settings.cashierName || 'Counter Clerk',
       remarks: newTxnData.remarks || '',
     };
@@ -662,114 +746,202 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#FDFCF8] font-sans text-[#4A453E] pb-24 md:pb-12">
       
-      {/* Top Header Navigation */}
-      <Header
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        totalStudentsCount={totalStudentsCount}
-        paidStudentsCount={paidStudentsCount}
-        totalCollected={totalCollected}
-        totalOnlineCharges={totalOnlineCharges}
-        onOpenAddStudent={() => setIsAddStudentOpen(true)}
-        onOpenUploadPdf={() => setIsUploadPdfOpen(true)}
-        settings={settings}
-        onChangePasswordClick={() => setIsChangePasswordOpen(true)}
-        onLogoutClick={handleLogout}
-      />
-
-      {/* Main View Area */}
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 pt-6 pb-36 sm:pb-24">
-        {activeTab === 'students' && (
-          <StudentList
+      {/* 1. Landing Hub View (Two Card Selector) */}
+      {activeModule === 'HUB' && (
+        <div className="pt-6 px-3 sm:px-6">
+          <MainDashboardHub
             students={students}
+            registrationStudents={registrationStudents}
             transactions={transactions}
             settings={settings}
-            onSelectStudentReceipt={(student) => setSelectedStudentForReceipt(student)}
-            onOpenRecordPayment={(student) => setSelectedStudentForPayment(student)}
-            onOpenLogTransaction={() => setIsLogTransactionOpen(true)}
-            onSwitchToLedger={() => setActiveTab('transactions')}
-            onOpenIssueForm={(student) => setSelectedStudentForIssueForm(student)}
-            onBulkIssueForms={handleBulkIssueForms}
-            onOpenWhatsAppShare={(student) => setSelectedStudentForWhatsApp(student)}
-            onEditStudent={(student) => setStudentToEdit(student)}
-            onDeleteStudent={handleDeleteStudent}
-            onDeleteSelectedStudents={handleDeleteSelectedStudents}
-            onClearAllStudents={handleClearAllStudents}
+            onSelectExamination={() => setActiveModule('EXAMINATION')}
+            onSelectRegistration={() => setActiveModule('REGISTRATION')}
+            onOpenDailySettlement={() => setIsDailySettlementOpen(true)}
+            onOpenSettings={() => {
+              setActiveModule('EXAMINATION');
+              setActiveTab('settings');
+            }}
+          />
+        </div>
+      )}
+
+      {/* 2. Registration Module View (Card 2) */}
+      {activeModule === 'REGISTRATION' && (
+        <div className="max-w-7xl mx-auto pt-6 px-3 sm:px-6">
+          <RegistrationModule
+            students={registrationStudents}
+            settings={settings}
+            onUpdateStudents={updateRegistrationStudentsState}
+            onDeleteStudent={handleDeleteRegistrationStudent}
+            onClearAll={handleClearAllRegistrationStudents}
+            onBackToDashboard={() => setActiveModule('HUB')}
+            onSwitchToExamination={() => setActiveModule('EXAMINATION')}
+          />
+        </div>
+      )}
+
+      {/* 3. Examination Module View (Card 1 - All existing working modules) */}
+      {activeModule === 'EXAMINATION' && (
+        <>
+          {/* Top Quick Module Switch Bar */}
+          <div className="bg-linear-to-r from-[#2E5B50] to-[#1F3D36] text-white px-4 py-2 border-b border-emerald-900/40">
+            <div className="max-w-7xl mx-auto flex items-center justify-between text-xs">
+              <button
+                onClick={() => setActiveModule('HUB')}
+                className="flex items-center gap-1.5 font-bold hover:text-emerald-200 transition bg-white/10 hover:bg-white/20 px-3 py-1 rounded-xl"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>← मुख्य डैशबोर्ड (Main Dashboard)</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-200 hidden sm:inline">
+                  सक्रिय मॉड्यूल: <strong>परीक्षा प्रपत्र एवं परीक्षा शुल्क</strong>
+                </span>
+                <button
+                  onClick={() => setActiveModule('REGISTRATION')}
+                  className="px-3 py-1 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-xl transition flex items-center gap-1 shadow-xs"
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>📝 इंटर पंजीकरण पर जाएं (₹515)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Top Header Navigation for Examination Module */}
+          <Header
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            totalStudentsCount={totalStudentsCount}
+            paidStudentsCount={paidStudentsCount}
+            totalCollected={totalCollected}
+            totalOnlineCharges={totalOnlineCharges}
             onOpenAddStudent={() => setIsAddStudentOpen(true)}
             onOpenUploadPdf={() => setIsUploadPdfOpen(true)}
-          />
-        )}
-
-        {activeTab === 'upload' && (
-          <div className="space-y-4">
-            <div className="bg-[#F7F5EE] p-6 rounded-2xl border border-[#E6E2D3] shadow-xs text-xs">
-              <h2 className="text-base font-bold text-[#4A453E] mb-1">
-                AI PDF & Image List Extraction
-              </h2>
-              <p className="text-[#787267] mb-4">
-                Upload Intermediate or Matric examination fee lists in PDF format or image screenshots to extract student records automatically.
-              </p>
-              <button
-                onClick={() => setIsUploadPdfOpen(true)}
-                className="px-5 py-2.5 bg-[#5A5A40] hover:bg-[#484833] text-white rounded-xl font-semibold shadow-xs transition inline-flex items-center gap-2"
-              >
-                <span>Launch OCR Upload Tool</span>
-              </button>
-            </div>
-            <StudentList
-              students={students}
-              settings={settings}
-              onSelectStudentReceipt={(student) => setSelectedStudentForReceipt(student)}
-              onOpenRecordPayment={(student) => setSelectedStudentForPayment(student)}
-              onOpenIssueForm={(student) => setSelectedStudentForIssueForm(student)}
-              onBulkIssueForms={handleBulkIssueForms}
-              onOpenWhatsAppShare={(student) => setSelectedStudentForWhatsApp(student)}
-              onEditStudent={(student) => setStudentToEdit(student)}
-              onDeleteStudent={handleDeleteStudent}
-              onDeleteSelectedStudents={handleDeleteSelectedStudents}
-              onClearAllStudents={handleClearAllStudents}
-              onOpenAddStudent={() => setIsAddStudentOpen(true)}
-              onOpenUploadPdf={() => setIsUploadPdfOpen(true)}
-            />
-          </div>
-        )}
-
-        {activeTab === 'transactions' && (
-          <TransactionHistory
-            transactions={transactions}
-            students={students}
             settings={settings}
-            onOpenRecordPayment={(student) => setSelectedStudentForPayment(student)}
+            onChangePasswordClick={() => setIsChangePasswordOpen(true)}
+            onLogoutClick={handleLogout}
+          />
+
+          {/* Main Examination View Area */}
+          <main className="max-w-7xl mx-auto px-3 sm:px-6 pt-6 pb-36 sm:pb-24">
+            {activeTab === 'students' && (
+              <StudentList
+                students={students}
+                transactions={transactions}
+                settings={settings}
+                onSelectStudentReceipt={(student) => setSelectedStudentForReceipt(student)}
+                onOpenRecordPayment={(student) => setSelectedStudentForPayment(student)}
+                onOpenLogTransaction={() => setIsLogTransactionOpen(true)}
+                onSwitchToLedger={() => setActiveTab('transactions')}
+                onOpenIssueForm={(student) => setSelectedStudentForIssueForm(student)}
+                onBulkIssueForms={handleBulkIssueForms}
+                onOpenWhatsAppShare={(student) => setSelectedStudentForWhatsApp(student)}
+                onEditStudent={(student) => setStudentToEdit(student)}
+                onDeleteStudent={handleDeleteStudent}
+                onDeleteSelectedStudents={handleDeleteSelectedStudents}
+                onClearAllStudents={handleClearAllStudents}
+                onOpenAddStudent={() => setIsAddStudentOpen(true)}
+                onOpenUploadPdf={() => setIsUploadPdfOpen(true)}
+              />
+            )}
+
+            {activeTab === 'upload' && (
+              <div className="space-y-4">
+                <div className="bg-[#F7F5EE] p-6 rounded-2xl border border-[#E6E2D3] shadow-xs text-xs">
+                  <h2 className="text-base font-bold text-[#4A453E] mb-1">
+                    AI PDF & Image List Extraction
+                  </h2>
+                  <p className="text-[#787267] mb-4">
+                    Upload Intermediate or Matric examination fee lists in PDF format or image screenshots to extract student records automatically.
+                  </p>
+                  <button
+                    onClick={() => setIsUploadPdfOpen(true)}
+                    className="px-5 py-2.5 bg-[#5A5A40] hover:bg-[#484833] text-white rounded-xl font-semibold shadow-xs transition inline-flex items-center gap-2"
+                  >
+                    <span>Launch OCR Upload Tool</span>
+                  </button>
+                </div>
+                <StudentList
+                  students={students}
+                  settings={settings}
+                  onSelectStudentReceipt={(student) => setSelectedStudentForReceipt(student)}
+                  onOpenRecordPayment={(student) => setSelectedStudentForPayment(student)}
+                  onOpenIssueForm={(student) => setSelectedStudentForIssueForm(student)}
+                  onBulkIssueForms={handleBulkIssueForms}
+                  onOpenWhatsAppShare={(student) => setSelectedStudentForWhatsApp(student)}
+                  onEditStudent={(student) => setStudentToEdit(student)}
+                  onDeleteStudent={handleDeleteStudent}
+                  onDeleteSelectedStudents={handleDeleteSelectedStudents}
+                  onClearAllStudents={handleClearAllStudents}
+                  onOpenAddStudent={() => setIsAddStudentOpen(true)}
+                  onOpenUploadPdf={() => setIsUploadPdfOpen(true)}
+                  onOpenDailySettlement={() => setIsDailySettlementOpen(true)}
+                />
+              </div>
+            )}
+
+            {activeTab === 'transactions' && (
+              <TransactionHistory
+                transactions={transactions}
+                students={students}
+                settings={settings}
+                onOpenRecordPayment={(student) => setSelectedStudentForPayment(student)}
+                onOpenLogTransaction={() => setIsLogTransactionOpen(true)}
+                onDeleteTransaction={handleDeleteTransaction}
+                onBulkDeleteTransactions={handleBulkDeleteTransactions}
+                onClearAllTransactions={handleClearAllTransactions}
+                onLoadSampleTransactions={() => {
+                  updateTransactionsState(initialTransactions);
+                  if (currentSchoolCode) {
+                    initialTransactions.forEach((txn) => saveTransactionToCloud(txn, currentSchoolCode));
+                  }
+                }}
+                onSyncPaidStudents={() => {
+                  const synced = syncTransactionsFromStudents(students, transactions, settings);
+                  updateTransactionsState(synced);
+                  if (currentSchoolCode) {
+                    synced.forEach((txn) => saveTransactionToCloud(txn, currentSchoolCode));
+                  }
+                }}
+                onViewStudentReceipt={(regNo) => {
+                  const matchedStudent = students.find((s) => s.registrationNo === regNo);
+                  if (matchedStudent) {
+                    setSelectedStudentForReceipt(matchedStudent);
+                  }
+                }}
+              />
+            )}
+
+            {activeTab === 'settings' && (
+              <SettingsModal
+                settings={settings}
+                onSaveSettings={handleSaveSettings}
+                onForceSync={() => {
+                  if (currentSchoolCode) {
+                    const loadedStudents = getStoredStudents();
+                    const loadedTxns = getStoredTransactions();
+                    loadedStudents.forEach(stu => saveStudentToCloud(stu, currentSchoolCode));
+                    loadedTxns.forEach(txn => saveTransactionToCloud(txn, currentSchoolCode));
+                    saveSettingsToCloud(settings, currentSchoolCode);
+                    alert("Sync complete! Local data has been pushed to the cloud.");
+                  }
+                }}
+              />
+            )}
+          </main>
+
+          {/* Mobile First Bottom Navigation */}
+          <MobileBottomNav
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
             onOpenLogTransaction={() => setIsLogTransactionOpen(true)}
-            onDeleteTransaction={handleDeleteTransaction}
-            onBulkDeleteTransactions={handleBulkDeleteTransactions}
-            onClearAllTransactions={handleClearAllTransactions}
-            onViewStudentReceipt={(regNo) => {
-              const matchedStudent = students.find((s) => s.registrationNo === regNo);
-              if (matchedStudent) {
-                setSelectedStudentForReceipt(matchedStudent);
-              }
-            }}
+            onOpenAddStudent={() => setIsAddStudentOpen(true)}
+            onOpenDailySettlement={() => setIsDailySettlementOpen(true)}
           />
-        )}
-
-        {activeTab === 'settings' && (
-          <SettingsModal
-            settings={settings}
-            onSaveSettings={handleSaveSettings}
-            onForceSync={() => {
-              if (currentSchoolCode) {
-                const loadedStudents = getStoredStudents();
-                const loadedTxns = getStoredTransactions();
-                loadedStudents.forEach(stu => saveStudentToCloud(stu, currentSchoolCode));
-                loadedTxns.forEach(txn => saveTransactionToCloud(txn, currentSchoolCode));
-                saveSettingsToCloud(settings, currentSchoolCode);
-                alert("Sync complete! Local data has been pushed to the cloud.");
-              }
-            }}
-          />
-        )}
-      </main>
+        </>
+      )}
 
       {/* Traditional Fee Receipt Modal */}
       {selectedStudentForReceipt && (
@@ -855,6 +1027,25 @@ export default function App() {
         setActiveTab={setActiveTab}
         onOpenLogTransaction={() => setIsLogTransactionOpen(true)}
         onOpenAddStudent={() => setIsAddStudentOpen(true)}
+        onOpenDailySettlement={() => setIsDailySettlementOpen(true)}
+      />
+
+      {/* Cashier Day-End Settlement / Day Book Modal */}
+      <DailySettlementModal
+        isOpen={isDailySettlementOpen}
+        transactions={transactions}
+        settings={settings}
+        onClose={() => setIsDailySettlementOpen(false)}
+        onOpenLogTransaction={() => {
+          setIsDailySettlementOpen(false);
+          setIsLogTransactionOpen(true);
+        }}
+        onLoadSampleTransactions={() => {
+          updateTransactionsState(initialTransactions);
+          if (currentSchoolCode) {
+            initialTransactions.forEach((txn) => saveTransactionToCloud(txn, currentSchoolCode));
+          }
+        }}
       />
 
       <ChangePasswordModal

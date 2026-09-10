@@ -13,7 +13,8 @@ import {
   Sparkles,
   TrendingUp,
   RefreshCw,
-  Printer
+  Printer,
+  Banknote
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Student, Transaction, InstituteSettings } from '../types';
@@ -28,6 +29,7 @@ interface FlutterDashboardOverviewProps {
   onSwitchToLedger: () => void;
   onFilterPendingDues?: () => void;
   onOpenBulkPrint?: () => void;
+  onOpenDailySettlement?: () => void;
 }
 
 export const FlutterDashboardOverview: React.FC<FlutterDashboardOverviewProps> = ({
@@ -40,6 +42,7 @@ export const FlutterDashboardOverview: React.FC<FlutterDashboardOverviewProps> =
   onSwitchToLedger,
   onFilterPendingDues,
   onOpenBulkPrint,
+  onOpenDailySettlement,
 }) => {
   const totalStudents = students.length;
   const paidStudents = students.filter((s) => s.paymentStatus === 'PAID').length;
@@ -271,6 +274,19 @@ export const FlutterDashboardOverview: React.FC<FlutterDashboardOverviewProps> =
           <CreditCard className="w-3.5 h-3.5 text-indigo-600" />
           <span>लेज़र रिपोर्ट (Ledger)</span>
         </motion.button>
+
+        {/* Quick Action: Cashier Day Closing / Day Book */}
+        {onOpenDailySettlement && (
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={onOpenDailySettlement}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E2ECE9] hover:bg-[#D4E3E0] text-[#2E5B50] rounded-xl text-xs font-bold border border-[#C5DDD6] shadow-xs transition shrink-0"
+          >
+            <Banknote className="w-3.5 h-3.5 text-[#2E5B50]" />
+            <span>दैनिक रोकड़ (Day Book)</span>
+          </motion.button>
+        )}
 
         {/* Quick Action: Filter Pending */}
         {onFilterPendingDues && (

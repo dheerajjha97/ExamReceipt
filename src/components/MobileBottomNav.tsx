@@ -16,6 +16,7 @@ interface MobileBottomNavProps {
   setActiveTab: (tab: 'students' | 'upload' | 'transactions' | 'settings') => void;
   onOpenLogTransaction: () => void;
   onOpenAddStudent: () => void;
+  onOpenDailySettlement?: () => void;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
@@ -23,6 +24,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   setActiveTab,
   onOpenLogTransaction,
   onOpenAddStudent,
+  onOpenDailySettlement,
 }) => {
   const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false);
 
@@ -87,6 +89,19 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                   <span className="text-xs font-bold">नया छात्र जोड़ें</span>
                   <span className="text-[10px] text-[#5A5A40]/80">Add Student</span>
                 </button>
+
+                {onOpenDailySettlement && (
+                  <button
+                    onClick={() => {
+                      setIsQuickMenuOpen(false);
+                      onOpenDailySettlement();
+                    }}
+                    className="col-span-2 flex items-center justify-center gap-2 p-3 bg-[#FAF8F2] hover:bg-[#EFECE1] text-[#2E5B50] rounded-2xl border border-[#DDD8C5] transition text-center shadow-xs font-bold text-xs"
+                  >
+                    <Receipt className="w-4 h-4 text-[#2E5B50]" />
+                    <span>दैनिक रोकड़ पर्ची (Day Book Report)</span>
+                  </button>
+                )}
               </div>
             </motion.div>
           </>

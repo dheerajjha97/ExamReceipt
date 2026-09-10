@@ -4,6 +4,72 @@ export type CasteCategory = 'General' | 'BC' | 'EBC' | 'SC' | 'ST';
 export type ExamType = 'REGULAR' | 'EX-REGULAR' | 'IMPROVEMENT' | 'COMPARTMENTAL';
 export type FormIssueStatus = 'NOT_ISSUED' | 'ISSUED' | 'SUBMITTED';
 
+// Document statuses for Registration
+export type RegistrationDocStatus = 'SUBMITTED' | 'PENDING' | 'NOT_AVAILABLE' | 'EXEMPTED';
+
+export interface DocumentRecord {
+  status: RegistrationDocStatus;
+  docNumber?: string;
+  issueDate?: string;
+  schoolName?: string;
+  rollNo?: string;
+  notAvailableReason?: string; // Mandatory when status is NOT_AVAILABLE (especially for APAAR)
+  fileData?: string;           // Base64 file or image preview
+  fileName?: string;
+  remarks?: string;
+  verified?: boolean;
+}
+
+export interface RegistrationDocuments {
+  aadhar: DocumentRecord;
+  apaar: DocumentRecord;
+  transferCertificate: DocumentRecord;
+  casteCertificate: DocumentRecord;
+  matricMarksheet: DocumentRecord;
+  photoSign?: DocumentRecord;
+}
+
+export interface RegistrationStudent {
+  id: string;
+  sNo: number;
+  formNo: string;              // e.g. "REG-2026-001"
+  bsebUniqueId?: string;       // BSEB Unique ID if allotted
+  studentName: string;
+  fatherName: string;
+  motherName: string;
+  dob: string;                 // DD-MM-YYYY
+  gender: 'MALE' | 'FEMALE' | 'OTHER' | string;
+  casteCategory: CasteCategory | string; // General, BC, EBC, SC, ST
+  stream: 'Science (I.Sc)' | 'Arts (I.A)' | 'Commerce (I.Com)' | 'Vocational' | string;
+  mobile: string;
+  email?: string;
+  
+  // Matriculation Academic Background
+  matricRollCode?: string;
+  matricRollNo?: string;
+  matricPassingYear?: string;
+  matricBoard?: string;
+  prevSchoolName?: string;     // School from where TC was issued
+  address?: string;
+
+  // Registration Fee details (Flat ₹515 for all streams)
+  registrationFee: number;     // 515
+  paidAmount: number;
+  paymentStatus: PaymentStatus;
+  paymentMode?: PaymentMode;
+  paymentDate?: string;
+  receiptNo?: string;
+  transactionRef?: string;
+
+  // Mandatory Document Collection
+  documents: RegistrationDocuments;
+  registrationStatus: 'PENDING_DOCS' | 'DOCS_VERIFIED' | 'FEE_PAID' | 'COMPLETED';
+
+  remarks?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Student {
   id: string;
   sNo: number;

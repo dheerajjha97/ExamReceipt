@@ -29,7 +29,7 @@ import { Transaction, PaymentMode, InstituteSettings, Student } from '../types';
 import financialWallet3d from '../assets/images/financial_wallet_3d_1787937095834.jpg';
 import { ConfirmModal } from './ConfirmModal';
 import { downloadCompleteTransactionLedgerPDF } from '../utils/pdfGenerator';
-import { DailySettlementModal } from './DailySettlementModal';
+import { DailySettlementModal, normalizeDateToYYYYMMDD } from './DailySettlementModal';
 import { BulkStudentPrintModal } from './BulkStudentPrintModal';
 
 interface TransactionHistoryProps {
@@ -42,6 +42,8 @@ interface TransactionHistoryProps {
   onDeleteTransaction?: (txnId: string) => void;
   onBulkDeleteTransactions?: (txnIds: string[]) => void;
   onClearAllTransactions?: () => void;
+  onLoadSampleTransactions?: () => void;
+  onSyncPaidStudents?: () => void;
 }
 
 export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
@@ -54,6 +56,8 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   onDeleteTransaction,
   onBulkDeleteTransactions,
   onClearAllTransactions,
+  onLoadSampleTransactions,
+  onSyncPaidStudents,
 }) => {
   // View Switcher: Transactions Log vs Dues & Outstanding Ledger
   const [activeLedgerView, setActiveLedgerView] = useState<'transactions' | 'dues'>('transactions');
@@ -161,9 +165,9 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
       let matchesDate = true;
       if (startDate || endDate) {
-        const txnDateStr = txn.paymentDate.split(' ')[0];
-        if (startDate && txnDateStr < startDate) matchesDate = false;
-        if (endDate && txnDateStr > endDate) matchesDate = false;
+        const normDate = normalizeDateToYYYYMMDD(txn.paymentDate || txn.createdAt);
+        if (startDate && normDate < startDate) matchesDate = false;
+        if (endDate && normDate > endDate) matchesDate = false;
       }
 
       return matchesSearch && matchesMode && matchesType && matchesStream && matchesDate;
@@ -826,7 +830,58 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                   {filteredTransactions.length === 0 ? (
                     <tr>
                       <td colSpan={13} className="p-12 text-center text-[#787267]">
-                        No transactions recorded matching your search filters.
+                        {transactions.length === 0 ? (
+                          <div className="max-w-md mx-auto space-y-3">
+                            <Clock className="w-10 h-10 text-[#5A5A40] mx-auto opacity-70" />
+                            <h4 className="font-bold text-base text-[#2D2A26]">लेज़र में अभी कोई लेन-देन दर्ज नहीं है</h4>
+                            <p className="text-xs text-[#787267]">
+                              विद्यार्थियों की फीस जमा करते ही यहाँ रसीदें एवं रोकड़ बही (Day Book) स्वतः अपडेट हो जाएगी।
+                            </p>
+                            <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                              {onOpenLogTransaction && (
+                                <button
+                                  onClick={onOpenLogTransaction}
+                                  className="px-4 py-2 bg-[#2E5B50] hover:bg-[#254A41] text-white rounded-xl text-xs font-bold shadow-xs transition"
+                                >
+                                  + शुल्क जमा करें (Log Payment)
+                                </button>
+                              )}
+                              {onLoadSampleTransactions && (
+                                <button
+                                  onClick={onLoadSampleTransactions}
+                                  className="px-4 py-2 bg-[#5A5A40] hover:bg-[#484833] text-white rounded-xl text-xs font-bold shadow-xs transition"
+                                >
+                                  ⚡ नमूना लेन-देन लोड करें
+                                </button>
+                              )}
+                              {onSyncPaidStudents && (
+                                <button
+                                  onClick={onSyncPaidStudents}
+                                  className="px-4 py-2 bg-white hover:bg-[#F5F2E8] text-[#4A453E] border border-[#DDD8C5] rounded-xl text-xs font-bold shadow-xs transition"
+                                >
+                                  छात्रों से रसीदें सिंक करें
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <p className="font-bold text-sm text-[#4A453E]">चयनित फ़िल्टर के अनुसार कोई लेन-देन नहीं मिला।</p>
+                            <button
+                              onClick={() => {
+                                setSearchQuery('');
+                                setModeFilter('ALL');
+                                setTypeFilter('ALL');
+                                setStreamFilter('ALL');
+                                setStartDate('');
+                                setEndDate('');
+                              }}
+                              className="px-3 py-1.5 bg-[#E2ECE9] text-[#2E5B50] rounded-xl text-xs font-bold hover:bg-[#D4E3E0] transition"
+                            >
+                              सभी फ़िल्टर हटाएं (Clear Filters)
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ) : (
@@ -1161,6 +1216,8 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         }}
         selectedDate={startDate || undefined}
         onClose={() => setIsSettlementOpen(false)}
+        onOpenLogTransaction={onOpenLogTransaction}
+        onLoadSampleTransactions={onLoadSampleTransactions}
       />
 
       {/* Confirmation Modals with Mistake Protection */}
