@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   CreditCard, 
   Search, 
@@ -9,21 +9,22 @@ import {
   Calendar, 
   Receipt, 
   QrCode, 
-  Wallet,
-  Sparkles,
-  TrendingUp,
-  FileSpreadsheet,
-  FileText,
-  PlusCircle,
-  Printer,
-  Trash2,
-  Tag,
-  Banknote,
-  Clock,
-  AlertCircle,
-  Users,
-  Building2,
-  FileCheck
+  Wallet, 
+  Sparkles, 
+  TrendingUp, 
+  FileSpreadsheet, 
+  FileText, 
+  PlusCircle, 
+  Printer, 
+  Trash2, 
+  Tag, 
+  Banknote, 
+  Clock, 
+  AlertCircle, 
+  Users, 
+  Building2, 
+  FileCheck,
+  ChevronDown
 } from 'lucide-react';
 import { Transaction, PaymentMode, InstituteSettings, Student } from '../types';
 import financialWallet3d from '../assets/images/financial_wallet_3d_1787937095834.jpg';
@@ -85,6 +86,27 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   const [selectedTxnIds, setSelectedTxnIds] = useState<string[]>([]);
   const [selectedDueStudentIds, setSelectedDueStudentIds] = useState<string[]>([]);
   const [isBulkPrintModalOpen, setIsBulkPrintOpen] = useState(false);
+
+  // Menu Dropdown states
+  const [isPrintMenuOpen, setIsPrintMenuOpen] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+
+  const printMenuRef = useRef<HTMLDivElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close menus on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (printMenuRef.current && !printMenuRef.current.contains(event.target as Node)) {
+        setIsPrintMenuOpen(false);
+      }
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Selection Handlers
   const handleToggleSelectAllTxns = () => {
@@ -300,12 +322,23 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
     }
   }, [activeLedgerView, selectedTxnIds, selectedDueStudentIds, transactions, students]);
 
-  // CSV Export
-  const handleExportCSV = (onlySelected: boolean = false) => {
-    const targetTxns = onlySelected && selectedTxnIds.length > 0
-      ? transactions.filter((t) => selectedTxnIds.includes(t.id))
-      : filteredTransactions;
-    if (targetTxns.length === 0) return;
+  // CSV Export with scope support ('filtered' | 'all' | 'selected')
+  const handleExportCSV = (scope: 'filtered' | 'all' | 'selected' = 'filtered') => {
+    let targetTxns = filteredTransactions;
+    let scopeSuffix = 'FilteredView';
+
+    if (scope === 'all') {
+      targetTxns = transactions;
+      scopeSuffix = 'AllRecords';
+    } else if (scope === 'selected') {
+      targetTxns = transactions.filter((t) => selectedTxnIds.includes(t.id));
+      scopeSuffix = 'Selected';
+    }
+
+    if (targetTxns.length === 0) {
+      alert('निर्यात करने के लिए कोई लेन-देन रिकॉर्ड उपलब्ध नहीं है।');
+      return;
+    }
 
     const headers = [
       'Txn ID',
@@ -354,10 +387,11 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Fee_Transactions_Statement_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `Fee_Transactions_${scopeSuffix}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setIsExportMenuOpen(false);
   };
 
   // Dues List CSV Export
@@ -365,7 +399,10 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
     const targetDues = onlySelected && selectedDueStudentIds.length > 0
       ? duesStudents.filter((s) => selectedDueStudentIds.includes(s.id))
       : duesStudents;
-    if (targetDues.length === 0) return;
+    if (targetDues.length === 0) {
+      alert('निर्यात करने के लिए कोई बकाया रिकॉर्ड उपलब्ध नहीं है।');
+      return;
+    }
 
     const headers = [
       'S.No',
@@ -408,10 +445,11 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setIsExportMenuOpen(false);
   };
 
   // Export Complete Multi-Page PDF Report
-  const handleExportPDF = () => {
+  const handleExportPDF = (scope: 'filtered' | 'all' | 'selected' = 'filtered') => {
     const activeSettings: InstituteSettings = settings || {
       name: 'M.S. College, Motihari',
       subTitle: 'Constituent Unit of B.R.A. Bihar University, Muzaffarpur',
@@ -422,16 +460,33 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
       upiId: 'college@upi',
     };
 
-    const filterDesc = [
-      modeFilter !== 'ALL' ? `Mode: ${modeFilter}` : '',
-      typeFilter !== 'ALL' ? `Type: ${typeFilter}` : '',
-      streamFilter !== 'ALL' ? `Stream: ${streamFilter}` : '',
-      searchQuery ? `Search: "${searchQuery}"` : '',
-      startDate ? `From: ${startDate}` : '',
-      endDate ? `To: ${endDate}` : '',
-    ].filter(Boolean).join(', ') || 'All Transactions';
+    let targetTxns = filteredTransactions;
+    let filterDesc = '';
 
-    downloadCompleteTransactionLedgerPDF(filteredTransactions, activeSettings, filterDesc);
+    if (scope === 'all') {
+      targetTxns = transactions;
+      filterDesc = 'Complete Database (All Transactions)';
+    } else if (scope === 'selected') {
+      targetTxns = transactions.filter((t) => selectedTxnIds.includes(t.id));
+      filterDesc = `Selected Records (${targetTxns.length} txns)`;
+    } else {
+      filterDesc = [
+        modeFilter !== 'ALL' ? `Mode: ${modeFilter}` : '',
+        typeFilter !== 'ALL' ? `Type: ${typeFilter}` : '',
+        streamFilter !== 'ALL' ? `Stream: ${streamFilter}` : '',
+        searchQuery ? `Search: "${searchQuery}"` : '',
+        startDate ? `From: ${startDate}` : '',
+        endDate ? `To: ${endDate}` : '',
+      ].filter(Boolean).join(', ') || 'Current Filtered View';
+    }
+
+    if (targetTxns.length === 0) {
+      alert('PDF तैयार करने के लिए कोई रिकॉर्ड उपलब्ध नहीं है।');
+      return;
+    }
+
+    downloadCompleteTransactionLedgerPDF(targetTxns, activeSettings, filterDesc);
+    setIsExportMenuOpen(false);
   };
 
   return (
@@ -692,23 +747,145 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                 </button>
               </div>
 
-              {/* Action Buttons */}
+              {/* Action Menus: Print & Export Dropdowns */}
               <div className="flex items-center gap-2">
-                <button
-                  onClick={handleExportPDF}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2E5B50] hover:bg-[#254A41] text-white font-bold rounded-xl shadow-xs transition text-xs"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>PDF रिपोर्ट</span>
-                </button>
+                {/* 1. Print Dropdown */}
+                <div className="relative" ref={printMenuRef}>
+                  <button
+                    onClick={() => {
+                      setIsPrintMenuOpen(!isPrintMenuOpen);
+                      setIsExportMenuOpen(false);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#4A453E] hover:bg-[#3E3A33] text-white font-bold rounded-xl shadow-xs transition text-xs cursor-pointer"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-amber-300" />
+                    <span>प्रिंट मेनू</span>
+                    <ChevronDown className={`w-3.5 h-3.5 text-stone-300 transition-transform ${isPrintMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
 
-                <button
-                  onClick={handleExportCSV}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#5A5A40] hover:bg-[#484833] text-white font-bold rounded-xl shadow-xs transition text-xs"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5" />
-                  <span>Excel / CSV</span>
-                </button>
+                  {isPrintMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-[#DDD8C5] py-1.5 z-40 animate-in fade-in zoom-in-95">
+                      <div className="px-3 py-1.5 border-b border-slate-100 text-[10px] font-bold text-[#787267] uppercase tracking-wider">
+                        प्रिंट विकल्प (Print Menu)
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setIsPrintMenuOpen(false);
+                          handleExportPDF('filtered');
+                        }}
+                        className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-slate-800 hover:bg-[#F7F5EE] flex items-center gap-2.5 transition cursor-pointer"
+                      >
+                        <Filter className="w-4 h-4 text-[#2E5B50]" />
+                        <div>
+                          <div className="font-bold">वर्तमान फ़िल्टर दृश्य प्रिंट (PDF)</div>
+                          <div className="text-[10px] text-slate-500">Active View ({filteredTransactions.length} लेन-देन)</div>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setIsPrintMenuOpen(false);
+                          handleExportPDF('all');
+                        }}
+                        className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-slate-800 hover:bg-[#F7F5EE] flex items-center gap-2.5 transition cursor-pointer border-t border-slate-50"
+                      >
+                        <Printer className="w-4 h-4 text-indigo-600" />
+                        <div>
+                          <div className="font-bold">सभी लेन-देन प्रिंट (Print All)</div>
+                          <div className="text-[10px] text-slate-500">संपूर्ण डेटाबेस ({transactions.length} लेन-देन)</div>
+                        </div>
+                      </button>
+
+                      {selectedTxnIds.length > 0 && (
+                        <button
+                          onClick={() => {
+                            setIsPrintMenuOpen(false);
+                            handleExportPDF('selected');
+                          }}
+                          className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-slate-800 hover:bg-[#F7F5EE] flex items-center gap-2.5 transition cursor-pointer border-t border-slate-50"
+                        >
+                          <FileCheck className="w-4 h-4 text-emerald-600" />
+                          <div>
+                            <div className="font-bold">चयनित लेन-देन ({selectedTxnIds.length}) प्रिंट करें</div>
+                            <div className="text-[10px] text-slate-500">Selected Receipts Audit Report</div>
+                          </div>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Export Dropdown */}
+                <div className="relative" ref={exportMenuRef}>
+                  <button
+                    onClick={() => {
+                      setIsExportMenuOpen(!isExportMenuOpen);
+                      setIsPrintMenuOpen(false);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2E5B50] hover:bg-[#254A41] text-white font-bold rounded-xl shadow-xs transition text-xs cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5 text-emerald-200" />
+                    <span>एक्सपोर्ट मेनू</span>
+                    <ChevronDown className={`w-3.5 h-3.5 text-emerald-200 transition-transform ${isExportMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isExportMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-[#DDD8C5] py-1.5 z-40 animate-in fade-in zoom-in-95">
+                      <div className="px-3 py-1.5 border-b border-slate-100 text-[10px] font-bold text-[#787267] uppercase tracking-wider">
+                        डाउनलोड विकल्प (Excel & PDF)
+                      </div>
+
+                      {/* CSV Options */}
+                      <button
+                        onClick={() => handleExportCSV('filtered')}
+                        className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-slate-800 hover:bg-[#F7F5EE] flex items-center gap-2.5 transition cursor-pointer"
+                      >
+                        <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                        <div>
+                          <div className="font-bold">Excel / CSV (फ़िल्टर किया हुआ)</div>
+                          <div className="text-[10px] text-slate-500">{filteredTransactions.length} लेन-देन रिकॉर्ड</div>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => handleExportCSV('all')}
+                        className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-slate-800 hover:bg-[#F7F5EE] flex items-center gap-2.5 transition cursor-pointer border-t border-slate-50"
+                      >
+                        <FileSpreadsheet className="w-4 h-4 text-teal-600" />
+                        <div>
+                          <div className="font-bold">Excel / CSV (सभी {transactions.length} रिकॉर्ड)</div>
+                          <div className="text-[10px] text-slate-500">संपूर्ण 12वीं परीक्षा शुल्क डेटा</div>
+                        </div>
+                      </button>
+
+                      {/* PDF Options */}
+                      <div className="my-1 border-t border-slate-100"></div>
+
+                      <button
+                        onClick={() => handleExportPDF('filtered')}
+                        className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-slate-800 hover:bg-[#F7F5EE] flex items-center gap-2.5 transition cursor-pointer"
+                      >
+                        <FileText className="w-4 h-4 text-rose-600" />
+                        <div>
+                          <div className="font-bold">PDF रिपोर्ट (Current View)</div>
+                          <div className="text-[10px] text-slate-500">A4 लैंडस्केप ऑडिट लेज़र</div>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => handleExportPDF('all')}
+                        className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-slate-800 hover:bg-[#F7F5EE] flex items-center gap-2.5 transition cursor-pointer border-t border-slate-50"
+                      >
+                        <FileText className="w-4 h-4 text-purple-600" />
+                        <div>
+                          <div className="font-bold">PDF रिपोर्ट (Complete Database)</div>
+                          <div className="text-[10px] text-slate-500">सभी {transactions.length} लेन-देन का फुल लेज़र</div>
+                        </div>
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 {transactions.length > 0 && onClearAllTransactions && (
                   <button
@@ -1152,7 +1329,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           {/* Export Selected CSV */}
           <button
             onClick={() => {
-              if (activeLedgerView === 'transactions') handleExportCSV(true);
+              if (activeLedgerView === 'transactions') handleExportCSV('selected');
               else handleExportDuesCSV(true);
             }}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-[#5A5A40] hover:bg-[#484833] text-white text-xs font-bold rounded-xl transition shadow-sm"

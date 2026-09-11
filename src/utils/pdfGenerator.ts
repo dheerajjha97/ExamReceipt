@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Student, Transaction, InstituteSettings } from '../types';
+import { Student, Transaction, InstituteSettings, RegistrationStudent, isBSEBBoard } from '../types';
 import { numberToWordsInINR } from '../services/storageService';
 
 /**
@@ -365,4 +365,162 @@ export function downloadCompleteTransactionLedgerPDF(
   });
 
   doc.save(`Complete_Transaction_Ledger_${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+/**
+ * Generate and download 11th Registration Ledger PDF (Multi-page report)
+ */
+export function downloadRegistrationLedgerPDF(
+  students: RegistrationStudent[],
+  settings: InstituteSettings,
+  reportType: 'transactions' | 'dues' = 'transactions',
+  filterDescription: string = 'All Recorded 11th Registrations'
+) {
+  const doc = new jsPDF({
+    orientation: 'landscape',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  const totalAmount = students.reduce((acc, s) => {
+    const fee = reportType === 'transactions'
+      ? (s.paidAmount || (isBSEBBoard(s.boardName || s.matricBoard) ? 515 : 715))
+      : (s.registrationFee || (isBSEBBoard(s.boardName || s.matricBoard) ? 515 : 715));
+    return acc + fee;
+  }, 0);
+
+  // Header Banner
+  doc.setFillColor(15, 118, 110); // #0f766e (Emerald/Teal)
+  doc.rect(0, 0, 297, 24, 'F');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(255, 255, 255);
+  doc.text(settings.name.toUpperCase(), 14, 11);
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`${settings.subTitle || 'Intermediate Section'} | Session 2026-2028 (11th Registration)`, 14, 18);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text(
+    reportType === 'transactions' 
+      ? '11TH REGISTRATION FEE RECEIPT LEDGER' 
+      : '11TH REGISTRATION OUTSTANDING DUES LIST',
+    283, 11, { align: 'right' }
+  );
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Report Generated: ${new Date().toLocaleString('en-IN')}`, 283, 18, { align: 'right' });
+
+  // Summary Metrics Bar
+  doc.setFillColor(240, 253, 250);
+  doc.rect(14, 28, 269, 14, 'F');
+  doc.setDrawColor(153, 246, 228);
+  doc.rect(14, 28, 269, 14, 'S');
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(50, 50, 50);
+  doc.text(`Active Filter: ${filterDescription}`, 18, 34);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(15, 118, 110);
+  doc.text(`Total Records: ${students.length}`, 18, 39.5);
+
+  doc.setTextColor(30, 41, 59);
+  doc.text(
+    `${reportType === 'transactions' ? 'Total Collection' : 'Total Outstanding'}: Rs. ${totalAmount.toLocaleString('en-IN')}`,
+    280, 39.5, { align: 'right' }
+  );
+
+  const tableData = students.map((s, idx) => {
+    const fee = reportType === 'transactions'
+      ? (s.paidAmount || (isBSEBBoard(s.boardName || s.matricBoard) ? 515 : 715))
+      : (s.registrationFee || (isBSEBBoard(s.boardName || s.matricBoard) ? 515 : 715));
+    const isBseb = isBSEBBoard(s.boardName || s.matricBoard) || fee === 515;
+
+    return [
+      idx + 1,
+      s.formNo || s.ofssReferenceNo || '—',
+      s.studentName,
+      s.fatherName || '—',
+      s.stream || '—',
+      s.casteCategory || 'GEN',
+      isBseb ? 'BSEB (Rs. 515)' : 'Other (Rs. 715)',
+      fee.toLocaleString('en-IN'),
+      reportType === 'transactions' ? (s.paymentMode || 'CASH') : 'UNPAID',
+      reportType === 'transactions' ? (s.utrNumber || '—') : (s.mobile || '—'),
+      reportType === 'transactions' ? (s.paymentDate || '—') : 'Pending',
+    ];
+  });
+
+  autoTable(doc, {
+    startY: 47,
+    margin: { left: 14, right: 14, bottom: 15 },
+    theme: 'striped',
+    headStyles: {
+      fillColor: [15, 118, 110], // #0f766e
+      textColor: [255, 255, 255],
+      fontSize: 8,
+      fontStyle: 'bold',
+      halign: 'left',
+    },
+    bodyStyles: {
+      fontSize: 8,
+      textColor: [30, 30, 30],
+    },
+    columnStyles: {
+      0: { cellWidth: 9, halign: 'center' }, // S.No
+      1: { cellWidth: 26, fontStyle: 'bold' }, // Form No
+      2: { cellWidth: 38, fontStyle: 'bold' }, // Student Name
+      3: { cellWidth: 34 }, // Father Name
+      4: { cellWidth: 24, halign: 'center' }, // Stream
+      5: { cellWidth: 18, halign: 'center' }, // Category
+      6: { cellWidth: 28, halign: 'center' }, // Board Rate
+      7: { cellWidth: 22, halign: 'right', fontStyle: 'bold' }, // Amount
+      8: { cellWidth: 20, halign: 'center' }, // Mode / Status
+      9: { cellWidth: 26 }, // UTR / Mobile
+      10: { cellWidth: 24, halign: 'center' }, // Date
+    },
+    head: [[
+      'S.N.', 'Form / OFSS No', 'Student Name', 'Father Name', 'Stream', 'Category', 'Board Rate', 'Amount (Rs.)', 'Mode/Status', 'Ref/Mobile', 'Date'
+    ]],
+    body: tableData,
+    foot: [[
+      '', 'TOTAL SUMMARY', '', '', '', '', `${students.length} Records`, 
+      `Rs. ${totalAmount.toLocaleString('en-IN')}`, '', '', ''
+    ]],
+    footStyles: {
+      fillColor: [19, 78, 74],
+      textColor: [255, 255, 255],
+      fontSize: 8,
+      fontStyle: 'bold',
+    },
+    didDrawPage: (data) => {
+      // Header for page 2+
+      if (data.pageNumber > 1) {
+        doc.setFillColor(15, 118, 110);
+        doc.rect(0, 0, 297, 12, 'F');
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 255, 255);
+        doc.text(`${settings.name} — 11th Registration Ledger (2026-2028)`, 14, 8);
+        doc.text(`Page ${data.pageNumber}`, 283, 8, { align: 'right' });
+      }
+
+      // Footer on all pages
+      const pageHeight = doc.internal.pageSize.getHeight();
+      doc.setFontSize(7.5);
+      doc.setTextColor(120, 120, 120);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Generated by ${settings.name} Intermediate Registration Cell`, 14, pageHeight - 6);
+      doc.text(`Page ${data.pageNumber}`, 283, pageHeight - 6, { align: 'right' });
+    },
+  });
+
+  doc.save(`11th_Registration_Ledger_${reportType}_${new Date().toISOString().slice(0, 10)}.pdf`);
 }

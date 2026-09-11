@@ -25,6 +25,7 @@ import {
   Receipt,
   FileCheck,
   Check,
+  TrendingUp,
   X
 } from 'lucide-react';
 import { 
@@ -44,8 +45,10 @@ import { RegistrationFeeReceiptModal } from './RegistrationFeeReceiptModal';
 import { RegistrationUploadModal } from './RegistrationUploadModal';
 import { RegistrationDocAuditModal } from './RegistrationDocAuditModal';
 import { FormSubmitDocChecklistModal } from '../FormSubmitDocChecklistModal';
-
 import { RegistrationRecordPaymentModal } from './RegistrationRecordPaymentModal';
+import { RegistrationLedger } from './RegistrationLedger';
+import { RegistrationDashboardOverview } from './RegistrationDashboardOverview';
+import { RegistrationDailySettlement } from './RegistrationDailySettlement';
 import { PWAInstallButton } from '../PWA/PWAInstallButton';
 
 interface RegistrationModuleProps {
@@ -67,6 +70,9 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
   onBackToDashboard,
   onSwitchToExamination,
 }) => {
+  // Navigation Sub-tab State
+  const [activeRegistrationTab, setActiveRegistrationTab] = useState<'students' | 'ledger' | 'audit' | 'daybook' | 'overview'>('students');
+
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStream, setSelectedStream] = useState<string>('ALL');
@@ -633,6 +639,91 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
         </div>
       </div>
 
+      {/* 11th Registration Dedicated Sub-Navigation Bar */}
+      <div className="bg-white/80 backdrop-blur-xl p-2 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between gap-2 overflow-x-auto">
+        <div className="flex items-center gap-1.5 min-w-max">
+          <button
+            onClick={() => setActiveRegistrationTab('students')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+              activeRegistrationTab === 'students'
+                ? 'bg-[#2E5B50] text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>11वीं छात्र पंजीयन सूची</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
+              activeRegistrationTab === 'students' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+            }`}>
+              {totalCount}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveRegistrationTab('ledger')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+              activeRegistrationTab === 'ledger'
+                ? 'bg-emerald-800 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>11वीं रोकड़ लेज़र (Ledger)</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+              activeRegistrationTab === 'ledger' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
+            }`}>
+              ₹{totalCollectedFee.toLocaleString('en-IN')}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveRegistrationTab('doc_audit')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+              activeRegistrationTab === 'doc_audit'
+                ? 'bg-amber-800 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>5 दस्तावेज़ ऑडिट</span>
+            {(missingTcCount + missingApaarCount + missingCasteCount) > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                activeRegistrationTab === 'doc_audit' ? 'bg-amber-900 text-white' : 'bg-amber-100 text-amber-900'
+              }`}>
+                {missingTcCount + missingApaarCount + missingCasteCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveRegistrationTab('daybook')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+              activeRegistrationTab === 'daybook'
+                ? 'bg-teal-800 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <Receipt className="w-4 h-4" />
+            <span>दैनिक रोकड़ पर्ची (Day-Book)</span>
+          </button>
+
+          <button
+            onClick={() => setActiveRegistrationTab('overview')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+              activeRegistrationTab === 'overview'
+                ? 'bg-indigo-800 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <TrendingUp className="w-4 h-4" />
+            <span>सांख्यिकी सारांश (Analytics)</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Tab 1: Student List / Directory */}
+      {activeRegistrationTab === 'students' && (
+        <div className="space-y-6">
       {/* Glassmorphic Metric Ribbon */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Metric 1: Total Registered */}
@@ -1413,6 +1504,53 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
           </table>
         </div>
       </div>
+      </div>
+      )}
+
+      {/* Tab 2: Dedicated 11th Registration Financial Ledger */}
+      {activeRegistrationTab === 'ledger' && (
+        <RegistrationLedger
+          students={students}
+          settings={settings}
+          onOpenReceipt={handleOpenReceipt}
+          onOpenRecordPayment={(stu) => {
+            setPaymentStudent(stu);
+            setIsPaymentOpen(true);
+          }}
+          onUpdateStudents={onUpdateStudents}
+        />
+      )}
+
+      {/* Tab 3: Dedicated 11th Document Verification Audit Matrix */}
+      {activeRegistrationTab === 'doc_audit' && (
+        <RegistrationDocAuditModal
+          isOpen={true}
+          students={students}
+          settings={settings}
+          onClose={() => setActiveRegistrationTab('students')}
+          onSelectStudent={(stu) => {
+            setEditingStudent(stu);
+            setIsAddEditOpen(true);
+          }}
+        />
+      )}
+
+      {/* Tab 4: Dedicated 11th Registration Daily Settlement Day Book */}
+      {activeRegistrationTab === 'daybook' && (
+        <RegistrationDailySettlement
+          students={students}
+          settings={settings}
+        />
+      )}
+
+      {/* Tab 5: Dedicated 11th Statistics & Analytics Dashboard */}
+      {activeRegistrationTab === 'overview' && (
+        <RegistrationDashboardOverview
+          students={students}
+          settings={settings}
+          onNavigateTab={(tab) => setActiveRegistrationTab(tab)}
+        />
+      )}
 
       {/* Confirmation Modal: Delete Single Student */}
       {studentToDelete && (

@@ -65,6 +65,9 @@ export interface RegistrationStudent {
   paymentDate?: string;
   receiptNo?: string;
   transactionRef?: string;
+  utrNumber?: string;          // UPI / Bank UTR Reference
+  ofssReferenceNo?: string;    // Alias for ofssNo
+  cashierName?: string;        // Name or counter ID of operator who collected fee
   feeBreakup?: {
     permissionFee: number;
     applicationFee: number;
