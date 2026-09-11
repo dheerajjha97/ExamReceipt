@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   X, 
   Printer, 
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Student, InstituteSettings } from '../types';
 import { numberToWordsInINR } from '../services/storageService';
+import { printIsolatedElement, fallbackDirectPrint } from '../utils/printHelper';
 
 interface BulkStudentPrintModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export const BulkStudentPrintModal: React.FC<BulkStudentPrintModalProps> = ({
   onClose,
 }) => {
   const [printLayout, setPrintLayout] = useState<'register' | 'slips'>('register');
+  const printAreaRef = useRef<HTMLDivElement>(null);
 
   if (!isOpen || selectedStudents.length === 0) return null;
 
@@ -37,7 +39,17 @@ export const BulkStudentPrintModal: React.FC<BulkStudentPrintModalProps> = ({
   const totalDue = totalPayable - totalPaid;
 
   const handlePrint = () => {
-    window.print();
+    if (printAreaRef.current) {
+      printIsolatedElement(printAreaRef.current, {
+        documentTitle: printLayout === 'register' 
+          ? `छात्र_लेजर_पंजी_${settings.code || 'BSEB'}` 
+          : `छात्र_शुल्क_रसीद_${settings.code || 'BSEB'}`,
+        landscape: printLayout === 'register',
+        pageMargin: printLayout === 'register' ? '6mm 6mm 6mm 6mm' : '8mm 10mm 10mm 10mm'
+      });
+    } else {
+      fallbackDirectPrint();
+    }
   };
 
   return (
@@ -113,7 +125,7 @@ export const BulkStudentPrintModal: React.FC<BulkStudentPrintModalProps> = ({
         </div>
 
         {/* Printable Content Area */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-[#FAF9F5] print:p-0 print:bg-white print:overflow-visible">
+        <div ref={printAreaRef} id="printable-bulk-content" className="p-4 sm:p-6 overflow-y-auto flex-1 bg-[#FAF9F5] print:p-0 print:bg-white print:overflow-visible">
           
           {/* LAYOUT 1: CONSOLIDATED MASTER REGISTER */}
           {printLayout === 'register' && (

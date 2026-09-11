@@ -1433,13 +1433,16 @@ export default function App() {
         onLogTransaction={handleLogTransaction}
       />
 
-      {/* Mobile First Bottom Navigation & Floating Action Button */}
+      {/* Mobile First Colorful Bottom Navigation & Floating Action Button */}
       <MobileBottomNav
+        activeModule={activeModule}
+        setActiveModule={setActiveModule}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenLogTransaction={() => setIsLogTransactionOpen(true)}
         onOpenAddStudent={() => setIsAddStudentOpen(true)}
         onOpenDailySettlement={() => setIsDailySettlementOpen(true)}
+        onOpenSessionManager={() => setIsSessionManagerOpen(true)}
       />
 
       {/* Cashier Day-End Settlement / Day Book Modal */}

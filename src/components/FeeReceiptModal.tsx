@@ -15,6 +15,7 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { Student, InstituteSettings } from '../types';
 import { numberToWordsInINR } from '../services/storageService';
+import { printIsolatedElement, fallbackDirectPrint } from '../utils/printHelper';
 
 interface FeeReceiptModalProps {
   student: Student | null;
@@ -44,7 +45,15 @@ export const FeeReceiptModal: React.FC<FeeReceiptModalProps> = ({
 
   // Print Handler
   const handlePrint = () => {
-    window.print();
+    if (receiptRef.current) {
+      printIsolatedElement(receiptRef.current, {
+        documentTitle: `शुल्क_रसीद_${student.registrationNo}_${student.studentName}`,
+        landscape: false,
+        pageMargin: '8mm 10mm 10mm 10mm'
+      });
+    } else {
+      fallbackDirectPrint();
+    }
   };
 
   // Download Image / PDF

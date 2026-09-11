@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { RegistrationStudent, InstituteSettings, calculateRegistrationFee } from '../../types';
 import { numberToWordsInINR } from '../../services/storageService';
+import { printIsolatedElement, fallbackDirectPrint } from '../../utils/printHelper';
 
 interface RegistrationFeeReceiptModalProps {
   isOpen: boolean;
@@ -42,7 +43,15 @@ export const RegistrationFeeReceiptModal: React.FC<RegistrationFeeReceiptModalPr
   const paymentDate = student.paymentDate || new Date().toLocaleDateString('en-GB');
 
   const handlePrint = () => {
-    window.print();
+    if (printRef.current) {
+      printIsolatedElement(printRef.current, {
+        documentTitle: `पंजीकरण_रसीद_${student.formNo}_${student.studentName}`,
+        landscape: false,
+        pageMargin: '6mm 8mm 6mm 8mm'
+      });
+    } else {
+      fallbackDirectPrint();
+    }
   };
 
   const handleShareWhatsApp = () => {

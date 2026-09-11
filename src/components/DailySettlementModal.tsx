@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   X, 
   Printer, 
@@ -14,6 +14,7 @@ import {
   Clock
 } from 'lucide-react';
 import { Transaction, InstituteSettings } from '../types';
+import { printIsolatedElement, fallbackDirectPrint } from '../utils/printHelper';
 
 interface DailySettlementModalProps {
   isOpen: boolean;
@@ -127,8 +128,18 @@ export const DailySettlementModal: React.FC<DailySettlementModalProps> = ({
   const bankTxns = dayTxns.filter((t) => t.paymentMode !== 'CASH' && t.paymentMode !== 'UPI' && t.paymentMode !== 'QR_CODE');
   const bankTotal = bankTxns.reduce((acc, t) => acc + t.paidAmount, 0);
 
+  const printAreaRef = useRef<HTMLDivElement>(null);
+
   const handlePrint = () => {
-    window.print();
+    if (printAreaRef.current) {
+      printIsolatedElement(printAreaRef.current, {
+        documentTitle: `दैनिक_रोकड़_पर्ची_${currentDate || 'Audited'}`,
+        landscape: false,
+        pageMargin: '8mm 10mm 10mm 10mm'
+      });
+    } else {
+      fallbackDirectPrint();
+    }
   };
 
   const displayDateLabel = viewAllDates 
@@ -273,7 +284,7 @@ export const DailySettlementModal: React.FC<DailySettlementModalProps> = ({
         </div>
 
         {/* Printable Area */}
-        <div className="p-6 overflow-y-auto flex-1 bg-[#FAF9F5] print:p-0 print:bg-white print:overflow-visible text-[#2D2A26] space-y-5">
+        <div ref={printAreaRef} id="printable-settlement-content" className="p-6 overflow-y-auto flex-1 bg-[#FAF9F5] print:p-0 print:bg-white print:overflow-visible text-[#2D2A26] space-y-5">
           
           {/* Formal Institutional Header Template */}
           <div className="text-center border-b-2 border-slate-900 pb-3 space-y-1">

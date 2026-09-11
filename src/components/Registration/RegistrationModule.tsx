@@ -43,6 +43,8 @@ import { AddEditRegistrationModal } from './AddEditRegistrationModal';
 import { RegistrationFeeReceiptModal } from './RegistrationFeeReceiptModal';
 import { RegistrationUploadModal } from './RegistrationUploadModal';
 import { RegistrationDocAuditModal } from './RegistrationDocAuditModal';
+import { FormSubmitDocChecklistModal } from '../FormSubmitDocChecklistModal';
+
 import { RegistrationRecordPaymentModal } from './RegistrationRecordPaymentModal';
 import { PWAInstallButton } from '../PWA/PWAInstallButton';
 
@@ -89,6 +91,11 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
   // Custom Deletion Confirmation States (No window.confirm!)
   const [studentToDelete, setStudentToDelete] = useState<{ id: string; name: string; formNo?: string } | null>(null);
   const [isConfirmClearAllOpen, setIsConfirmClearAllOpen] = useState(false);
+
+  // Document Verification Checklist Popup State
+  const [isDocChecklistOpen, setIsDocChecklistOpen] = useState(false);
+  const [docChecklistStudent, setDocChecklistStudent] = useState<RegistrationStudent | null>(null);
+
 
   // Filtered student list
   const filteredStudents = useMemo(() => {
@@ -242,22 +249,121 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
     onUpdateStudents(updatedList);
   };
 
-  const handleToggleFormSubmitted = (studentId: string) => {
+  const handleOpenDocChecklistForSubmit = (student: RegistrationStudent) => {
+    setDocChecklistStudent(student);
+    setIsDocChecklistOpen(true);
+  };
+
+  const handleConfirmDocChecklistSubmit = (
+    verifiedDocs: Record<string, { submitted: boolean; docNumber?: string; remarks?: string }>,
+    submissionDate: string
+  ) => {
+    if (!docChecklistStudent) return;
+
+    const isEbcScSt =
+      docChecklistStudent.casteCategory === 'EBC' ||
+      docChecklistStudent.casteCategory === 'SC' ||
+      docChecklistStudent.casteCategory === 'ST';
+
+    const updatedDocs: RegistrationDocuments = {
+      aadhar: {
+        ...(docChecklistStudent.documents?.aadhar || { status: 'PENDING' }),
+        status: verifiedDocs.aadhar?.submitted ? 'SUBMITTED' : 'PENDING',
+        verified: verifiedDocs.aadhar?.submitted,
+        docNumber: verifiedDocs.aadhar?.docNumber || docChecklistStudent.documents?.aadhar?.docNumber,
+        remarks: verifiedDocs.aadhar?.remarks,
+      },
+      apaar: {
+        ...(docChecklistStudent.documents?.apaar || { status: 'PENDING' }),
+        status: verifiedDocs.apaar?.submitted ? 'SUBMITTED' : 'PENDING',
+        verified: verifiedDocs.apaar?.submitted,
+        docNumber: verifiedDocs.apaar?.docNumber || docChecklistStudent.documents?.apaar?.docNumber,
+        remarks: verifiedDocs.apaar?.remarks,
+      },
+      transferCertificate: {
+        ...(docChecklistStudent.documents?.transferCertificate || { status: 'PENDING' }),
+        status: verifiedDocs.transferCertificate?.submitted ? 'SUBMITTED' : 'PENDING',
+        verified: verifiedDocs.transferCertificate?.submitted,
+        docNumber: verifiedDocs.transferCertificate?.docNumber || docChecklistStudent.documents?.transferCertificate?.docNumber,
+        remarks: verifiedDocs.transferCertificate?.remarks,
+      },
+      casteCertificate: {
+        ...(docChecklistStudent.documents?.casteCertificate || { status: 'PENDING' }),
+        status: isEbcScSt ? (verifiedDocs.casteCertificate?.submitted ? 'SUBMITTED' : 'PENDING') : 'EXEMPTED',
+        verified: isEbcScSt ? verifiedDocs.casteCertificate?.submitted : true,
+        docNumber: verifiedDocs.casteCertificate?.docNumber || docChecklistStudent.documents?.casteCertificate?.docNumber,
+        remarks: verifiedDocs.casteCertificate?.remarks,
+      },
+      matricMarksheet: {
+        ...(docChecklistStudent.documents?.matricMarksheet || { status: 'PENDING' }),
+        status: verifiedDocs.matricMarksheet?.submitted ? 'SUBMITTED' : 'PENDING',
+        verified: verifiedDocs.matricMarksheet?.submitted,
+        docNumber: verifiedDocs.matricMarksheet?.docNumber || docChecklistStudent.documents?.matricMarksheet?.docNumber,
+        remarks: verifiedDocs.matricMarksheet?.remarks,
+      },
+      photoSign: {
+        status: verifiedDocs.photoSign?.submitted ? 'SUBMITTED' : 'PENDING',
+        verified: verifiedDocs.photoSign?.submitted,
+        remarks: verifiedDocs.photoSign?.remarks,
+      },
+    };
+
+    const allMandatoryDone =
+      updatedDocs.aadhar.status === 'SUBMITTED' &&
+      updatedDocs.transferCertificate.status === 'SUBMITTED' &&
+      updatedDocs.matricMarksheet.status === 'SUBMITTED' &&
+      (!isEbcScSt || updatedDocs.casteCertificate.status === 'SUBMITTED');
+
+    let regStatus = docChecklistStudent.registrationStatus;
+    if (allMandatoryDone && docChecklistStudent.paymentStatus === 'PAID') {
+      regStatus = 'COMPLETED';
+    } else if (allMandatoryDone) {
+      regStatus = 'DOCS_VERIFIED';
+    } else {
+      regStatus = 'PENDING_DOCS';
+    }
+
     const updatedList = students.map((stu) => {
-      if (stu.id !== studentId) return stu;
-      const nextSubmitted = !stu.isFormSubmitted;
+      if (stu.id !== docChecklistStudent.id) return stu;
       return {
         ...stu,
-        isFormSubmitted: nextSubmitted,
-        // If form submitted is true, form was definitely taken/issued
-        isFormIssued: nextSubmitted ? true : stu.isFormIssued,
-        formSubmittedDate: nextSubmitted ? (stu.formSubmittedDate || new Date().toLocaleDateString('en-GB')) : undefined,
-        formIssuedDate: nextSubmitted && !stu.formIssuedDate ? new Date().toLocaleDateString('en-GB') : stu.formIssuedDate,
+        isFormIssued: true,
+        formIssuedDate: stu.formIssuedDate || submissionDate.split(' ')[0] || new Date().toLocaleDateString('en-GB'),
+        isFormSubmitted: true,
+        formSubmittedDate: submissionDate,
+        documents: updatedDocs,
+        registrationStatus: regStatus,
         updatedAt: new Date().toISOString(),
       };
     });
+
     onUpdateStudents(updatedList);
+    setIsDocChecklistOpen(false);
+    setDocChecklistStudent(null);
   };
+
+  const handleToggleFormSubmitted = (studentId: string) => {
+    const student = students.find((s) => s.id === studentId);
+    if (!student) return;
+
+    if (!student.isFormSubmitted) {
+      // Opening Document Checklist Popup before submitting form
+      handleOpenDocChecklistForSubmit(student);
+    } else {
+      // Direct untoggle if already submitted
+      const updatedList = students.map((stu) => {
+        if (stu.id !== studentId) return stu;
+        return {
+          ...stu,
+          isFormSubmitted: false,
+          formSubmittedDate: undefined,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      onUpdateStudents(updatedList);
+    }
+  };
+
   const handleCategoryChange = (studentId: string, newCategory: CasteCategory) => {
     const updatedList = students.map((stu) => {
       if (stu.id !== studentId) return stu;
@@ -1222,8 +1328,20 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
                                   </span>
                                 </button>
                               </div>
+
+                              {/* Direct Checklist Popup Trigger Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenDocChecklistForSubmit(stu)}
+                                className="w-full py-1 px-2 mt-0.5 rounded-lg bg-gradient-to-r from-[#2E5B50]/10 to-teal-50 hover:from-[#2E5B50]/20 hover:to-teal-100 text-[#2E5B50] font-bold text-[10.5px] border border-[#2E5B50]/30 flex items-center justify-center gap-1 transition cursor-pointer"
+                                title="दस्तावेज़ सूची का पॉपअप खोलें और Yes/No करके फॉर्म जमा करें"
+                              >
+                                <FileCheck className="w-3.5 h-3.5 text-[#2E5B50]" />
+                                <span>दस्तावेज़ सूची पॉपअप / फॉर्म जमा</span>
+                              </button>
                             </div>
                           );
+
                         })()}
                       </td>
 
@@ -1409,7 +1527,21 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
         />
       )}
 
+      {isDocChecklistOpen && docChecklistStudent && (
+        <FormSubmitDocChecklistModal
+          isOpen={isDocChecklistOpen}
+          student={docChecklistStudent}
+          instituteName={settings.instituteName}
+          onClose={() => {
+            setIsDocChecklistOpen(false);
+            setDocChecklistStudent(null);
+          }}
+          onConfirmSubmit={handleConfirmDocChecklistSubmit}
+        />
+      )}
+
       {isPaymentOpen && paymentStudent && (
+
         <RegistrationRecordPaymentModal
           isOpen={isPaymentOpen}
           student={paymentStudent}

@@ -107,8 +107,19 @@
     padding: 0 !important;
   }
 
-  /* 2. Hide Web Interactive Elements & Overlays */
+  /* 2. Hide Web Interactive Elements & Background Main App Shell */
+  #main-app-shell,
+  #main-app-header,
+  #main-app-content,
+  #main-app-nav,
+  .main-app-container,
+  body.modal-printing-active #main-app-shell,
+  body.modal-printing-active header,
+  body.modal-printing-active main,
+  body.modal-printing-active nav,
+  body.modal-printing-active aside,
   .no-print,
+  .print\:hidden,
   button,
   nav,
   aside,
@@ -121,6 +132,8 @@
   .modal-backdrop-blur {
     display: none !important;
     visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
   }
 
   /* 3. Container & Modal Print Normalization */
