@@ -9,7 +9,11 @@ import {
   Filter, 
   Info,
   Phone,
-  Share2
+  Share2,
+  IdCard,
+  Building,
+  Camera,
+  ShieldCheck
 } from 'lucide-react';
 import { RegistrationStudent, InstituteSettings } from '../../types';
 
@@ -29,27 +33,27 @@ export const RegistrationDocAuditModal: React.FC<RegistrationDocAuditModalProps>
   onSelectStudent,
 }) => {
   const [filterType, setFilterType] = useState<
-    'ALL' | 'MISSING_APAAR' | 'MISSING_TC' | 'MISSING_CASTE' | 'MISSING_AADHAR' | 'FORM_NOT_ISSUED' | 'FORM_NOT_SUBMITTED'
+    'ALL' | 'MISSING_AADHAR' | 'MISSING_BANK' | 'MISSING_CASTE' | 'MISSING_PHOTO' | 'FORM_NOT_ISSUED' | 'FORM_NOT_SUBMITTED'
   >('ALL');
 
   if (!isOpen) return null;
 
-  // Audit Metrics
+  // 4 Required Documents Audit Metrics
   const missingAadhar = students.filter(s => s.documents?.aadhar?.status !== 'SUBMITTED');
-  const missingApaar = students.filter(s => s.documents?.apaar?.status !== 'SUBMITTED');
-  const missingTc = students.filter(s => s.documents?.transferCertificate?.status !== 'SUBMITTED');
+  const missingBank = students.filter(s => s.documents?.bankPassbook?.status !== 'SUBMITTED');
   const missingCaste = students.filter(s => {
-    const isMandatory = s.casteCategory === 'EBC' || s.casteCategory === 'SC' || s.casteCategory === 'ST';
+    const isMandatory = s.casteCategory === 'EBC' || s.casteCategory === 'SC' || s.casteCategory === 'ST' || s.casteCategory === 'BC';
     return isMandatory && s.documents?.casteCertificate?.status !== 'SUBMITTED';
   });
+  const missingPhoto = students.filter(s => s.documents?.photo?.status !== 'SUBMITTED' && s.documents?.photoSign?.status !== 'SUBMITTED');
   const formNotIssued = students.filter(s => !s.isFormIssued);
   const formNotSubmitted = students.filter(s => !s.isFormSubmitted);
 
   let filteredStudents = students;
   if (filterType === 'MISSING_AADHAR') filteredStudents = missingAadhar;
-  else if (filterType === 'MISSING_APAAR') filteredStudents = missingApaar;
-  else if (filterType === 'MISSING_TC') filteredStudents = missingTc;
+  else if (filterType === 'MISSING_BANK') filteredStudents = missingBank;
   else if (filterType === 'MISSING_CASTE') filteredStudents = missingCaste;
+  else if (filterType === 'MISSING_PHOTO') filteredStudents = missingPhoto;
   else if (filterType === 'FORM_NOT_ISSUED') filteredStudents = formNotIssued;
   else if (filterType === 'FORM_NOT_SUBMITTED') filteredStudents = formNotSubmitted;
   else {
@@ -57,9 +61,9 @@ export const RegistrationDocAuditModal: React.FC<RegistrationDocAuditModalProps>
       !s.isFormIssued ||
       !s.isFormSubmitted ||
       s.documents?.aadhar?.status !== 'SUBMITTED' ||
-      s.documents?.apaar?.status !== 'SUBMITTED' ||
-      s.documents?.transferCertificate?.status !== 'SUBMITTED' ||
-      ((s.casteCategory === 'EBC' || s.casteCategory === 'SC' || s.casteCategory === 'ST') && s.documents?.casteCertificate?.status !== 'SUBMITTED')
+      s.documents?.bankPassbook?.status !== 'SUBMITTED' ||
+      (s.documents?.photo?.status !== 'SUBMITTED' && s.documents?.photoSign?.status !== 'SUBMITTED') ||
+      ((s.casteCategory === 'EBC' || s.casteCategory === 'SC' || s.casteCategory === 'ST' || s.casteCategory === 'BC') && s.documents?.casteCertificate?.status !== 'SUBMITTED')
     );
   }
 
@@ -69,7 +73,7 @@ export const RegistrationDocAuditModal: React.FC<RegistrationDocAuditModalProps>
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-4xl bg-white/95 backdrop-blur-2xl rounded-3xl border border-white/60 shadow-2xl overflow-hidden my-auto flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-5xl bg-white/95 backdrop-blur-2xl rounded-3xl border border-white/60 shadow-2xl overflow-hidden my-auto flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="px-6 py-4 bg-linear-to-r from-amber-700 via-amber-800 to-stone-900 text-white flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -78,10 +82,10 @@ export const RegistrationDocAuditModal: React.FC<RegistrationDocAuditModalProps>
             </div>
             <div>
               <h2 className="text-base font-bold">
-                दस्तावेज अनुपालन एवं लंबित रिपोर्ट (Document Compliance Audit)
+                11वीं पंजीयन दस्तावेज अनुपालन एवं लंबित रिपोर्ट (4 Required Documents Audit)
               </h2>
               <p className="text-xs text-amber-200">
-                आधार, अपार (APAAR कारण सहित), स्थानांतरण (TC) एवं जाति प्रमाण पत्र सत्यापन
+                1. आधार कार्ड &bull; 2. बैंक पासबुक &bull; 3. जाति प्रमाण पत्र &bull; 4. पासपोर्ट फोटो सत्यापन
               </p>
             </div>
           </div>
@@ -107,50 +111,32 @@ export const RegistrationDocAuditModal: React.FC<RegistrationDocAuditModalProps>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <button
               type="button"
-              onClick={() => setFilterType('FORM_NOT_ISSUED')}
+              onClick={() => setFilterType('MISSING_AADHAR')}
               className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
-                filterType === 'FORM_NOT_ISSUED' ? 'bg-rose-50 border-rose-400 ring-2 ring-rose-400' : 'bg-[#FAF9F5] border-[#E8E4D5]'
+                filterType === 'MISSING_AADHAR' ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-400' : 'bg-[#FAF9F5] border-[#E8E4D5]'
               }`}
             >
-              <div className="text-xs text-[#5A5A40] font-semibold">फॉर्म नहीं लिया (NO)</div>
-              <div className="text-lg font-black text-rose-600 mt-0.5">{formNotIssued.length}</div>
-              <div className="text-[10px] text-gray-500">फॉर्म वितरण बाकी</div>
+              <div className="text-xs text-[#5A5A40] font-semibold flex items-center gap-1">
+                <IdCard className="w-3.5 h-3.5 text-blue-600" />
+                <span>1. आधार कार्ड</span>
+              </div>
+              <div className="text-lg font-black text-blue-700 mt-0.5">{missingAadhar.length}</div>
+              <div className="text-[10px] text-gray-500">लंबित आधार</div>
             </button>
 
             <button
               type="button"
-              onClick={() => setFilterType('FORM_NOT_SUBMITTED')}
+              onClick={() => setFilterType('MISSING_BANK')}
               className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
-                filterType === 'FORM_NOT_SUBMITTED' ? 'bg-orange-50 border-orange-400 ring-2 ring-orange-400' : 'bg-[#FAF9F5] border-[#E8E4D5]'
+                filterType === 'MISSING_BANK' ? 'bg-emerald-50 border-emerald-400 ring-2 ring-emerald-400' : 'bg-[#FAF9F5] border-[#E8E4D5]'
               }`}
             >
-              <div className="text-xs text-[#5A5A40] font-semibold">फॉर्म जमा नहीं (NO)</div>
-              <div className="text-lg font-black text-orange-600 mt-0.5">{formNotSubmitted.length}</div>
-              <div className="text-[10px] text-gray-500">संकलन बाकी</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setFilterType('MISSING_TC')}
-              className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
-                filterType === 'MISSING_TC' ? 'bg-rose-50 border-rose-400 ring-2 ring-rose-400' : 'bg-[#FAF9F5] border-[#E8E4D5]'
-              }`}
-            >
-              <div className="text-xs text-[#5A5A40] font-semibold">लंबित TC (Mandatory)</div>
-              <div className="text-lg font-black text-rose-600 mt-0.5">{missingTc.length}</div>
-              <div className="text-[10px] text-gray-500">सभी संकाय आवश्यक</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setFilterType('MISSING_APAAR')}
-              className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
-                filterType === 'MISSING_APAAR' ? 'bg-amber-50 border-amber-400 ring-2 ring-amber-400' : 'bg-[#FAF9F5] border-[#E8E4D5]'
-              }`}
-            >
-              <div className="text-xs text-[#5A5A40] font-semibold">अनुपलब्ध APAAR ID</div>
-              <div className="text-lg font-black text-amber-700 mt-0.5">{missingApaar.length}</div>
-              <div className="text-[10px] text-gray-500">कारण सहित दर्ज</div>
+              <div className="text-xs text-[#5A5A40] font-semibold flex items-center gap-1">
+                <Building className="w-3.5 h-3.5 text-emerald-600" />
+                <span>2. बैंक पासबुक</span>
+              </div>
+              <div className="text-lg font-black text-emerald-700 mt-0.5">{missingBank.length}</div>
+              <div className="text-[10px] text-gray-500">खाता/IFSC बाकी</div>
             </button>
 
             <button
@@ -160,21 +146,51 @@ export const RegistrationDocAuditModal: React.FC<RegistrationDocAuditModalProps>
                 filterType === 'MISSING_CASTE' ? 'bg-purple-50 border-purple-400 ring-2 ring-purple-400' : 'bg-[#FAF9F5] border-[#E8E4D5]'
               }`}
             >
-              <div className="text-xs text-[#5A5A40] font-semibold">लंबित जाति प्रमाण पत्र</div>
+              <div className="text-xs text-[#5A5A40] font-semibold flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+                <span>3. जाति प्रमाण पत्र</span>
+              </div>
               <div className="text-lg font-black text-purple-700 mt-0.5">{missingCaste.length}</div>
-              <div className="text-[10px] text-gray-500">EBC, SC, ST अनिवार्य</div>
+              <div className="text-[10px] text-gray-500">आरक्षित कोटि अनिवार्य</div>
             </button>
 
             <button
               type="button"
-              onClick={() => setFilterType('MISSING_AADHAR')}
+              onClick={() => setFilterType('MISSING_PHOTO')}
               className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
-                filterType === 'MISSING_AADHAR' ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-400' : 'bg-[#FAF9F5] border-[#E8E4D5]'
+                filterType === 'MISSING_PHOTO' ? 'bg-rose-50 border-rose-400 ring-2 ring-rose-400' : 'bg-[#FAF9F5] border-[#E8E4D5]'
               }`}
             >
-              <div className="text-xs text-[#5A5A40] font-semibold">लंबित आधार कार्ड</div>
-              <div className="text-lg font-black text-blue-700 mt-0.5">{missingAadhar.length}</div>
-              <div className="text-[10px] text-gray-500">12-अंकीय नंबर</div>
+              <div className="text-xs text-[#5A5A40] font-semibold flex items-center gap-1">
+                <Camera className="w-3.5 h-3.5 text-rose-600" />
+                <span>4. फोटो (Photo)</span>
+              </div>
+              <div className="text-lg font-black text-rose-700 mt-0.5">{missingPhoto.length}</div>
+              <div className="text-[10px] text-gray-500">फोटो चस्पा बाकी</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFilterType('FORM_NOT_ISSUED')}
+              className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
+                filterType === 'FORM_NOT_ISSUED' ? 'bg-rose-50 border-rose-400 ring-2 ring-rose-400' : 'bg-[#FAF9F5] border-[#E8E4D5]'
+              }`}
+            >
+              <div className="text-xs text-[#5A5A40] font-semibold">फॉर्म नहीं लिया</div>
+              <div className="text-lg font-black text-rose-600 mt-0.5">{formNotIssued.length}</div>
+              <div className="text-[10px] text-gray-500">वितरण बाकी</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFilterType('FORM_NOT_SUBMITTED')}
+              className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
+                filterType === 'FORM_NOT_SUBMITTED' ? 'bg-orange-50 border-orange-400 ring-2 ring-orange-400' : 'bg-[#FAF9F5] border-[#E8E4D5]'
+              }`}
+            >
+              <div className="text-xs text-[#5A5A40] font-semibold">फॉर्म जमा नहीं</div>
+              <div className="text-lg font-black text-orange-600 mt-0.5">{formNotSubmitted.length}</div>
+              <div className="text-[10px] text-gray-500">संकलन बाकी</div>
             </button>
           </div>
 
@@ -182,7 +198,7 @@ export const RegistrationDocAuditModal: React.FC<RegistrationDocAuditModalProps>
           <div className="border border-[#E8E4D5] rounded-2xl overflow-hidden bg-white">
             <div className="px-4 py-3 bg-[#FAF9F5] border-b border-[#E8E4D5] flex items-center justify-between">
               <span className="text-xs font-bold text-[#4A453E]">
-                लंबित दस्तावेज सूची ({filteredStudents.length} छात्र):
+                लंबित दस्तावेज छात्र सूची ({filteredStudents.length} छात्र):
               </span>
               <button
                 type="button"
@@ -200,10 +216,10 @@ export const RegistrationDocAuditModal: React.FC<RegistrationDocAuditModalProps>
                     <th className="p-2.5">फॉर्म सं.</th>
                     <th className="p-2.5">छात्र / पिता का नाम</th>
                     <th className="p-2.5">संकाय & कोटि</th>
-                    <th className="p-2.5">फॉर्म स्थिति</th>
-                    <th className="p-2.5">स्थानांतरण (TC)</th>
-                    <th className="p-2.5">अपार (APAAR) स्थिति & कारण</th>
-                    <th className="p-2.5">जाति प्रमाण पत्र</th>
+                    <th className="p-2.5">1. आधार कार्ड</th>
+                    <th className="p-2.5">2. बैंक पासबुक</th>
+                    <th className="p-2.5">3. जाति प्रमाण पत्र</th>
+                    <th className="p-2.5">4. फोटो (Photo)</th>
                     <th className="p-2.5 text-center">कार्रवाई</th>
                   </tr>
                 </thead>
@@ -212,13 +228,18 @@ export const RegistrationDocAuditModal: React.FC<RegistrationDocAuditModalProps>
                     <tr>
                       <td colSpan={8} className="p-8 text-center text-gray-500">
                         <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                        <span className="font-bold text-sm block text-gray-700">सभी दस्तावेज पूर्ण हैं!</span>
+                        <span className="font-bold text-sm block text-gray-700">सभी 4 अनिवार्य दस्तावेज पूर्ण हैं!</span>
                         <span className="text-xs">इस श्रेणी में कोई लंबित दस्तावेज नहीं पाया गया।</span>
                       </td>
                     </tr>
                   ) : (
                     filteredStudents.map((stu) => {
-                      const isCasteReq = stu.casteCategory === 'EBC' || stu.casteCategory === 'SC' || stu.casteCategory === 'ST';
+                      const isCasteReq = stu.casteCategory === 'EBC' || stu.casteCategory === 'SC' || stu.casteCategory === 'ST' || stu.casteCategory === 'BC';
+                      const isAadharOk = stu.documents?.aadhar?.status === 'SUBMITTED';
+                      const isBankOk = stu.documents?.bankPassbook?.status === 'SUBMITTED';
+                      const isCasteOk = !isCasteReq || stu.documents?.casteCertificate?.status === 'SUBMITTED';
+                      const isPhotoOk = stu.documents?.photo?.status === 'SUBMITTED' || stu.documents?.photoSign?.status === 'SUBMITTED';
+
                       return (
                         <tr key={stu.id} className="hover:bg-amber-50/30">
                           <td className="p-2.5 font-mono font-bold text-[#2E5B50]">{stu.formNo}</td>
@@ -233,52 +254,50 @@ export const RegistrationDocAuditModal: React.FC<RegistrationDocAuditModalProps>
                             </span>
                           </td>
                           <td className="p-2.5">
-                            <div className="flex flex-col gap-1 text-[10px] font-bold">
-                              <span className={`px-1.5 py-0.5 rounded ${stu.isFormIssued ? 'bg-emerald-100 text-emerald-900' : 'bg-rose-100 text-rose-900'}`}>
-                                लिया: {stu.isFormIssued ? 'YES ✓' : 'NO ✗'}
-                              </span>
-                              <span className={`px-1.5 py-0.5 rounded ${stu.isFormSubmitted ? 'bg-blue-100 text-blue-900' : 'bg-rose-100 text-rose-900'}`}>
-                                जमा: {stu.isFormSubmitted ? 'YES ✓' : 'NO ✗'}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="p-2.5">
-                            {stu.documents?.transferCertificate?.status === 'SUBMITTED' ? (
+                            {isAadharOk ? (
                               <span className="inline-flex items-center gap-1 text-emerald-700 font-bold text-[11px]">
-                                <CheckCircle2 className="w-3.5 h-3.5" /> जमा
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>{stu.documents?.aadhar?.docNumber || 'जमा ✓'}</span>
                               </span>
                             ) : (
-                              <span className="inline-block px-2 py-0.5 bg-rose-100 text-rose-800 rounded font-bold text-[10px]">
-                                TC लंबित (Mandatory)
+                              <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-900 rounded font-bold text-[10px]">
+                                आधार लंबित
                               </span>
                             )}
                           </td>
-                          <td className="p-2.5 max-w-[220px]">
-                            {stu.documents?.apaar?.status === 'SUBMITTED' ? (
-                              <span className="font-mono text-emerald-700 text-[11px] font-bold">
-                                {stu.documents.apaar.docNumber || 'उपलब्ध'}
+                          <td className="p-2.5">
+                            {isBankOk ? (
+                              <span className="inline-flex items-center gap-1 text-emerald-700 font-bold text-[11px]">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>{stu.documents?.bankPassbook?.accountNumber || stu.documents?.bankPassbook?.bankName || 'जमा ✓'}</span>
                               </span>
                             ) : (
-                              <div className="text-[11px]">
-                                <span className="inline-block px-1.5 py-0.5 bg-amber-100 text-amber-900 rounded font-bold text-[10px] mb-0.5">
-                                  अनुपलब्ध (Not Available)
-                                </span>
-                                <div className="text-[10px] text-amber-800 truncate" title={stu.documents?.apaar?.notAvailableReason}>
-                                  {stu.documents?.apaar?.notAvailableReason || 'कारण दर्ज नहीं है'}
-                                </div>
-                              </div>
+                              <span className="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-900 rounded font-bold text-[10px]">
+                                पासबुक लंबित
+                              </span>
                             )}
                           </td>
                           <td className="p-2.5">
                             {!isCasteReq ? (
-                              <span className="text-gray-400 text-[11px]">लागू नहीं (Gen/BC)</span>
-                            ) : stu.documents?.casteCertificate?.status === 'SUBMITTED' ? (
+                              <span className="text-gray-400 text-[11px]">लागू नहीं (Gen)</span>
+                            ) : isCasteOk ? (
                               <span className="inline-flex items-center gap-1 text-emerald-700 font-bold text-[11px]">
-                                <CheckCircle2 className="w-3.5 h-3.5" /> {stu.documents.casteCertificate.docNumber || 'जमा'}
+                                <CheckCircle2 className="w-3.5 h-3.5" /> {stu.documents?.casteCertificate?.docNumber || 'जमा ✓'}
                               </span>
                             ) : (
                               <span className="inline-block px-2 py-0.5 bg-purple-100 text-purple-800 rounded font-bold text-[10px]">
-                                {stu.casteCategory} प्रमाणपत्र लंबित
+                                {stu.casteCategory} जाति लंबित
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-2.5">
+                            {isPhotoOk ? (
+                              <span className="inline-flex items-center gap-1 text-emerald-700 font-bold text-[11px]">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> फोटो प्राप्त
+                              </span>
+                            ) : (
+                              <span className="inline-block px-2 py-0.5 bg-rose-100 text-rose-800 rounded font-bold text-[10px]">
+                                फोटो लंबित
                               </span>
                             )}
                           </td>

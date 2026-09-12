@@ -43,11 +43,12 @@ import { LoginPage } from './components/LoginPage';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { DailySettlementModal } from './components/DailySettlementModal';
 import { MainDashboardHub } from './components/MainDashboardHub';
-import { RegistrationModule } from './components/Registration/RegistrationModule';
+import { RegistrationModule, RegistrationSubTab } from './components/Registration/RegistrationModule';
 import { StudentLifecycleModule } from './components/Lifecycle/StudentLifecycleModule';
 import { SessionManagerModal } from './components/SessionManagerModal';
 import { OfflineIndicator } from './components/PWA/OfflineIndicator';
-import { RotateCcw, CheckCircle2, X, ArrowLeft, School, BookOpen, Layers } from 'lucide-react';
+import { AppDrawer } from './components/AppDrawer';
+import { RotateCcw, CheckCircle2, X, ArrowLeft, School, BookOpen, Layers, Menu } from 'lucide-react';
 
 interface UndoAction {
   id: string;
@@ -72,6 +73,7 @@ export default function App() {
 
   // Navigation tab state
   const [activeTab, setActiveTab] = useState<'students' | 'upload' | 'transactions' | 'settings'>('students');
+  const [activeRegistrationTab, setActiveRegistrationTab] = useState<RegistrationSubTab>('students');
 
   // Auth session state
   const [currentSchoolCode, setCurrentSchoolCode] = useState<string>(() => {
@@ -99,6 +101,7 @@ export default function App() {
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isDailySettlementOpen, setIsDailySettlementOpen] = useState(false);
   const [isSessionManagerOpen, setIsSessionManagerOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const handleLoginSuccess = (schoolCode: string) => {
     setCurrentSchoolCode(schoolCode);
@@ -1151,6 +1154,7 @@ export default function App() {
               setActiveTab('settings');
             }}
             onOpenSessionManager={() => setIsSessionManagerOpen(true)}
+            onOpenDrawer={() => setIsDrawerOpen(true)}
           />
         </div>
       )}
@@ -1175,11 +1179,14 @@ export default function App() {
           <RegistrationModule
             students={registrationStudents}
             settings={settings}
+            activeTab={activeRegistrationTab}
+            onTabChange={setActiveRegistrationTab}
             onUpdateStudents={updateRegistrationStudentsState}
             onDeleteStudent={handleDeleteRegistrationStudent}
             onClearAll={handleClearAllRegistrationStudents}
             onBackToDashboard={() => setActiveModule('HUB')}
             onSwitchToExamination={() => setActiveModule('EXAMINATION')}
+            onOpenDrawer={() => setIsDrawerOpen(true)}
           />
         </div>
       )}
@@ -1190,13 +1197,23 @@ export default function App() {
           {/* Top Quick Module Switch Bar */}
           <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white px-4 py-2 border-b border-indigo-900/40">
             <div className="max-w-7xl mx-auto flex items-center justify-between text-xs">
-              <button
-                onClick={() => setActiveModule('HUB')}
-                className="flex items-center gap-1.5 font-bold hover:text-indigo-200 transition bg-white/10 hover:bg-white/20 px-3 py-1 rounded-xl"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>← मुख्य डैशबोर्ड (Main Dashboard)</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsDrawerOpen(true)}
+                  className="flex items-center gap-1.5 font-bold hover:text-indigo-200 transition bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded-xl shadow-xs"
+                  title="नेविगेशन ड्रॉवर खोलें (Open Menu Drawer)"
+                >
+                  <Menu className="w-3.5 h-3.5" />
+                  <span>मेनू ड्रॉवर</span>
+                </button>
+                <button
+                  onClick={() => setActiveModule('HUB')}
+                  className="flex items-center gap-1.5 font-bold hover:text-indigo-200 transition bg-white/10 hover:bg-white/20 px-3 py-1 rounded-xl"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>← मुख्य डैशबोर्ड</span>
+                </button>
+              </div>
 
               <div className="flex items-center gap-2">
                 <span className="text-indigo-200 hidden sm:inline">
@@ -1233,6 +1250,7 @@ export default function App() {
             settings={settings}
             onChangePasswordClick={() => setIsChangePasswordOpen(true)}
             onLogoutClick={handleLogout}
+            onOpenDrawer={() => setIsDrawerOpen(true)}
           />
 
           {/* Main Examination View Area */}
@@ -1343,15 +1361,6 @@ export default function App() {
               />
             )}
           </main>
-
-          {/* Mobile First Bottom Navigation */}
-          <MobileBottomNav
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            onOpenLogTransaction={() => setIsLogTransactionOpen(true)}
-            onOpenAddStudent={() => setIsAddStudentOpen(true)}
-            onOpenDailySettlement={() => setIsDailySettlementOpen(true)}
-          />
         </>
       )}
 
@@ -1433,16 +1442,47 @@ export default function App() {
         onLogTransaction={handleLogTransaction}
       />
 
-      {/* Mobile First Colorful Bottom Navigation & Floating Action Button */}
-      <MobileBottomNav
+      {/* Mobile First Colorful Bottom Navigation & Floating Action Button (Hidden on Main Dashboard Hub) */}
+      {activeModule !== 'HUB' && (
+        <MobileBottomNav
+          activeModule={activeModule}
+          setActiveModule={setActiveModule}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          activeRegistrationTab={activeRegistrationTab}
+          setActiveRegistrationTab={setActiveRegistrationTab}
+          onOpenLogTransaction={() => setIsLogTransactionOpen(true)}
+          onOpenAddStudent={() => setIsAddStudentOpen(true)}
+          onOpenDailySettlement={() => setIsDailySettlementOpen(true)}
+          onOpenSessionManager={() => setIsSessionManagerOpen(true)}
+          onOpenDrawer={() => setIsDrawerOpen(true)}
+        />
+      )}
+
+      {/* Main Unified Responsive Navigation Drawer */}
+      <AppDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        settings={settings}
         activeModule={activeModule}
         setActiveModule={setActiveModule}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        onOpenLogTransaction={() => setIsLogTransactionOpen(true)}
+        activeRegistrationTab={activeRegistrationTab}
+        setActiveRegistrationTab={setActiveRegistrationTab}
         onOpenAddStudent={() => setIsAddStudentOpen(true)}
+        onOpenUploadPdf={() => setIsUploadPdfOpen(true)}
+        onOpenLogTransaction={() => setIsLogTransactionOpen(true)}
         onOpenDailySettlement={() => setIsDailySettlementOpen(true)}
+        onOpenSettings={() => {
+          setActiveModule('EXAMINATION');
+          setActiveTab('settings');
+        }}
         onOpenSessionManager={() => setIsSessionManagerOpen(true)}
+        onOpenChangePassword={() => setIsChangePasswordOpen(true)}
+        onLogout={handleLogout}
+        studentsCount={students.length}
+        registrationCount={registrationStudents.length}
       />
 
       {/* Cashier Day-End Settlement / Day Book Modal */}

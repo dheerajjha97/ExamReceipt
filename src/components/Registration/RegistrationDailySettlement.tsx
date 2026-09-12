@@ -16,6 +16,7 @@ import {
 import { RegistrationStudent, InstituteSettings, isBSEBBoard } from '../../types';
 import { printIsolatedElement, fallbackDirectPrint } from '../../utils/printHelper';
 import { numberToWordsInINR } from '../../services/storageService';
+import { normalizeDateToYYYYMMDD, formatDateToDDMMYYYY, getTodayLocalYYYYMMDD } from '../../utils/dateHelper';
 
 interface RegistrationDailySettlementProps {
   students: RegistrationStudent[];
@@ -26,13 +27,9 @@ export const RegistrationDailySettlement: React.FC<RegistrationDailySettlementPr
   students,
   settings,
 }) => {
-  // Normalize current date in DD/MM/YYYY or YYYY-MM-DD
+  // Normalize current date in DD/MM/YYYY
   const todayDateStr = useMemo(() => {
-    const d = new Date();
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
+    return formatDateToDDMMYYYY(getTodayLocalYYYYMMDD());
   }, []);
 
   const [selectedDate, setSelectedDate] = useState<string>(todayDateStr);
@@ -41,11 +38,14 @@ export const RegistrationDailySettlement: React.FC<RegistrationDailySettlementPr
 
   // Filter students who paid on this date
   const dayPaidStudents = useMemo(() => {
+    const normSelected = normalizeDateToYYYYMMDD(selectedDate);
     return students.filter(s => {
       if (s.paymentStatus !== 'PAID') return false;
       if (viewAllDates) return true;
-      const pDate = s.paymentDate || '';
-      return pDate.includes(selectedDate) || selectedDate.includes(pDate);
+      const rawDate = s.paymentDate || s.updatedAt || s.createdAt;
+      const normPDate = normalizeDateToYYYYMMDD(rawDate);
+      if (!normPDate && !normSelected) return true;
+      return normPDate === normSelected;
     });
   }, [students, selectedDate, viewAllDates]);
 
@@ -150,7 +150,7 @@ export const RegistrationDailySettlement: React.FC<RegistrationDailySettlementPr
         </div>
 
         {/* Summary Grid */}
-        <div className="grid grid-cols-3 gap-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div className="p-3 bg-white rounded-xl border border-slate-300">
             <div className="text-slate-500 font-bold">1. नकद काउंटर प्राप्ति (Cash in Hand)</div>
             <div className="text-lg font-black text-emerald-800 font-mono mt-1">₹{cashTotal.toLocaleString('en-IN')}</div>
@@ -170,60 +170,76 @@ export const RegistrationDailySettlement: React.FC<RegistrationDailySettlementPr
 
         {/* Detailed Transactions List */}
         <div>
-          <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-2">
-            दैनिक प्राप्ति विवरण तालिका ({dayPaidStudents.length} छात्र):
-          </h4>
-          <table className="w-full border-collapse text-[10.5px] border border-slate-400">
-            <thead>
-              <tr className="bg-slate-200 text-slate-800 font-bold">
-                <th className="border border-slate-400 p-1.5 text-center w-8">क्र.</th>
-                <th className="border border-slate-400 p-1.5 text-left">फॉर्म नं / OFSS</th>
-                <th className="border border-slate-400 p-1.5 text-left">छात्र का नाम (Student)</th>
-                <th className="border border-slate-400 p-1.5 text-center">संकाय</th>
-                <th className="border border-slate-400 p-1.5 text-center">बोर्ड दर</th>
-                <th className="border border-slate-400 p-1.5 text-right">राशि (₹)</th>
-                <th className="border border-slate-400 p-1.5 text-center">माध्यम</th>
-                <th className="border border-slate-400 p-1.5 text-center">समय / UTR</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dayPaidStudents.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="p-6 text-center text-slate-500">
-                    इस तिथि ({selectedDate}) को कोई 11वीं शुल्क प्राप्ति दर्ज नहीं है।
-                  </td>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+              दैनिक प्राप्ति विवरण तालिका ({dayPaidStudents.length} छात्र):
+            </h4>
+            <span className="text-[10px] text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-md font-bold sm:hidden">
+              ← स्वाइप करें (Scroll) →
+            </span>
+          </div>
+
+          <div className="w-full overflow-x-auto rounded-xl border border-slate-400 bg-white shadow-2xs">
+            <table className="w-full min-w-[700px] border-collapse text-[11px]">
+              <thead>
+                <tr className="bg-slate-200 text-slate-800 font-bold border-b border-slate-400">
+                  <th className="p-2 text-center w-10 border-r border-slate-300">क्र.</th>
+                  <th className="p-2 text-left border-r border-slate-300 whitespace-nowrap">फॉर्म नं / OFSS</th>
+                  <th className="p-2 text-left border-r border-slate-300 whitespace-nowrap">छात्र का नाम (Student)</th>
+                  <th className="p-2 text-center border-r border-slate-300 whitespace-nowrap">संकाय</th>
+                  <th className="p-2 text-center border-r border-slate-300 whitespace-nowrap">बोर्ड दर</th>
+                  <th className="p-2 text-right border-r border-slate-300 whitespace-nowrap">राशि (₹)</th>
+                  <th className="p-2 text-center border-r border-slate-300 whitespace-nowrap">माध्यम</th>
+                  <th className="p-2 text-center whitespace-nowrap">समय / UTR</th>
                 </tr>
-              ) : (
-                dayPaidStudents.map((s, idx) => {
-                  const fee = s.paidAmount || (isBSEBBoard(s.boardName || s.matricBoard) ? 515 : 715);
-                  const isBseb = isBSEBBoard(s.boardName || s.matricBoard) || fee === 515;
-                  return (
-                    <tr key={s.id} className="border-b border-slate-300">
-                      <td className="border border-slate-400 p-1.5 text-center font-bold">{idx + 1}</td>
-                      <td className="border border-slate-400 p-1.5 font-mono">{s.formNo || s.ofssReferenceNo || '—'}</td>
-                      <td className="border border-slate-400 p-1.5 font-bold">{s.studentName}</td>
-                      <td className="border border-slate-400 p-1.5 text-center">{s.stream}</td>
-                      <td className="border border-slate-400 p-1.5 text-center">{isBseb ? 'BSEB (₹515)' : 'Other (₹715)'}</td>
-                      <td className="border border-slate-400 p-1.5 text-right font-bold font-mono">₹{fee}</td>
-                      <td className="border border-slate-400 p-1.5 text-center font-bold">{s.paymentMode || 'CASH'}</td>
-                      <td className="border border-slate-400 p-1.5 text-center font-mono">{s.utrNumber || s.paymentDate || '—'}</td>
-                    </tr>
-                  );
-                })
+              </thead>
+              <tbody className="divide-y divide-slate-300">
+                {dayPaidStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-6 text-center text-slate-500">
+                      इस तिथि ({selectedDate}) को कोई 11वीं शुल्क प्राप्ति दर्ज नहीं है।
+                    </td>
+                  </tr>
+                ) : (
+                  dayPaidStudents.map((s, idx) => {
+                    const fee = s.paidAmount || (isBSEBBoard(s.boardName || s.matricBoard) ? 515 : 715);
+                    const isBseb = isBSEBBoard(s.boardName || s.matricBoard) || fee === 515;
+                    return (
+                      <tr key={s.id} className="hover:bg-slate-50/80">
+                        <td className="p-2 text-center font-bold border-r border-slate-300">{idx + 1}</td>
+                        <td className="p-2 font-mono font-bold text-slate-900 border-r border-slate-300 whitespace-nowrap">{s.formNo || s.ofssReferenceNo || '—'}</td>
+                        <td className="p-2 font-bold text-slate-900 border-r border-slate-300 whitespace-nowrap">{s.studentName}</td>
+                        <td className="p-2 text-center border-r border-slate-300 whitespace-nowrap">{s.stream}</td>
+                        <td className="p-2 text-center border-r border-slate-300 whitespace-nowrap">
+                          <span className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${isBseb ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                            {isBseb ? 'BSEB (₹515)' : 'Other (₹715)'}
+                          </span>
+                        </td>
+                        <td className="p-2 text-right font-bold font-mono text-emerald-900 border-r border-slate-300 whitespace-nowrap">₹{fee}</td>
+                        <td className="p-2 text-center font-bold border-r border-slate-300 whitespace-nowrap">
+                          <span className="px-1.5 py-0.5 rounded bg-slate-100 font-mono text-[10.5px]">
+                            {s.paymentMode || 'CASH'}
+                          </span>
+                        </td>
+                        <td className="p-2 text-center font-mono text-slate-600 whitespace-nowrap">{s.utrNumber || s.paymentDate || '—'}</td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+              {dayPaidStudents.length > 0 && (
+                <tfoot>
+                  <tr className="bg-slate-100 font-bold border-t border-slate-400">
+                    <td colSpan={5} className="p-2.5 text-right border-r border-slate-300">कुल योग (Grand Total):</td>
+                    <td className="p-2.5 text-right font-mono font-black text-sm text-teal-900 border-r border-slate-300">
+                      ₹{totalAmount.toLocaleString('en-IN')}
+                    </td>
+                    <td colSpan={2} className="p-2.5"></td>
+                  </tr>
+                </tfoot>
               )}
-            </tbody>
-            {dayPaidStudents.length > 0 && (
-              <tfoot>
-                <tr className="bg-slate-100 font-bold">
-                  <td colSpan={5} className="border border-slate-400 p-2 text-right">कुल योग (Grand Total):</td>
-                  <td className="border border-slate-400 p-2 text-right font-mono font-black text-xs text-teal-900">
-                    ₹{totalAmount.toLocaleString('en-IN')}
-                  </td>
-                  <td colSpan={2} className="border border-slate-400 p-2"></td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
+            </table>
+          </div>
         </div>
 
         {/* Closing Certification & Signatures */}

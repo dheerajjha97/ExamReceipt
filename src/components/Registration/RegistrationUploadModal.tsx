@@ -269,6 +269,24 @@ export const RegistrationUploadModal: React.FC<RegistrationUploadModalProps> = (
             docNumber: aadharNo || '', 
             verified: Boolean(aadharNo) 
           },
+          bankPassbook: {
+            status: 'PENDING',
+            accountNumber: '',
+            verified: false,
+          },
+          casteCertificate: {
+            status: isCasteMandatory ? (casteCertNo ? 'SUBMITTED' : 'PENDING') : 'EXEMPTED',
+            docNumber: casteCertNo || '',
+            verified: Boolean(casteCertNo)
+          },
+          photo: {
+            status: 'PENDING',
+            verified: false,
+          },
+          photoSign: {
+            status: 'PENDING',
+            verified: false,
+          },
           apaar: { 
             status: apaarId ? 'SUBMITTED' : 'PENDING', 
             docNumber: apaarId || undefined, 
@@ -278,11 +296,6 @@ export const RegistrationUploadModal: React.FC<RegistrationUploadModalProps> = (
             status: tcNo ? 'SUBMITTED' : 'PENDING', 
             docNumber: tcNo || '', 
             verified: Boolean(tcNo) 
-          },
-          casteCertificate: {
-            status: isCasteMandatory ? (casteCertNo ? 'SUBMITTED' : 'PENDING') : 'EXEMPTED',
-            docNumber: casteCertNo || '',
-            verified: Boolean(casteCertNo)
           },
           matricMarksheet: { status: 'PENDING', verified: false },
         },
@@ -427,6 +440,24 @@ export const RegistrationUploadModal: React.FC<RegistrationUploadModalProps> = (
               docNumber: s.aadharNo || '',
               verified: Boolean(s.aadharNo),
             },
+            bankPassbook: {
+              status: s.accountNumber ? 'SUBMITTED' : 'PENDING',
+              accountNumber: s.accountNumber || '',
+              verified: Boolean(s.accountNumber),
+            },
+            casteCertificate: {
+              status: isCasteMandatory ? (s.casteCertNo ? 'SUBMITTED' : 'PENDING') : 'EXEMPTED',
+              docNumber: s.casteCertNo || '',
+              verified: Boolean(s.casteCertNo),
+            },
+            photo: {
+              status: 'PENDING',
+              verified: false,
+            },
+            photoSign: {
+              status: 'PENDING',
+              verified: false,
+            },
             apaar: {
               status: s.apaarId ? 'SUBMITTED' : 'PENDING',
               docNumber: s.apaarId || undefined,
@@ -436,11 +467,6 @@ export const RegistrationUploadModal: React.FC<RegistrationUploadModalProps> = (
               status: s.tcNo ? 'SUBMITTED' : 'PENDING',
               docNumber: s.tcNo || '',
               verified: Boolean(s.tcNo),
-            },
-            casteCertificate: {
-              status: isCasteMandatory ? (s.casteCertNo ? 'SUBMITTED' : 'PENDING') : 'EXEMPTED',
-              docNumber: s.casteCertNo || '',
-              verified: Boolean(s.casteCertNo),
             },
             matricMarksheet: {
               status: 'PENDING',

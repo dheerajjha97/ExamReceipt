@@ -18,7 +18,10 @@ import {
   BookOpen,
   Receipt,
   UserCheck,
-  Building
+  Building,
+  IndianRupee,
+  ArrowRight,
+  CreditCard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -46,7 +49,7 @@ export interface DocChecklistItem {
 interface FormSubmitDocChecklistModalProps {
   isOpen: boolean;
   onClose: () => void;
-  formType: '11TH_REGISTRATION' | '12TH_EXAMINATION' | 'GENERAL_ADMISSION';
+  formType?: '11TH_REGISTRATION' | '12TH_EXAMINATION' | 'GENERAL_ADMISSION';
   student: {
     id: string;
     studentName: string;
@@ -59,25 +62,48 @@ interface FormSubmitDocChecklistModalProps {
     classOrStream?: string;
     mobile?: string;
     totalFee?: number;
+    registrationFee?: number;
+    paidAmount?: number;
     paymentStatus?: string;
+    boardName?: string;
+    matricBoard?: string;
     documents?: RegistrationDocuments | any;
   };
-  settings: InstituteSettings;
+  settings?: InstituteSettings;
+  instituteName?: string;
   onConfirmSubmit: (verifiedDocs: Record<string, { submitted: boolean; docNumber?: string; remarks?: string }>, submissionDate: string) => void;
+  onProceedToPayment?: (student: any) => void;
 }
 
 export const FormSubmitDocChecklistModal: React.FC<FormSubmitDocChecklistModalProps> = ({
   isOpen,
   onClose,
-  formType,
+  formType = '11TH_REGISTRATION',
   student,
-  settings,
+  settings = {
+    name: 'प्लस टू उच्च विद्यालय / महाविद्यालय',
+    code: '31337',
+    subTitle: 'इंटरमीडिएट संभाग (कला, विज्ञान, वाणिज्य)',
+    academicYear: '2025-2027',
+    address: 'बिहार, भारत',
+    principalName: 'प्रधानाचार्य',
+    defaultOnlineCharge: 0,
+    currencySymbol: '₹',
+    cashierName: 'प्रभारी',
+    contactNumber: '',
+  } as unknown as InstituteSettings,
+  instituteName,
   onConfirmSubmit,
+  onProceedToPayment,
 }) => {
   const isCasteMandatory = 
     student.casteCategory === 'EBC' || 
     student.casteCategory === 'SC' || 
-    student.casteCategory === 'ST';
+    student.casteCategory === 'ST' ||
+    student.casteCategory === 'BC';
+
+  const isPaid = student.paymentStatus === 'PAID';
+  const expectedFee = student.registrationFee || student.totalFee || (student.boardName && !student.boardName.includes('BSEB') ? 715 : 515);
 
   // Helper to build initial items based on form type and existing student docs
   const getInitialDocItems = (): DocChecklistItem[] => {
@@ -87,44 +113,33 @@ export const FormSubmitDocChecklistModal: React.FC<FormSubmitDocChecklistModalPr
       return [
         {
           id: 'aadhar',
-          nameHindi: 'आधार कार्ड की छायाप्रति',
-          nameEng: 'Aadhaar Card Photocopy',
-          description: 'छात्र का 12-अंकीय आधार कार्ड (नाम व जन्मतिथि सत्यापन हेतु)',
+          nameHindi: '1. आधार कार्ड की छायाप्रति (Aadhaar Card)',
+          nameEng: 'Aadhaar Card (12-Digit UID Copy)',
+          description: 'छात्र का 12-अंकीय आधार कार्ड (अनिवार्य दस्तावेज - 1)',
           icon: IdCard,
           isMandatory: true,
-          status: existingDocs.aadhar?.status === 'SUBMITTED' ? 'YES' : 'YES', // default YES for quick convenience
+          status: existingDocs.aadhar?.status === 'SUBMITTED' ? 'YES' : 'YES',
           docNumber: existingDocs.aadhar?.docNumber || '',
           remarks: existingDocs.aadhar?.remarks || '',
         },
         {
-          id: 'matricMarksheet',
-          nameHindi: '10वीं / मैट्रिक अंक पत्र की छायाप्रति',
-          nameEng: '10th / Matric Marksheet Copy',
-          description: 'बिहार बोर्ड (BSEB) अथवा अन्य मान्यता प्राप्त बोर्ड का मैट्रिक अंक पत्र',
-          icon: FileText,
+          id: 'bankPassbook',
+          nameHindi: '2. बैंक पासबुक की छायाप्रति (Bank Passbook)',
+          nameEng: 'Bank Passbook Photocopy (A/c & IFSC)',
+          description: 'छात्र/अभिभावक का बैंक खाता संख्या व IFSC कोड पृष्ठ (अनिवार्य दस्तावेज - 2)',
+          icon: Building,
           isMandatory: true,
-          status: existingDocs.matricMarksheet?.status === 'SUBMITTED' ? 'YES' : 'YES',
-          docNumber: existingDocs.matricMarksheet?.docNumber || '',
-          remarks: existingDocs.matricMarksheet?.remarks || '',
-        },
-        {
-          id: 'transferCertificate',
-          nameHindi: 'मूल स्थानांतरण प्रमाण पत्र (TC / SLC / CLC)',
-          nameEng: 'Original TC / SLC / CLC Certificate',
-          description: 'पूर्व विद्यालय से निर्गत मूल टीसी (Original School Leaving Certificate)',
-          icon: Award,
-          isMandatory: true,
-          status: existingDocs.transferCertificate?.status === 'SUBMITTED' ? 'YES' : 'YES',
-          docNumber: existingDocs.transferCertificate?.docNumber || '',
-          remarks: existingDocs.transferCertificate?.remarks || '',
+          status: existingDocs.bankPassbook?.status === 'SUBMITTED' ? 'YES' : 'YES',
+          docNumber: existingDocs.bankPassbook?.accountNumber || existingDocs.bankPassbook?.docNumber || '',
+          remarks: existingDocs.bankPassbook?.bankName || existingDocs.bankPassbook?.ifscCode || '',
         },
         {
           id: 'casteCertificate',
-          nameHindi: 'जाति प्रमाण पत्र (Caste Certificate)',
-          nameEng: 'Caste Certificate (EBC / SC / ST)',
+          nameHindi: '3. जाति प्रमाण पत्र (Caste Certificate)',
+          nameEng: 'Caste Certificate (EBC / BC / SC / ST)',
           description: isCasteMandatory 
-            ? `कोटि ${student.casteCategory || 'आरक्षित'} हेतु अनिवार्य (अद्यतन अनुमंडल/अंचल स्तर)` 
-            : 'General / BC कोटि हेतु आवश्यक नहीं (छूट प्राप्त)',
+            ? `कोटि ${student.casteCategory || 'आरक्षित'} हेतु अनिवार्य (अनिवार्य दस्तावेज - 3)` 
+            : 'General कोटि हेतु छूट प्राप्त (आरक्षित श्रेणियों हेतु अनिवार्य)',
           icon: ShieldCheck,
           isMandatory: isCasteMandatory,
           status: isCasteMandatory 
@@ -134,14 +149,14 @@ export const FormSubmitDocChecklistModal: React.FC<FormSubmitDocChecklistModalPr
           remarks: existingDocs.casteCertificate?.remarks || '',
         },
         {
-          id: 'photoSign',
-          nameHindi: 'पासपोर्ट आकार 2 रंगीन फोटो व हस्ताक्षर',
-          nameEng: '2 Passport Size Color Photos & Signature',
-          description: 'सफेद/हल्के बैकग्राउंड वाली नवीनतम फोटो एवं छात्र के स्पष्ट हस्ताक्षर',
+          id: 'photo',
+          nameHindi: '4. पासपोर्ट साइज रंगीन फोटो (Photo)',
+          nameEng: 'Passport Size Photographs (2 Color Photos)',
+          description: 'सफेद/हल्के बैकग्राउंड वाली नवीनतम रंगीन फोटो व हस्ताक्षर (अनिवार्य दस्तावेज - 4)',
           icon: Camera,
           isMandatory: true,
-          status: 'YES',
-          remarks: '',
+          status: existingDocs.photo?.status === 'SUBMITTED' || existingDocs.photoSign?.status === 'SUBMITTED' ? 'YES' : 'YES',
+          remarks: existingDocs.photo?.remarks || '',
         },
         {
           id: 'signedForm',
@@ -153,6 +168,28 @@ export const FormSubmitDocChecklistModal: React.FC<FormSubmitDocChecklistModalPr
           status: 'YES',
           docNumber: student.formNo || '',
           remarks: '',
+        },
+        {
+          id: 'matricMarksheet',
+          nameHindi: '10वीं / मैट्रिक अंक पत्र की छायाप्रति',
+          nameEng: '10th / Matric Marksheet Copy',
+          description: 'बिहार बोर्ड (BSEB) अथवा अन्य मान्यता प्राप्त बोर्ड का मैट्रिक अंक पत्र',
+          icon: FileText,
+          isMandatory: false,
+          status: existingDocs.matricMarksheet?.status === 'SUBMITTED' ? 'YES' : 'YES',
+          docNumber: existingDocs.matricMarksheet?.docNumber || '',
+          remarks: existingDocs.matricMarksheet?.remarks || '',
+        },
+        {
+          id: 'transferCertificate',
+          nameHindi: 'मूल स्थानांतरण प्रमाण पत्र (TC / SLC / CLC)',
+          nameEng: 'Original TC / SLC / CLC Certificate',
+          description: 'पूर्व विद्यालय से निर्गत मूल टीसी (Original School Leaving Certificate)',
+          icon: Award,
+          isMandatory: false,
+          status: existingDocs.transferCertificate?.status === 'SUBMITTED' ? 'YES' : 'YES',
+          docNumber: existingDocs.transferCertificate?.docNumber || '',
+          remarks: existingDocs.transferCertificate?.remarks || '',
         },
         {
           id: 'apaar',
@@ -328,10 +365,10 @@ export const FormSubmitDocChecklistModal: React.FC<FormSubmitDocChecklistModalPr
   const noDocsCount = totalDocs - yesDocsCount;
   const missingMandatoryDocs = docList.filter(d => d.isMandatory && d.status === 'NO');
 
-  // Submit Handler
-  const handleConfirm = () => {
+  const [showClosePaymentPrompt, setShowClosePaymentPrompt] = useState(false);
+
+  const buildFormattedDocs = () => {
     const formattedDocs: Record<string, { submitted: boolean; docNumber?: string; remarks?: string }> = {};
-    
     docList.forEach(item => {
       formattedDocs[item.id] = {
         submitted: item.status === 'YES',
@@ -339,9 +376,43 @@ export const FormSubmitDocChecklistModal: React.FC<FormSubmitDocChecklistModalPr
         remarks: item.remarks?.trim() || (item.status === 'NO' ? 'लंबित (Pending)' : undefined),
       };
     });
+    return formattedDocs;
+  };
 
+  // Submit Handler: Only submit documents
+  const handleConfirm = () => {
+    const formattedDocs = buildFormattedDocs();
     onConfirmSubmit(formattedDocs, submissionDate);
     onClose();
+  };
+
+  // Submit Docs + Proceed To Fee Payment in one step
+  const handleConfirmAndCollectPayment = () => {
+    const formattedDocs = buildFormattedDocs();
+    onConfirmSubmit(formattedDocs, submissionDate);
+    if (onProceedToPayment) {
+      onProceedToPayment(student);
+    } else {
+      onClose();
+    }
+  };
+
+  // Directly collect payment only
+  const handleDirectCollectPayment = () => {
+    if (onProceedToPayment) {
+      onProceedToPayment(student);
+    } else {
+      onClose();
+    }
+  };
+
+  // Smart Close Handler: Prompt payment if unpaid
+  const handleAttemptClose = () => {
+    if (!isPaid && onProceedToPayment) {
+      setShowClosePaymentPrompt(true);
+    } else {
+      onClose();
+    }
   };
 
   // Print Acknowledgement / Doc Receiving Slip
@@ -354,9 +425,9 @@ export const FormSubmitDocChecklistModal: React.FC<FormSubmitDocChecklistModalPr
     const slipHtml = `
       <div style="border: 2px solid #0f766e; border-radius: 8px; padding: 18px; font-family: sans-serif; color: #1e293b;">
         <div style="text-align: center; border-bottom: 2px solid #0f766e; padding-bottom: 10px; margin-bottom: 12px;">
-          <h2 style="margin: 0; font-size: 17px; color: #0f766e; text-transform: uppercase; font-weight: 800;">${settings.name}</h2>
+          <h2 style="margin: 0; font-size: 17px; color: #0f766e; text-transform: uppercase; font-weight: 800;">${settings.name || instituteName || 'प्लस टू उच्च विद्यालय / महाविद्यालय'}</h2>
           <p style="margin: 3px 0 0; font-size: 11px; color: #475569;">${settings.subTitle || 'इंटरमीडिएट संभाग (कला, विज्ञान, वाणिज्य)'}</p>
-          <p style="margin: 2px 0 0; font-size: 11px; color: #475569;">संस्थान कोड: <strong>${settings.code}</strong> | शैक्षणिक सत्र: <strong>${settings.academicYear}</strong></p>
+          <p style="margin: 2px 0 0; font-size: 11px; color: #475569;">संस्थान कोड: <strong>${settings.code || '31337'}</strong> | शैक्षणिक सत्र: <strong>${settings.academicYear || '2025-2027'}</strong></p>
         </div>
 
         <div style="background: #0f766e; color: #ffffff; text-align: center; font-weight: 700; padding: 5px; font-size: 12px; margin: 8px 0 14px; border-radius: 4px;">
@@ -380,8 +451,8 @@ export const FormSubmitDocChecklistModal: React.FC<FormSubmitDocChecklistModalPr
             <tr>
               <td style="padding: 5px 8px; font-weight: 600; color: #475569; background: #f8fafc;">कोटि (Category):</td>
               <td style="padding: 5px 8px; font-weight: 700;">${student.casteCategory || 'General'}</td>
-              <td style="padding: 5px 8px; font-weight: 600; color: #475569; background: #f8fafc;">जमा तिथि:</td>
-              <td style="padding: 5px 8px; font-weight: 700;">${submissionDate}</td>
+              <td style="padding: 5px 8px; font-weight: 600; color: #475569; background: #f8fafc;">शुल्क स्थिति:</td>
+              <td style="padding: 5px 8px; font-weight: 700; color: ${isPaid ? '#047857' : '#b91c1c'};">${isPaid ? `₹${expectedFee} PAID (पूर्ण भुगतान)` : `₹${expectedFee} UNPAID (बकाया)`}</td>
             </tr>
           </tbody>
         </table>
@@ -434,7 +505,7 @@ export const FormSubmitDocChecklistModal: React.FC<FormSubmitDocChecklistModalPr
         </div>
 
         <div style="margin-top: 14px; border-top: 1px dashed #cbd5e1; padding-top: 6px; text-align: center; font-size: 9px; color: #64748b;">
-          यह रसीद कंप्यूटर जनरेटेड है • मुद्रण तिथि: ${new Date().toLocaleString('en-IN')} • ${settings.name}
+          यह रसीद कंप्यूटर जनरेटेड है • मुद्रण तिथि: ${new Date().toLocaleString('en-IN')} • ${settings.name || instituteName || ''}
         </div>
       </div>
     `;
@@ -455,10 +526,10 @@ export const FormSubmitDocChecklistModal: React.FC<FormSubmitDocChecklistModalPr
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 15 }}
         transition={{ duration: 0.2 }}
-        className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-200 overflow-hidden my-auto flex flex-col max-h-[92vh]"
+        className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full border border-slate-200 overflow-hidden my-auto flex flex-col max-h-[92vh] relative"
       >
         {/* Header with colorful top bar */}
-        <div className="relative bg-gradient-to-r from-emerald-700 via-teal-700 to-indigo-800 text-white p-4 sm:p-5">
+        <div className="relative bg-gradient-to-r from-emerald-800 via-teal-800 to-indigo-900 text-white p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center text-white shadow-inner">
@@ -479,17 +550,37 @@ export const FormSubmitDocChecklistModal: React.FC<FormSubmitDocChecklistModalPr
               </div>
             </div>
 
-            <button
-              onClick={onClose}
-              className="p-1.5 text-white/80 hover:text-white rounded-full hover:bg-white/15 transition cursor-pointer"
-              title="बंद करें"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Payment Status Badge In Header */}
+              {isPaid ? (
+                <span className="hidden sm:inline-flex items-center gap-1 px-3 py-1 bg-emerald-500/30 border border-emerald-400/50 text-emerald-100 rounded-xl text-xs font-bold">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+                  <span>₹{expectedFee} चुकता (PAID)</span>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleDirectCollectPayment}
+                  className="hidden sm:inline-flex items-center gap-1 px-3 py-1 bg-amber-400 hover:bg-amber-300 text-amber-950 rounded-xl text-xs font-black shadow-md cursor-pointer transition active:scale-95"
+                  title="पेमेंट विंडो खोलें"
+                >
+                  <IndianRupee className="w-3.5 h-3.5" />
+                  <span>₹{expectedFee} बकाया • अभी पेमेंट लें</span>
+                </button>
+              )}
+
+              <button
+                onClick={handleAttemptClose}
+                className="p-1.5 text-white/80 hover:text-white rounded-full hover:bg-white/15 transition cursor-pointer"
+                title="बंद करें"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Student Quick Summary Pill Strip */}
-          <div className="mt-3.5 pt-3 border-t border-white/15 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+          <div className="mt-3.5 pt-3 border-t border-white/15 grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
             <div className="bg-white/10 backdrop-blur-xs rounded-xl p-2 border border-white/10">
               <span className="text-[10px] text-emerald-200 font-bold block">छात्र का नाम</span>
               <span className="font-extrabold text-white truncate block uppercase text-xs">
@@ -513,6 +604,27 @@ export const FormSubmitDocChecklistModal: React.FC<FormSubmitDocChecklistModalPr
               <span className="font-bold text-white truncate block text-xs">
                 {student.stream || student.classOrStream || 'Science'} • {student.casteCategory || 'General'}
               </span>
+            </div>
+            <div className={`rounded-xl p-2 border col-span-2 sm:col-span-1 flex flex-col justify-center ${
+              isPaid 
+                ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-100' 
+                : 'bg-amber-400/20 border-amber-300/50 text-amber-200'
+            }`}>
+              <span className="text-[10px] font-bold block">फीस / भुगतान</span>
+              <div className="flex items-center justify-between gap-1">
+                <span className="font-black text-xs">
+                  ₹{expectedFee} {isPaid ? '✓ चुकता' : '⚠️ बकाया'}
+                </span>
+                {!isPaid && onProceedToPayment && (
+                  <button
+                    type="button"
+                    onClick={handleDirectCollectPayment}
+                    className="px-1.5 py-0.5 bg-amber-400 hover:bg-amber-300 text-amber-950 rounded text-[10px] font-black cursor-pointer"
+                  >
+                    पेमेंट लें
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -694,6 +806,28 @@ export const FormSubmitDocChecklistModal: React.FC<FormSubmitDocChecklistModalPr
           </div>
         </div>
 
+        {/* Bottom Payment Collect Banner if unpaid */}
+        {!isPaid && onProceedToPayment && (
+          <div className="bg-linear-to-r from-amber-50 via-amber-100/70 to-emerald-50 px-4 sm:px-5 py-2.5 border-t border-amber-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2 text-amber-950">
+              <span className="p-1 rounded-lg bg-amber-500 text-white font-black text-[10px]">
+                ₹ FEE DUE
+              </span>
+              <span className="font-bold">
+                इस छात्र का <strong>₹{expectedFee}</strong> पंजीयन शुल्क बकाया है।
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleDirectCollectPayment}
+              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl text-xs flex items-center gap-1 shadow-sm transition cursor-pointer active:scale-95"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>सीधे पेमेंट प्राप्त करें</span>
+            </button>
+          </div>
+        )}
+
         {/* Modal Footer Actions */}
         <div className="bg-slate-100 px-4 sm:px-5 py-3.5 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2.5 text-xs">
           
@@ -705,28 +839,103 @@ export const FormSubmitDocChecklistModal: React.FC<FormSubmitDocChecklistModalPr
               title="दस्तावेज़ प्राप्ति टोकन / रसीद प्रिंट करें"
             >
               <Printer className="w-3.5 h-3.5 text-emerald-700" />
-              <span>दस्तावेज़ पर्ची प्रिंट</span>
+              <span className="hidden sm:inline">दस्तावेज़ पर्ची प्रिंट</span>
+              <span className="sm:hidden">प्रिंट</span>
             </button>
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleAttemptClose}
               className="px-3 py-2 text-slate-600 hover:text-slate-900 font-bold transition cursor-pointer"
             >
               रद्द करें (Cancel)
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={handleConfirm}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-700 hover:from-emerald-500 hover:to-indigo-600 text-white rounded-xl font-black transition shadow-md shadow-emerald-600/20 active:scale-98 cursor-pointer text-xs sm:text-sm"
-          >
-            <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-            <span>सत्यापित कर फॉर्म जमा करें (Submit Form)</span>
-          </button>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <button
+              type="button"
+              onClick={handleConfirm}
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold transition shadow-xs cursor-pointer text-xs"
+              title="केवल फॉर्म दस्तावेज़ जमा करें"
+            >
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>केवल फॉर्म जमा करें</span>
+            </button>
+
+            {!isPaid && onProceedToPayment ? (
+              <button
+                type="button"
+                onClick={handleConfirmAndCollectPayment}
+                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-700 hover:from-emerald-500 hover:to-indigo-600 text-white rounded-xl font-black transition shadow-md shadow-emerald-600/25 active:scale-98 cursor-pointer text-xs sm:text-sm"
+                title="फॉर्म जमा करें और साथ ही फीस पेमेंट की रसीद बनाएं"
+              >
+                <IndianRupee className="w-4 h-4 text-emerald-200" />
+                <span>फॉर्म जमा + पेमेंट प्राप्त करें (₹{expectedFee})</span>
+                <ArrowRight className="w-3.5 h-3.5 text-emerald-200" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleConfirm}
+                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white rounded-xl font-black transition shadow-md shadow-emerald-600/20 active:scale-98 cursor-pointer text-xs sm:text-sm"
+              >
+                <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                <span>सत्यापित कर फॉर्म जमा करें (Submit Form)</span>
+              </button>
+            )}
+          </div>
 
         </div>
+
+        {/* Smart Closing Prompt Overlay if Unpaid */}
+        {showClosePaymentPrompt && (
+          <div className="absolute inset-0 z-30 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-3xl p-6 max-w-md w-full border border-slate-200 shadow-2xl space-y-4 text-center"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
+                <IndianRupee className="w-6 h-6" />
+              </div>
+
+              <div>
+                <h3 className="text-base font-black text-slate-900">
+                  क्या आप पेमेंट भी प्राप्त करना चाहते हैं?
+                </h3>
+                <p className="text-xs text-slate-600 mt-1">
+                  छात्र <strong>{student.studentName}</strong> का <strong>₹{expectedFee}</strong> पंजीयन शुल्क अभी बकाया है।
+                </p>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowClosePaymentPrompt(false);
+                    handleConfirmAndCollectPayment();
+                  }}
+                  className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <IndianRupee className="w-4 h-4" />
+                  <span>हाँ, फॉर्म जमा कर पेमेंट प्राप्त करें (Collect ₹{expectedFee})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowClosePaymentPrompt(false);
+                    onClose();
+                  }}
+                  className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
+                >
+                  नहीं, केवल बंद करें (Close Without Payment)
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </motion.div>
     </div>
   );

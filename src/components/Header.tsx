@@ -11,7 +11,8 @@ import {
   KeyRound,
   LogOut,
   ShieldCheck,
-  Sparkles
+  Sparkles,
+  Menu
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { InstituteSettings } from '../types';
@@ -30,6 +31,7 @@ interface HeaderProps {
   settings: InstituteSettings;
   onChangePasswordClick: () => void;
   onLogoutClick: () => void;
+  onOpenDrawer?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -44,6 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
   settings,
   onChangePasswordClick,
   onLogoutClick,
+  onOpenDrawer,
 }) => {
   const unpaidCount = totalStudentsCount - paidStudentsCount;
 
@@ -60,10 +63,20 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="bg-slate-900 text-white px-4 py-1.5 border-b border-slate-800">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2">
+            {onOpenDrawer && (
+              <button
+                onClick={onOpenDrawer}
+                className="p-1 -ml-1 rounded-lg bg-white/10 hover:bg-white/20 text-indigo-200 hover:text-white transition flex items-center gap-1 font-bold text-[11px] px-2 shadow-2xs"
+                title="नेविगेशन ड्रॉवर खोलें (Open Menu Drawer)"
+              >
+                <Menu className="w-3.5 h-3.5" />
+                <span className="hidden xs:inline">मेनू ड्रॉवर</span>
+              </button>
+            )}
             <span className="bg-indigo-500/30 text-indigo-300 font-mono font-bold px-2.5 py-0.5 rounded-full border border-indigo-400/30 text-[11px] shadow-2xs">
               {settings.code ? `BSEB CODE: ${settings.code}` : 'EXAM CELL'}
             </span>
-            <span className="text-slate-200 font-semibold truncate max-w-[220px] sm:max-w-md">
+            <span className="text-slate-200 font-semibold truncate max-w-[200px] sm:max-w-md">
               {settings.name} &bull; {settings.academicYear}
             </span>
           </div>
@@ -143,7 +156,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Quick Stat Chips Bar in Header */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 no-scrollbar scrollbar-none">
             <div className="bg-slate-50 border border-slate-200 rounded-2xl px-3 py-1.5 flex items-center gap-2.5 min-w-max shadow-2xs">
               <div className="w-7 h-7 rounded-xl bg-slate-200/80 text-slate-700 flex items-center justify-center">
                 <Users className="w-3.5 h-3.5" />

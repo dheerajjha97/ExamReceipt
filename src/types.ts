@@ -13,7 +13,11 @@ export interface DocumentRecord {
   issueDate?: string;
   schoolName?: string;
   rollNo?: string;
-  notAvailableReason?: string; // Mandatory when status is NOT_AVAILABLE (especially for APAAR)
+  accountNumber?: string;      // For Bank Passbook
+  ifscCode?: string;           // For Bank Passbook
+  bankName?: string;           // For Bank Passbook
+  accountHolderName?: string;  // For Bank Passbook
+  notAvailableReason?: string; // Reason if doc not available
   fileData?: string;           // Base64 file or image preview
   fileName?: string;
   remarks?: string;
@@ -21,11 +25,15 @@ export interface DocumentRecord {
 }
 
 export interface RegistrationDocuments {
+  // 4 Required Documents for 11th Registration
   aadhar: DocumentRecord;
-  apaar: DocumentRecord;
-  transferCertificate: DocumentRecord;
+  bankPassbook: DocumentRecord;
   casteCertificate: DocumentRecord;
-  matricMarksheet: DocumentRecord;
+  photo: DocumentRecord;
+  // Optional / legacy backward compatible fields
+  apaar?: DocumentRecord;
+  transferCertificate?: DocumentRecord;
+  matricMarksheet?: DocumentRecord;
   photoSign?: DocumentRecord;
 }
 

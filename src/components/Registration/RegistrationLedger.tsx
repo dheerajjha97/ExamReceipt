@@ -30,6 +30,15 @@ import { RegistrationStudent, InstituteSettings, CasteCategory, isBSEBBoard } fr
 import { printIsolatedElement, fallbackDirectPrint } from '../../utils/printHelper';
 import { numberToWordsInINR } from '../../services/storageService';
 import { downloadRegistrationLedgerPDF } from '../../utils/pdfGenerator';
+import { 
+  normalizeDateToYYYYMMDD, 
+  getTodayLocalYYYYMMDD, 
+  getYesterdayLocalYYYYMMDD, 
+  getDaysAgoLocalYYYYMMDD, 
+  getMonthStartLocalYYYYMMDD, 
+  isDateInRange, 
+  formatDateToDDMMYYYY 
+} from '../../utils/dateHelper';
 
 interface RegistrationLedgerProps {
   students: RegistrationStudent[];
@@ -88,8 +97,7 @@ export const RegistrationLedger: React.FC<RegistrationLedgerProps> = ({
   // Quick Date Preset Change Handler
   const handleDatePresetChange = (preset: 'all' | 'today' | 'yesterday' | 'week' | 'month' | 'custom') => {
     setDatePreset(preset);
-    const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
+    const todayStr = getTodayLocalYYYYMMDD();
 
     if (preset === 'all') {
       setStartDate('');
@@ -98,20 +106,16 @@ export const RegistrationLedger: React.FC<RegistrationLedgerProps> = ({
       setStartDate(todayStr);
       setEndDate(todayStr);
     } else if (preset === 'yesterday') {
-      const y = new Date(today);
-      y.setDate(y.getDate() - 1);
-      const yStr = y.toISOString().slice(0, 10);
+      const yStr = getYesterdayLocalYYYYMMDD();
       setStartDate(yStr);
       setEndDate(yStr);
     } else if (preset === 'week') {
-      const w = new Date(today);
-      w.setDate(w.getDate() - 7);
-      setStartDate(w.toISOString().slice(0, 10));
+      const wStr = getDaysAgoLocalYYYYMMDD(7);
+      setStartDate(wStr);
       setEndDate(todayStr);
     } else if (preset === 'month') {
-      const m = new Date(today);
-      m.setDate(1);
-      setStartDate(m.toISOString().slice(0, 10));
+      const mStr = getMonthStartLocalYYYYMMDD();
+      setStartDate(mStr);
       setEndDate(todayStr);
     }
   };
@@ -159,19 +163,12 @@ export const RegistrationLedger: React.FC<RegistrationLedgerProps> = ({
         if (!isOther) return false;
       }
 
-      // Date Range
+      // Date Range Match using normalized ISO dates
       if (startDate || endDate) {
-        const pDate = stu.paymentDate || '';
-        // Normalize DD/MM/YYYY or YYYY-MM-DD
-        let formattedDate = pDate;
-        if (pDate.includes('/')) {
-          const parts = pDate.split('/');
-          if (parts.length === 3) {
-            formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-          }
+        const rawDate = stu.paymentDate || stu.updatedAt || stu.createdAt;
+        if (!isDateInRange(rawDate, startDate, endDate)) {
+          return false;
         }
-        if (startDate && formattedDate < startDate) return false;
-        if (endDate && formattedDate > endDate) return false;
       }
 
       return true;
@@ -230,17 +227,10 @@ export const RegistrationLedger: React.FC<RegistrationLedgerProps> = ({
       dataToExport = activeTab === 'transactions' ? paidStudents : unpaidStudents;
       scopeLabel = 'All';
     } else if (scope === 'today') {
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayStr = getTodayLocalYYYYMMDD();
       dataToExport = (activeTab === 'transactions' ? paidStudents : unpaidStudents).filter(s => {
-        const pDate = s.paymentDate || '';
-        let formattedDate = pDate;
-        if (pDate.includes('/')) {
-          const parts = pDate.split('/');
-          if (parts.length === 3) {
-            formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-          }
-        }
-        return formattedDate === todayStr;
+        const rawDate = s.paymentDate || s.updatedAt || s.createdAt;
+        return normalizeDateToYYYYMMDD(rawDate) === todayStr;
       });
       scopeLabel = 'Today';
     } else {
@@ -290,25 +280,18 @@ export const RegistrationLedger: React.FC<RegistrationLedgerProps> = ({
       dataToExport = activeTab === 'transactions' ? paidStudents : unpaidStudents;
       filterDesc = 'Complete Database (All Records)';
     } else if (scope === 'today') {
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayStr = getTodayLocalYYYYMMDD();
       dataToExport = (activeTab === 'transactions' ? paidStudents : unpaidStudents).filter(s => {
-        const pDate = s.paymentDate || '';
-        let formattedDate = pDate;
-        if (pDate.includes('/')) {
-          const parts = pDate.split('/');
-          if (parts.length === 3) {
-            formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-          }
-        }
-        return formattedDate === todayStr;
+        const rawDate = s.paymentDate || s.updatedAt || s.createdAt;
+        return normalizeDateToYYYYMMDD(rawDate) === todayStr;
       });
-      filterDesc = `Today's Transactions (${new Date().toLocaleDateString('en-IN')})`;
+      filterDesc = `Today's Transactions (${formatDateToDDMMYYYY(todayStr)})`;
     } else {
       dataToExport = activeTab === 'transactions' ? filteredPaidStudents : filteredDuesStudents;
       const parts = [];
       if (streamFilter !== 'ALL') parts.push(`Stream: ${streamFilter}`);
       if (categoryFilter !== 'ALL') parts.push(`Cat: ${categoryFilter}`);
-      if (startDate || endDate) parts.push(`Date: ${startDate || 'Start'} to ${endDate || 'End'}`);
+      if (startDate || endDate) parts.push(`Date: ${formatDateToDDMMYYYY(startDate) || 'Start'} to ${formatDateToDDMMYYYY(endDate) || 'End'}`);
       if (modeFilter !== 'ALL') parts.push(`Mode: ${modeFilter}`);
       filterDesc = parts.length > 0 ? parts.join(' | ') : 'Filtered View';
     }
@@ -331,19 +314,12 @@ export const RegistrationLedger: React.FC<RegistrationLedgerProps> = ({
       list = activeTab === 'transactions' ? paidStudents : unpaidStudents;
       titleScope = '(सभी रिकॉर्ड्स / All Records)';
     } else if (scope === 'today') {
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayStr = getTodayLocalYYYYMMDD();
       list = (activeTab === 'transactions' ? paidStudents : unpaidStudents).filter(s => {
-        const pDate = s.paymentDate || '';
-        let formattedDate = pDate;
-        if (pDate.includes('/')) {
-          const parts = pDate.split('/');
-          if (parts.length === 3) {
-            formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-          }
-        }
-        return formattedDate === todayStr;
+        const rawDate = s.paymentDate || s.updatedAt || s.createdAt;
+        return normalizeDateToYYYYMMDD(rawDate) === todayStr;
       });
-      titleScope = `(आज का विवरण / ${new Date().toLocaleDateString('en-IN')})`;
+      titleScope = `(आज का विवरण / ${formatDateToDDMMYYYY(todayStr)})`;
     } else {
       list = activeTab === 'transactions' ? filteredPaidStudents : filteredDuesStudents;
       titleScope = '(फ़िल्टर किया हुआ दृश्य / Filtered View)';
@@ -842,28 +818,65 @@ export const RegistrationLedger: React.FC<RegistrationLedgerProps> = ({
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
         {activeTab === 'transactions' ? (
           /* Paid Transactions Table */
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full min-w-[960px] text-left text-xs">
               <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 uppercase tracking-wider">
                 <tr>
-                  <th className="py-3 px-4 w-12 text-center">क्र.</th>
-                  <th className="py-3 px-4">फॉर्म नं / OFSS</th>
-                  <th className="py-3 px-4">छात्र का नाम (Student)</th>
-                  <th className="py-3 px-4">पिता का नाम</th>
-                  <th className="py-3 px-4 text-center">संकाय</th>
-                  <th className="py-3 px-4 text-center">कोटि</th>
-                  <th className="py-3 px-4 text-center">बोर्ड</th>
-                  <th className="py-3 px-4 text-right">प्राप्त राशि</th>
-                  <th className="py-3 px-4 text-center">माध्यम</th>
-                  <th className="py-3 px-4 text-center">दिनांक व समय</th>
-                  <th className="py-3 px-4 text-right">कार्रवाई</th>
+                  <th className="py-3 px-4 w-12 text-center whitespace-nowrap">क्र.</th>
+                  <th className="py-3 px-4 whitespace-nowrap">फॉर्म नं / OFSS</th>
+                  <th className="py-3 px-4 whitespace-nowrap">छात्र का नाम (Student)</th>
+                  <th className="py-3 px-4 whitespace-nowrap">पिता का नाम</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">संकाय</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">कोटि</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">बोर्ड</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">प्राप्त राशि</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">माध्यम</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">दिनांक व समय</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">कार्रवाई</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
                 {filteredPaidStudents.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="py-12 text-center text-slate-400">
-                      कोई लेन-देन रिकॉर्ड नहीं मिला
+                    <td colSpan={11} className="py-12 px-4 text-center">
+                      <div className="max-w-md mx-auto space-y-3">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
+                          <Calendar className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-slate-800">
+                            {startDate || endDate || datePreset !== 'all'
+                              ? 'चयनित दिनांक / फ़िल्टर में कोई शुल्क प्राप्ति रिकॉर्ड नहीं मिला'
+                              : 'अभी तक कोई शुल्क प्राप्ति रिकॉर्ड दर्ज नहीं है'}
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {paidStudents.length > 0
+                              ? `डेटाबेस में कुल ${paidStudents.length} भुगतान रिकॉर्ड मौजूद हैं। सभी देखने के लिए दिनांक फ़िल्टर रीसेट करें।`
+                              : `कुल ${unpaidStudents.length} छात्रों का शुल्क बकाया है। शुल्क जमा करने के लिए 'बकाया शुल्क सूची' टैब पर जाएं।`}
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-center gap-2 pt-1">
+                          {(startDate || endDate || datePreset !== 'all') && (
+                            <button
+                              type="button"
+                              onClick={() => handleDatePresetChange('all')}
+                              className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-2xs flex items-center gap-1.5"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" />
+                              <span>सभी तिथियों का लेज़र देखें (Show All)</span>
+                            </button>
+                          )}
+                          {unpaidStudents.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('dues')}
+                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer border border-slate-200"
+                            >
+                              <span>बकाया सूची देखें ({unpaidStudents.length})</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 ) : (
@@ -939,20 +952,20 @@ export const RegistrationLedger: React.FC<RegistrationLedgerProps> = ({
           </div>
         ) : (
           /* Outstanding Dues Table */
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full min-w-[960px] text-left text-xs">
               <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 uppercase tracking-wider">
                 <tr>
-                  <th className="py-3 px-4 w-12 text-center">क्र.</th>
-                  <th className="py-3 px-4">फॉर्म नं / OFSS</th>
-                  <th className="py-3 px-4">छात्र का नाम (Student)</th>
-                  <th className="py-3 px-4">पिता का नाम</th>
-                  <th className="py-3 px-4 text-center">संकाय</th>
-                  <th className="py-3 px-4 text-center">कोटि</th>
-                  <th className="py-3 px-4 text-center">बोर्ड</th>
-                  <th className="py-3 px-4 text-right">देय शुल्क (Payable)</th>
-                  <th className="py-3 px-4 text-center">दस्तावेज़ स्थिति</th>
-                  <th className="py-3 px-4 text-right">कार्रवाई</th>
+                  <th className="py-3 px-4 w-12 text-center whitespace-nowrap">क्र.</th>
+                  <th className="py-3 px-4 whitespace-nowrap">फॉर्म नं / OFSS</th>
+                  <th className="py-3 px-4 whitespace-nowrap">छात्र का नाम (Student)</th>
+                  <th className="py-3 px-4 whitespace-nowrap">पिता का नाम</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">संकाय</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">कोटि</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">बोर्ड</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">देय शुल्क (Payable)</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">दस्तावेज़ स्थिति</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">कार्रवाई</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">

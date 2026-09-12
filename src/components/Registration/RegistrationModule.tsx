@@ -50,28 +50,45 @@ import { RegistrationLedger } from './RegistrationLedger';
 import { RegistrationDashboardOverview } from './RegistrationDashboardOverview';
 import { RegistrationDailySettlement } from './RegistrationDailySettlement';
 import { PWAInstallButton } from '../PWA/PWAInstallButton';
+import { Menu } from 'lucide-react';
+
+export type RegistrationSubTab = 'students' | 'ledger' | 'doc_audit' | 'daybook' | 'overview';
 
 interface RegistrationModuleProps {
   students: RegistrationStudent[];
   settings: InstituteSettings;
+  activeTab?: RegistrationSubTab;
+  onTabChange?: (tab: RegistrationSubTab) => void;
   onUpdateStudents: (students: RegistrationStudent[]) => void;
   onDeleteStudent?: (id: string) => void;
   onClearAll?: () => void;
   onBackToDashboard: () => void;
   onSwitchToExamination: () => void;
+  onOpenDrawer?: () => void;
 }
 
 export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
   students,
   settings,
+  activeTab: controlledActiveTab,
+  onTabChange,
   onUpdateStudents,
   onDeleteStudent,
   onClearAll,
   onBackToDashboard,
   onSwitchToExamination,
+  onOpenDrawer,
 }) => {
-  // Navigation Sub-tab State
-  const [activeRegistrationTab, setActiveRegistrationTab] = useState<'students' | 'ledger' | 'audit' | 'daybook' | 'overview'>('students');
+  // Navigation Sub-tab State (support both controlled and uncontrolled)
+  const [internalActiveTab, setInternalActiveTab] = useState<RegistrationSubTab>('students');
+  const activeRegistrationTab = controlledActiveTab !== undefined ? controlledActiveTab : internalActiveTab;
+  
+  const handleTabChange = (tab: RegistrationSubTab) => {
+    setInternalActiveTab(tab);
+    if (onTabChange) {
+      onTabChange(tab);
+    }
+  };
 
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('');
@@ -204,12 +221,15 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
     return sum;
   }, 0);
 
-  const missingTcCount = students.filter(s => s.documents?.transferCertificate?.status !== 'SUBMITTED').length;
-  const missingApaarCount = students.filter(s => s.documents?.apaar?.status !== 'SUBMITTED').length;
+  const missingAadharCount = students.filter(s => s.documents?.aadhar?.status !== 'SUBMITTED').length;
+  const missingBankCount = students.filter(s => s.documents?.bankPassbook?.status !== 'SUBMITTED').length;
   const missingCasteCount = students.filter(s => {
-    const req = s.casteCategory === 'EBC' || s.casteCategory === 'SC' || s.casteCategory === 'ST';
+    const req = s.casteCategory === 'EBC' || s.casteCategory === 'SC' || s.casteCategory === 'ST' || s.casteCategory === 'BC';
     return req && s.documents?.casteCertificate?.status !== 'SUBMITTED';
   }).length;
+  const missingPhotoCount = students.filter(s => s.documents?.photo?.status !== 'SUBMITTED' && s.documents?.photoSign?.status !== 'SUBMITTED').length;
+  const missingTcCount = students.filter(s => s.documents?.transferCertificate?.status !== 'SUBMITTED').length;
+  const missingApaarCount = students.filter(s => s.documents?.apaar?.status !== 'SUBMITTED').length;
 
   const formIssuedCount = students.filter(s => s.isFormIssued).length;
   const formSubmittedCount = students.filter(s => s.isFormSubmitted).length;
@@ -269,7 +289,8 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
     const isEbcScSt =
       docChecklistStudent.casteCategory === 'EBC' ||
       docChecklistStudent.casteCategory === 'SC' ||
-      docChecklistStudent.casteCategory === 'ST';
+      docChecklistStudent.casteCategory === 'ST' ||
+      docChecklistStudent.casteCategory === 'BC';
 
     const updatedDocs: RegistrationDocuments = {
       aadhar: {
@@ -278,6 +299,32 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
         verified: verifiedDocs.aadhar?.submitted,
         docNumber: verifiedDocs.aadhar?.docNumber || docChecklistStudent.documents?.aadhar?.docNumber,
         remarks: verifiedDocs.aadhar?.remarks,
+      },
+      bankPassbook: {
+        ...(docChecklistStudent.documents?.bankPassbook || { status: 'PENDING' }),
+        status: verifiedDocs.bankPassbook?.submitted ? 'SUBMITTED' : 'PENDING',
+        verified: verifiedDocs.bankPassbook?.submitted,
+        accountNumber: verifiedDocs.bankPassbook?.docNumber || docChecklistStudent.documents?.bankPassbook?.accountNumber,
+        docNumber: verifiedDocs.bankPassbook?.docNumber || docChecklistStudent.documents?.bankPassbook?.docNumber,
+        remarks: verifiedDocs.bankPassbook?.remarks,
+      },
+      casteCertificate: {
+        ...(docChecklistStudent.documents?.casteCertificate || { status: 'PENDING' }),
+        status: isEbcScSt ? (verifiedDocs.casteCertificate?.submitted ? 'SUBMITTED' : 'PENDING') : 'EXEMPTED',
+        verified: isEbcScSt ? verifiedDocs.casteCertificate?.submitted : true,
+        docNumber: verifiedDocs.casteCertificate?.docNumber || docChecklistStudent.documents?.casteCertificate?.docNumber,
+        remarks: verifiedDocs.casteCertificate?.remarks,
+      },
+      photo: {
+        ...(docChecklistStudent.documents?.photo || { status: 'PENDING' }),
+        status: verifiedDocs.photo?.submitted || verifiedDocs.photoSign?.submitted ? 'SUBMITTED' : 'PENDING',
+        verified: verifiedDocs.photo?.submitted || verifiedDocs.photoSign?.submitted,
+        remarks: verifiedDocs.photo?.remarks || verifiedDocs.photoSign?.remarks,
+      },
+      photoSign: {
+        status: verifiedDocs.photo?.submitted || verifiedDocs.photoSign?.submitted ? 'SUBMITTED' : 'PENDING',
+        verified: verifiedDocs.photo?.submitted || verifiedDocs.photoSign?.submitted,
+        remarks: verifiedDocs.photo?.remarks || verifiedDocs.photoSign?.remarks,
       },
       apaar: {
         ...(docChecklistStudent.documents?.apaar || { status: 'PENDING' }),
@@ -293,13 +340,6 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
         docNumber: verifiedDocs.transferCertificate?.docNumber || docChecklistStudent.documents?.transferCertificate?.docNumber,
         remarks: verifiedDocs.transferCertificate?.remarks,
       },
-      casteCertificate: {
-        ...(docChecklistStudent.documents?.casteCertificate || { status: 'PENDING' }),
-        status: isEbcScSt ? (verifiedDocs.casteCertificate?.submitted ? 'SUBMITTED' : 'PENDING') : 'EXEMPTED',
-        verified: isEbcScSt ? verifiedDocs.casteCertificate?.submitted : true,
-        docNumber: verifiedDocs.casteCertificate?.docNumber || docChecklistStudent.documents?.casteCertificate?.docNumber,
-        remarks: verifiedDocs.casteCertificate?.remarks,
-      },
       matricMarksheet: {
         ...(docChecklistStudent.documents?.matricMarksheet || { status: 'PENDING' }),
         status: verifiedDocs.matricMarksheet?.submitted ? 'SUBMITTED' : 'PENDING',
@@ -307,17 +347,12 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
         docNumber: verifiedDocs.matricMarksheet?.docNumber || docChecklistStudent.documents?.matricMarksheet?.docNumber,
         remarks: verifiedDocs.matricMarksheet?.remarks,
       },
-      photoSign: {
-        status: verifiedDocs.photoSign?.submitted ? 'SUBMITTED' : 'PENDING',
-        verified: verifiedDocs.photoSign?.submitted,
-        remarks: verifiedDocs.photoSign?.remarks,
-      },
     };
 
     const allMandatoryDone =
       updatedDocs.aadhar.status === 'SUBMITTED' &&
-      updatedDocs.transferCertificate.status === 'SUBMITTED' &&
-      updatedDocs.matricMarksheet.status === 'SUBMITTED' &&
+      updatedDocs.bankPassbook.status === 'SUBMITTED' &&
+      updatedDocs.photo.status === 'SUBMITTED' &&
       (!isEbcScSt || updatedDocs.casteCertificate.status === 'SUBMITTED');
 
     let regStatus = docChecklistStudent.registrationStatus;
@@ -430,16 +465,19 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
       return;
     }
     const updatedList = students.map((stu) => {
-      const isEbcScSt = stu.casteCategory === 'EBC' || stu.casteCategory === 'SC' || stu.casteCategory === 'ST';
+      const isEbcScSt = stu.casteCategory === 'EBC' || stu.casteCategory === 'SC' || stu.casteCategory === 'ST' || stu.casteCategory === 'BC';
       const updatedDocs: RegistrationDocuments = {
         aadhar: { ...(stu.documents?.aadhar || { status: 'PENDING' }), status: 'PENDING', verified: false },
-        apaar: { ...(stu.documents?.apaar || { status: 'PENDING' }), status: 'PENDING', verified: false },
-        transferCertificate: { ...(stu.documents?.transferCertificate || { status: 'PENDING' }), status: 'PENDING', verified: false },
+        bankPassbook: { ...(stu.documents?.bankPassbook || { status: 'PENDING' }), status: 'PENDING', verified: false },
         casteCertificate: {
           ...(stu.documents?.casteCertificate || { status: 'PENDING' }),
           status: isEbcScSt ? 'PENDING' : 'EXEMPTED',
           verified: false,
         },
+        photo: { ...(stu.documents?.photo || { status: 'PENDING' }), status: 'PENDING', verified: false },
+        photoSign: { ...(stu.documents?.photoSign || { status: 'PENDING' }), status: 'PENDING', verified: false },
+        apaar: { ...(stu.documents?.apaar || { status: 'PENDING' }), status: 'PENDING', verified: false },
+        transferCertificate: { ...(stu.documents?.transferCertificate || { status: 'PENDING' }), status: 'PENDING', verified: false },
         matricMarksheet: { ...(stu.documents?.matricMarksheet || { status: 'PENDING' }), status: 'PENDING', verified: false },
       };
 
@@ -460,7 +498,7 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
 
   const handleToggleDocStatus = (
     studentId: string,
-    docKey: 'aadhar' | 'apaar' | 'transferCertificate' | 'casteCertificate' | 'matricMarksheet'
+    docKey: keyof RegistrationDocuments
   ) => {
     const updatedList = students.map((stu) => {
       if (stu.id !== studentId) return stu;
@@ -471,9 +509,12 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
 
       const updatedDocs: RegistrationDocuments = {
         aadhar: stu.documents?.aadhar || { status: 'PENDING' },
+        bankPassbook: stu.documents?.bankPassbook || { status: 'PENDING' },
+        casteCertificate: stu.documents?.casteCertificate || { status: 'PENDING' },
+        photo: stu.documents?.photo || { status: 'PENDING' },
+        photoSign: stu.documents?.photoSign || { status: 'PENDING' },
         apaar: stu.documents?.apaar || { status: 'PENDING' },
         transferCertificate: stu.documents?.transferCertificate || { status: 'PENDING' },
-        casteCertificate: stu.documents?.casteCertificate || { status: 'PENDING' },
         matricMarksheet: stu.documents?.matricMarksheet || { status: 'PENDING' },
         ...stu.documents,
         [docKey]: {
@@ -483,11 +524,11 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
         },
       };
 
-      const isEbcScSt = stu.casteCategory === 'EBC' || stu.casteCategory === 'SC' || stu.casteCategory === 'ST';
+      const isEbcScSt = stu.casteCategory === 'EBC' || stu.casteCategory === 'SC' || stu.casteCategory === 'ST' || stu.casteCategory === 'BC';
       const allMandatoryDone =
         updatedDocs.aadhar.status === 'SUBMITTED' &&
-        updatedDocs.transferCertificate.status === 'SUBMITTED' &&
-        updatedDocs.matricMarksheet.status === 'SUBMITTED' &&
+        updatedDocs.bankPassbook.status === 'SUBMITTED' &&
+        (updatedDocs.photo.status === 'SUBMITTED' || updatedDocs.photoSign?.status === 'SUBMITTED') &&
         (!isEbcScSt || updatedDocs.casteCertificate.status === 'SUBMITTED');
 
       let regStatus = stu.registrationStatus;
@@ -514,17 +555,20 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
     const updatedList = students.map((stu) => {
       if (stu.id !== studentId) return stu;
       const targetStatus: RegistrationDocStatus = markSubmitted ? 'SUBMITTED' : 'PENDING';
-      const isEbcScSt = stu.casteCategory === 'EBC' || stu.casteCategory === 'SC' || stu.casteCategory === 'ST';
+      const isEbcScSt = stu.casteCategory === 'EBC' || stu.casteCategory === 'SC' || stu.casteCategory === 'ST' || stu.casteCategory === 'BC';
 
       const updatedDocs: RegistrationDocuments = {
         aadhar: { ...(stu.documents?.aadhar || { status: 'PENDING' }), status: targetStatus, verified: markSubmitted },
-        apaar: { ...(stu.documents?.apaar || { status: 'PENDING' }), status: targetStatus, verified: markSubmitted },
-        transferCertificate: { ...(stu.documents?.transferCertificate || { status: 'PENDING' }), status: targetStatus, verified: markSubmitted },
+        bankPassbook: { ...(stu.documents?.bankPassbook || { status: 'PENDING' }), status: targetStatus, verified: markSubmitted },
         casteCertificate: {
           ...(stu.documents?.casteCertificate || { status: 'PENDING' }),
           status: isEbcScSt ? targetStatus : 'EXEMPTED',
           verified: isEbcScSt ? markSubmitted : true,
         },
+        photo: { ...(stu.documents?.photo || { status: 'PENDING' }), status: targetStatus, verified: markSubmitted },
+        photoSign: { ...(stu.documents?.photoSign || { status: 'PENDING' }), status: targetStatus, verified: markSubmitted },
+        apaar: { ...(stu.documents?.apaar || { status: 'PENDING' }), status: targetStatus, verified: markSubmitted },
+        transferCertificate: { ...(stu.documents?.transferCertificate || { status: 'PENDING' }), status: targetStatus, verified: markSubmitted },
         matricMarksheet: { ...(stu.documents?.matricMarksheet || { status: 'PENDING' }), status: targetStatus, verified: markSubmitted },
       };
 
@@ -608,6 +652,17 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {onOpenDrawer && (
+            <button
+              onClick={onOpenDrawer}
+              className="px-3.5 py-2 rounded-2xl bg-[#2E5B50]/15 hover:bg-[#2E5B50]/25 text-[#2E5B50] font-bold text-xs flex items-center gap-1.5 transition border border-[#2E5B50]/30 shadow-xs"
+              title="नेविगेशन ड्रॉवर खोलें (Drawer Menu)"
+            >
+              <Menu className="w-4 h-4 text-[#2E5B50]" />
+              <span>मेनू ड्रॉवर</span>
+            </button>
+          )}
+
           <PWAInstallButton />
 
           <button
@@ -640,10 +695,10 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
       </div>
 
       {/* 11th Registration Dedicated Sub-Navigation Bar */}
-      <div className="bg-white/80 backdrop-blur-xl p-2 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between gap-2 overflow-x-auto">
+      <div className="bg-white/80 backdrop-blur-xl p-2 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between gap-2 overflow-x-auto no-scrollbar scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="flex items-center gap-1.5 min-w-max">
           <button
-            onClick={() => setActiveRegistrationTab('students')}
+            onClick={() => handleTabChange('students')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
               activeRegistrationTab === 'students'
                 ? 'bg-[#2E5B50] text-white shadow-xs'
@@ -660,7 +715,7 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveRegistrationTab('ledger')}
+            onClick={() => handleTabChange('ledger')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
               activeRegistrationTab === 'ledger'
                 ? 'bg-emerald-800 text-white shadow-xs'
@@ -677,7 +732,7 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveRegistrationTab('doc_audit')}
+            onClick={() => handleTabChange('doc_audit')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
               activeRegistrationTab === 'doc_audit'
                 ? 'bg-amber-800 text-white shadow-xs'
@@ -696,7 +751,7 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveRegistrationTab('daybook')}
+            onClick={() => handleTabChange('daybook')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
               activeRegistrationTab === 'daybook'
                 ? 'bg-teal-800 text-white shadow-xs'
@@ -708,7 +763,7 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveRegistrationTab('overview')}
+            onClick={() => handleTabChange('overview')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
               activeRegistrationTab === 'overview'
                 ? 'bg-indigo-800 text-white shadow-xs'
@@ -1019,23 +1074,23 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
 
       {/* Student List Table & Cards */}
       <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white/60 shadow-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left">
+        <div className="w-full overflow-x-auto">
+          <table className="w-full min-w-[1150px] text-xs text-left">
             <thead className="bg-[#FAF9F5] text-[#5A5A40] border-b border-[#E8E4D5] uppercase font-bold tracking-wider">
               <tr>
-                <th className="p-3.5">क्र.</th>
-                <th className="p-3.5">OFSS NO.</th>
-                <th className="p-3.5">NAME (छात्र का नाम)</th>
-                <th className="p-3.5">FATHER NAME</th>
-                <th className="p-3.5">MOTHER NAME</th>
-                <th className="p-3.5">DOB</th>
-                <th className="p-3.5">BOARD NAME</th>
-                <th className="p-3.5">CATEGORY</th>
-                <th className="p-3.5">संकाय (Stream)</th>
-                <th className="p-3.5">फॉर्म ट्रैकिंग (लिया / जमा)</th>
-                <th className="p-3.5">आवश्यक दस्तावेज (Documents - Yes/No)</th>
-                <th className="p-3.5 text-center">शुल्क (Fee)</th>
-                <th className="p-3.5 text-right">कार्रवाई (Actions)</th>
+                <th className="p-3.5 whitespace-nowrap">क्र.</th>
+                <th className="p-3.5 whitespace-nowrap">OFSS NO.</th>
+                <th className="p-3.5 whitespace-nowrap">NAME (छात्र का नाम)</th>
+                <th className="p-3.5 whitespace-nowrap">FATHER NAME</th>
+                <th className="p-3.5 whitespace-nowrap">MOTHER NAME</th>
+                <th className="p-3.5 whitespace-nowrap">DOB</th>
+                <th className="p-3.5 whitespace-nowrap">BOARD NAME</th>
+                <th className="p-3.5 whitespace-nowrap">CATEGORY</th>
+                <th className="p-3.5 whitespace-nowrap">संकाय (Stream)</th>
+                <th className="p-3.5 whitespace-nowrap">फॉर्म ट्रैकिंग (लिया / जमा)</th>
+                <th className="p-3.5 whitespace-nowrap">आवश्यक दस्तावेज (Documents - Yes/No)</th>
+                <th className="p-3.5 text-center whitespace-nowrap">शुल्क (Fee)</th>
+                <th className="p-3.5 text-right whitespace-nowrap">कार्रवाई (Actions)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E8E4D5]">
@@ -1527,7 +1582,7 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
           isOpen={true}
           students={students}
           settings={settings}
-          onClose={() => setActiveRegistrationTab('students')}
+          onClose={() => handleTabChange('students')}
           onSelectStudent={(stu) => {
             setEditingStudent(stu);
             setIsAddEditOpen(true);
@@ -1548,7 +1603,7 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
         <RegistrationDashboardOverview
           students={students}
           settings={settings}
-          onNavigateTab={(tab) => setActiveRegistrationTab(tab)}
+          onNavigateTab={(tab) => handleTabChange(tab)}
         />
       )}
 
@@ -1675,6 +1730,12 @@ export const RegistrationModule: React.FC<RegistrationModuleProps> = ({
             setDocChecklistStudent(null);
           }}
           onConfirmSubmit={handleConfirmDocChecklistSubmit}
+          onProceedToPayment={(stu) => {
+            setIsDocChecklistOpen(false);
+            setDocChecklistStudent(null);
+            setPaymentStudent(stu || docChecklistStudent);
+            setIsPaymentOpen(true);
+          }}
         />
       )}
 

@@ -7,14 +7,18 @@ import {
   ShieldCheck, 
   AlertCircle, 
   CheckCircle2, 
-  Sparkles,
-  Info,
-  Calendar,
-  Phone,
-  BookOpen,
-  School,
-  IdCard,
-  FileCheck
+  Sparkles, 
+  Info, 
+  Calendar, 
+  Phone, 
+  BookOpen, 
+  School, 
+  IdCard, 
+  FileCheck,
+  Building,
+  Camera,
+  Image as ImageIcon,
+  Upload
 } from 'lucide-react';
 import { 
   RegistrationStudent, 
@@ -98,7 +102,8 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
     studentToEdit?.transactionRef || (paymentMode === 'CASH' ? 'CASH-REG' : `UPI-${Date.now().toString().slice(-6)}`)
   );
 
-  // Documents State (By default PENDING / NO)
+  // 4 Required Documents State for 11th Registration
+  // 1. AADHAR CARD
   const [aadharStatus, setAadharStatus] = useState<RegistrationDocStatus>(
     studentToEdit?.documents?.aadhar?.status || 'PENDING'
   );
@@ -106,6 +111,41 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
     studentToEdit?.documents?.aadhar?.docNumber || ''
   );
 
+  // 2. BANK PASSBOOK
+  const [bankPassbookStatus, setBankPassbookStatus] = useState<RegistrationDocStatus>(
+    studentToEdit?.documents?.bankPassbook?.status || 'PENDING'
+  );
+  const [bankAccountNumber, setBankAccountNumber] = useState(
+    studentToEdit?.documents?.bankPassbook?.accountNumber || studentToEdit?.documents?.bankPassbook?.docNumber || ''
+  );
+  const [bankIfscCode, setBankIfscCode] = useState(
+    studentToEdit?.documents?.bankPassbook?.ifscCode || ''
+  );
+  const [bankName, setBankName] = useState(
+    studentToEdit?.documents?.bankPassbook?.bankName || ''
+  );
+
+  // 3. CASTE CERTIFICATE
+  const isCasteCertMandatory = casteCategory === 'EBC' || casteCategory === 'SC' || casteCategory === 'ST' || casteCategory === 'BC';
+  const [casteStatus, setCasteStatus] = useState<RegistrationDocStatus>(
+    studentToEdit?.documents?.casteCertificate?.status || (casteCategory === 'General' ? 'EXEMPTED' : 'PENDING')
+  );
+  const [casteNumber, setCasteNumber] = useState(
+    studentToEdit?.documents?.casteCertificate?.docNumber || ''
+  );
+
+  // 4. PHOTO
+  const [photoStatus, setPhotoStatus] = useState<RegistrationDocStatus>(
+    studentToEdit?.documents?.photo?.status || studentToEdit?.documents?.photoSign?.status || 'PENDING'
+  );
+  const [photoPreview, setPhotoPreview] = useState<string>(
+    studentToEdit?.documents?.photo?.fileData || studentToEdit?.documents?.photoSign?.fileData || ''
+  );
+  const [photoRemarks, setPhotoRemarks] = useState(
+    studentToEdit?.documents?.photo?.remarks || ''
+  );
+
+  // Optional Secondary Docs
   const [apaarStatus, setApaarStatus] = useState<RegistrationDocStatus>(
     studentToEdit?.documents?.apaar?.status || 'PENDING'
   );
@@ -125,14 +165,6 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
   );
   const [tcIssueDate, setTcIssueDate] = useState(
     studentToEdit?.documents?.transferCertificate?.issueDate || ''
-  );
-
-  const isCasteCertMandatory = casteCategory === 'EBC' || casteCategory === 'SC' || casteCategory === 'ST';
-  const [casteStatus, setCasteStatus] = useState<RegistrationDocStatus>(
-    studentToEdit?.documents?.casteCertificate?.status || (isCasteCertMandatory ? 'PENDING' : 'EXEMPTED')
-  );
-  const [casteNumber, setCasteNumber] = useState(
-    studentToEdit?.documents?.casteCertificate?.docNumber || ''
   );
 
   const [marksheetStatus, setMarksheetStatus] = useState<RegistrationDocStatus>(
@@ -208,10 +240,37 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
       receiptNo: isFeePaid ? receiptNo : undefined,
       transactionRef: isFeePaid ? transactionRef : undefined,
       documents: {
+        // 4 Required Documents
         aadhar: {
           status: aadharStatus,
           docNumber: aadharNumber.trim(),
           verified: aadharStatus === 'SUBMITTED',
+        },
+        bankPassbook: {
+          status: bankPassbookStatus,
+          accountNumber: bankAccountNumber.trim(),
+          ifscCode: bankIfscCode.trim().toUpperCase(),
+          bankName: bankName.trim().toUpperCase(),
+          docNumber: bankAccountNumber.trim(),
+          verified: bankPassbookStatus === 'SUBMITTED',
+        },
+        casteCertificate: {
+          status: casteStatus,
+          docNumber: casteNumber.trim(),
+          verified: casteStatus === 'SUBMITTED' || casteStatus === 'EXEMPTED',
+          remarks: isCasteCertMandatory ? 'Required for Reserved Category' : 'Exempted / General',
+        },
+        photo: {
+          status: photoStatus,
+          fileData: photoPreview || undefined,
+          remarks: photoRemarks.trim() || undefined,
+          verified: photoStatus === 'SUBMITTED',
+        },
+        // Secondary / Legacy fields
+        photoSign: {
+          status: photoStatus,
+          fileData: photoPreview || undefined,
+          verified: photoStatus === 'SUBMITTED',
         },
         apaar: {
           status: apaarStatus,
@@ -226,12 +285,6 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
           schoolName: prevSchoolName.trim(),
           verified: tcStatus === 'SUBMITTED',
         },
-        casteCertificate: {
-          status: casteStatus,
-          docNumber: casteNumber.trim(),
-          verified: casteStatus === 'SUBMITTED',
-          remarks: isCasteCertMandatory ? 'Required for Category' : 'Exempted / General',
-        },
         matricMarksheet: {
           status: marksheetStatus,
           rollNo: matricRollNo.trim(),
@@ -239,7 +292,7 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
         },
       },
       registrationStatus: isFeePaid 
-        ? (tcStatus === 'SUBMITTED' && (casteStatus === 'SUBMITTED' || !isCasteCertMandatory) ? 'COMPLETED' : 'FEE_PAID')
+        ? (aadharStatus === 'SUBMITTED' && bankPassbookStatus === 'SUBMITTED' && (casteStatus === 'SUBMITTED' || casteStatus === 'EXEMPTED' || !isCasteCertMandatory) && photoStatus === 'SUBMITTED' ? 'COMPLETED' : 'FEE_PAID')
         : 'PENDING_DOCS',
       // Form Track Status (Default NO / false)
       isFormIssued,
@@ -522,25 +575,27 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
             </div>
           </div>
 
-          {/* Section 2: Mandatory Document Collection Checklist */}
+          {/* Section 2: 4 Mandatory Document Collection Checklist */}
           <div className="bg-white/80 p-5 rounded-2xl border border-emerald-200/80 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-[#E8E4D5] pb-2">
               <h3 className="text-sm font-bold text-[#2E5B50] flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>2. आवश्यक दस्तावेज संकलन (Mandatory Documents Checklist)</span>
+                <span>2. 11वीं पंजीयन अनिवार्य दस्तावेज (4 Required Documents)</span>
               </h3>
-              <span className="text-[11px] text-[#5A5A40]">
-                आधार, अपार (APAAR), टीसी (TC), जाति (Caste)
+              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                1. आधार &bull; 2. बैंक पासबुक &bull; 3. जाति प्रमाण पत्र &bull; 4. फोटो
               </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              {/* Doc 1: AADHAR */}
-              <div className="p-3.5 bg-[#FAF9F5] rounded-xl border border-[#E8E4D5] space-y-2">
+              {/* Doc 1: AADHAR CARD */}
+              <div className={`p-3.5 rounded-xl border space-y-2.5 transition ${
+                aadharStatus === 'SUBMITTED' ? 'bg-emerald-50/50 border-emerald-300' : 'bg-[#FAF9F5] border-[#E8E4D5]'
+              }`}>
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-[#4A453E] flex items-center gap-1.5">
-                    <IdCard className="w-3.5 h-3.5 text-blue-600" />
-                    <span>1. आधार कार्ड (AADHAR Card)</span>
+                    <IdCard className="w-4 h-4 text-blue-600" />
+                    <span>1. आधार कार्ड (AADHAR CARD)</span>
                     <span className="text-rose-500 font-bold">*</span>
                   </span>
                   <select
@@ -548,120 +603,92 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
                     onChange={(e) => setAadharStatus(e.target.value as RegistrationDocStatus)}
                     className="px-2 py-1 bg-white rounded-lg border border-[#DDD8C5] font-semibold text-[11px]"
                   >
-                    <option value="SUBMITTED">जमा किया गया (Submitted)</option>
-                    <option value="PENDING">लंबित (Pending)</option>
+                    <option value="SUBMITTED">जमा किया गया (Submitted ✓)</option>
+                    <option value="PENDING">लंबित (Pending ✗)</option>
                   </select>
                 </div>
-                <input
-                  type="text"
-                  value={aadharNumber}
-                  onChange={(e) => setAadharNumber(e.target.value)}
-                  placeholder="12-अंकीय आधार नंबर (e.g. 7458 9201 3345)"
-                  className="w-full px-3 py-1.5 bg-white rounded-lg border border-[#DDD8C5] font-mono text-xs"
-                />
-              </div>
-
-              {/* Doc 2: APAAR ID with Reason */}
-              <div className="p-3.5 bg-[#FAF9F5] rounded-xl border border-[#E8E4D5] space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-[#4A453E] flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                    <span>2. अपार आईडी (APAAR / EduID)</span>
-                  </span>
-                  <select
-                    value={apaarStatus}
-                    onChange={(e) => setApaarStatus(e.target.value as RegistrationDocStatus)}
-                    className="px-2 py-1 bg-white rounded-lg border border-[#DDD8C5] font-semibold text-[11px]"
-                  >
-                    <option value="SUBMITTED">उपलब्ध है (Submitted)</option>
-                    <option value="NOT_AVAILABLE">उपलब्ध नहीं है (Not Available)</option>
-                    <option value="PENDING">लंबित (Pending)</option>
-                  </select>
-                </div>
-
-                {apaarStatus === 'SUBMITTED' ? (
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#5A5A40] mb-1">
+                    12-अंकीय आधार नंबर (Aadhaar Number)
+                  </label>
                   <input
                     type="text"
-                    value={apaarNumber}
-                    onChange={(e) => setApaarNumber(e.target.value)}
-                    placeholder="12-अंकीय APAAR आईडी (e.g. 9102 4458 1190)"
+                    value={aadharNumber}
+                    onChange={(e) => setAadharNumber(e.target.value)}
+                    placeholder="e.g. 7458 9201 3345"
+                    maxLength={14}
                     className="w-full px-3 py-1.5 bg-white rounded-lg border border-[#DDD8C5] font-mono text-xs"
                   />
-                ) : (
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-semibold text-amber-800">
-                      उपलब्ध न होने का कारण (Mandatory Reason if Not Available):
-                    </label>
-                    <select
-                      value={apaarReason}
-                      onChange={(e) => setApaarReason(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-amber-50 text-amber-900 rounded-lg border border-amber-300 text-[11px] font-medium"
-                    >
-                      {APAAR_REASONS.map((r) => (
-                        <option key={r} value={r}>{r}</option>
-                      ))}
-                    </select>
-                    {apaarReason === 'Other' && (
-                      <input
-                        type="text"
-                        value={customApaarReason}
-                        onChange={(e) => setCustomApaarReason(e.target.value)}
-                        placeholder="विशिष्ट कारण लिखें..."
-                        className="w-full px-3 py-1 bg-white rounded-lg border border-amber-300 text-xs"
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Doc 3: TRANSFER CERTIFICATE (TC / SLC) from all */}
-              <div className="p-3.5 bg-[#FAF9F5] rounded-xl border border-emerald-200 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-[#2E5B50] flex items-center gap-1.5">
-                    <School className="w-3.5 h-3.5 text-[#2E5B50]" />
-                    <span>3. स्थानांतरण प्रमाण पत्र (TC / SLC)</span>
-                    <span className="bg-emerald-100 text-[#2E5B50] text-[10px] px-1.5 py-0.5 rounded font-bold">
-                      सभी के लिए अनिवार्य
-                    </span>
-                  </span>
-                  <select
-                    value={tcStatus}
-                    onChange={(e) => setTcStatus(e.target.value as RegistrationDocStatus)}
-                    className="px-2 py-1 bg-white rounded-lg border border-[#DDD8C5] font-semibold text-[11px]"
-                  >
-                    <option value="SUBMITTED">मूल TC जमा (Submitted)</option>
-                    <option value="PENDING">लंबित (Pending Submission)</option>
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    value={tcNumber}
-                    onChange={(e) => setTcNumber(e.target.value)}
-                    placeholder="TC क्रमांक (e.g. TC/2024/045)"
-                    className="px-3 py-1.5 bg-white rounded-lg border border-[#DDD8C5] text-xs font-mono"
-                  />
-                  <input
-                    type="text"
-                    value={tcIssueDate}
-                    onChange={(e) => setTcIssueDate(e.target.value)}
-                    placeholder="जारी तिथि (DD-MM-YYYY)"
-                    className="px-3 py-1.5 bg-white rounded-lg border border-[#DDD8C5] text-xs font-mono"
-                  />
                 </div>
               </div>
 
-              {/* Doc 4: CASTE CERTIFICATE (EBC, SC, ST) */}
-              <div className={`p-3.5 rounded-xl border space-y-2 ${
-                isCasteCertMandatory ? 'bg-amber-50/70 border-amber-300' : 'bg-[#FAF9F5] border-[#E8E4D5]'
+              {/* Doc 2: BANK PASSBOOK */}
+              <div className={`p-3.5 rounded-xl border space-y-2.5 transition ${
+                bankPassbookStatus === 'SUBMITTED' ? 'bg-emerald-50/50 border-emerald-300' : 'bg-[#FAF9F5] border-[#E8E4D5]'
               }`}>
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-[#4A453E] flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5 text-purple-600" />
-                    <span>4. जाति प्रमाण पत्र (Caste Certificate)</span>
+                    <Building className="w-4 h-4 text-emerald-700" />
+                    <span>2. बैंक पासबुक (BANK PASSBOOK)</span>
+                    <span className="text-rose-500 font-bold">*</span>
+                  </span>
+                  <select
+                    value={bankPassbookStatus}
+                    onChange={(e) => setBankPassbookStatus(e.target.value as RegistrationDocStatus)}
+                    className="px-2 py-1 bg-white rounded-lg border border-[#DDD8C5] font-semibold text-[11px]"
+                  >
+                    <option value="SUBMITTED">जमा किया गया (Submitted ✓)</option>
+                    <option value="PENDING">लंबित (Pending ✗)</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10.5px] font-semibold text-[#5A5A40] mb-0.5">
+                      खाता संख्या (A/c No)
+                    </label>
+                    <input
+                      type="text"
+                      value={bankAccountNumber}
+                      onChange={(e) => setBankAccountNumber(e.target.value)}
+                      placeholder="e.g. 30891245678"
+                      className="w-full px-2.5 py-1.5 bg-white rounded-lg border border-[#DDD8C5] font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10.5px] font-semibold text-[#5A5A40] mb-0.5">
+                      IFSC कोड
+                    </label>
+                    <input
+                      type="text"
+                      value={bankIfscCode}
+                      onChange={(e) => setBankIfscCode(e.target.value.toUpperCase())}
+                      placeholder="e.g. SBIN0001234"
+                      className="w-full px-2.5 py-1.5 bg-white rounded-lg border border-[#DDD8C5] font-mono text-xs"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    placeholder="बैंक का नाम व शाखा (e.g. SBI Gaayghat Branch)"
+                    className="w-full px-2.5 py-1 bg-white rounded-lg border border-[#DDD8C5] text-[11px]"
+                  />
+                </div>
+              </div>
+
+              {/* Doc 3: CASTE CERTIFICATE */}
+              <div className={`p-3.5 rounded-xl border space-y-2.5 transition ${
+                casteStatus === 'SUBMITTED' ? 'bg-emerald-50/50 border-emerald-300' : isCasteCertMandatory ? 'bg-amber-50/70 border-amber-300' : 'bg-[#FAF9F5] border-[#E8E4D5]'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-[#4A453E] flex items-center gap-1.5">
+                    <FileText className="w-4 h-4 text-purple-600" />
+                    <span>3. जाति प्रमाण पत्र (CASTE CERTIFICATE)</span>
                     {isCasteCertMandatory && (
                       <span className="bg-amber-200 text-amber-900 text-[10px] px-1.5 py-0.5 rounded font-bold">
-                        {casteCategory} हेतु अनिवार्य
+                        {casteCategory} अनिवार्य
                       </span>
                     )}
                   </span>
@@ -670,18 +697,82 @@ export const AddEditRegistrationModal: React.FC<AddEditRegistrationModalProps> =
                     onChange={(e) => setCasteStatus(e.target.value as RegistrationDocStatus)}
                     className="px-2 py-1 bg-white rounded-lg border border-[#DDD8C5] font-semibold text-[11px]"
                   >
-                    <option value="SUBMITTED">जमा किया गया (Submitted)</option>
-                    <option value="PENDING">लंबित (Pending)</option>
-                    <option value="EXEMPTED">लागू नहीं (Exempted - Gen/BC)</option>
+                    <option value="SUBMITTED">जमा किया गया (Submitted ✓)</option>
+                    <option value="PENDING">लंबित (Pending ✗)</option>
+                    <option value="EXEMPTED">लागू नहीं (Exempted - Gen)</option>
                   </select>
                 </div>
-                <input
-                  type="text"
-                  value={casteNumber}
-                  onChange={(e) => setCasteNumber(e.target.value)}
-                  placeholder="प्रमाण पत्र क्रमांक (e.g. BICC/2024/99120)"
-                  className="w-full px-3 py-1.5 bg-white rounded-lg border border-[#DDD8C5] text-xs font-mono"
-                />
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#5A5A40] mb-1">
+                    जाति प्रमाण पत्र क्रमांक (Certificate Number)
+                  </label>
+                  <input
+                    type="text"
+                    value={casteNumber}
+                    onChange={(e) => setCasteNumber(e.target.value)}
+                    placeholder="e.g. BICC/2024/99120"
+                    className="w-full px-3 py-1.5 bg-white rounded-lg border border-[#DDD8C5] font-mono text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Doc 4: PHOTO */}
+              <div className={`p-3.5 rounded-xl border space-y-2.5 transition ${
+                photoStatus === 'SUBMITTED' ? 'bg-emerald-50/50 border-emerald-300' : 'bg-[#FAF9F5] border-[#E8E4D5]'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-[#4A453E] flex items-center gap-1.5">
+                    <Camera className="w-4 h-4 text-rose-600" />
+                    <span>4. पासपोर्ट साइज फोटो (PHOTO)</span>
+                    <span className="text-rose-500 font-bold">*</span>
+                  </span>
+                  <select
+                    value={photoStatus}
+                    onChange={(e) => setPhotoStatus(e.target.value as RegistrationDocStatus)}
+                    className="px-2 py-1 bg-white rounded-lg border border-[#DDD8C5] font-semibold text-[11px]"
+                  >
+                    <option value="SUBMITTED">प्राप्त / चस्पा (Submitted ✓)</option>
+                    <option value="PENDING">लंबित (Pending ✗)</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-14 h-16 rounded-lg bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center overflow-hidden shrink-0">
+                    {photoPreview ? (
+                      <img src={photoPreview} alt="Student" className="w-full h-full object-cover" />
+                    ) : (
+                      <ImageIcon className="w-6 h-6 text-gray-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-1.5">
+                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-[#2E5B50] hover:bg-emerald-100 border border-emerald-200 rounded-lg text-xs font-bold transition">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>फोटो अपलोड करें</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              setPhotoPreview(event.target?.result as string);
+                              setPhotoStatus('SUBMITTED');
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                    <input
+                      type="text"
+                      value={photoRemarks}
+                      onChange={(e) => setPhotoRemarks(e.target.value)}
+                      placeholder="फोटो विवरण (e.g. 2 Photos Received with Sign)"
+                      className="w-full px-2.5 py-1 bg-white rounded-lg border border-[#DDD8C5] text-[11px]"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
