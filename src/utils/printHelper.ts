@@ -24,7 +24,7 @@ export function printIsolatedElement(
   const htmlContent = typeof target === 'string' ? target : target.innerHTML;
   const title = options.documentTitle || document.title || 'Official Receipt';
   const pageOrientation = options.landscape ? 'landscape' : 'portrait';
-  const margin = options.pageMargin || '8mm 10mm 10mm 10mm';
+  const margin = options.pageMargin || '4mm 5mm 4mm 5mm';
 
   // 1. Create a clean hidden iframe
   const iframe = document.createElement('iframe');
@@ -61,17 +61,19 @@ export function printIsolatedElement(
       background: #ffffff !important;
       color: #000000 !important;
       font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      font-size: 11pt;
-      line-height: 1.35;
-      margin: 0;
-      padding: 0;
+      font-size: 9.5pt;
+      line-height: 1.25;
+      margin: 0 !important;
+      padding: 0 !important;
       width: 100%;
+      height: auto;
     }
     table {
       border-collapse: collapse !important;
       width: 100% !important;
-      page-break-inside: auto !important;
-      font-size: 10pt;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+      font-size: 8.5pt;
     }
     tr {
       page-break-inside: avoid !important;
@@ -79,7 +81,7 @@ export function printIsolatedElement(
     }
     th, td {
       border: 1px solid #1e293b !important;
-      padding: 4px 6px !important;
+      padding: 2.5px 4px !important;
       color: #000000 !important;
     }
     thead th {
@@ -110,55 +112,107 @@ export function printIsolatedElement(
     .border-b { border-bottom: 1px solid #000 !important; }
     .border-t-2 { border-top: 2px solid #000 !important; }
     .border-t { border-top: 1px solid #000 !important; }
+    .border-2 { border-width: 2px !important; }
     .border { border: 1px solid #1e293b !important; }
     .border-dashed { border-style: dashed !important; }
+    .p-0\\.5 { padding: 2px !important; }
     .p-1 { padding: 4px !important; }
+    .p-1\\.5 { padding: 6px !important; }
     .p-2 { padding: 8px !important; }
+    .p-2\\.5 { padding: 10px !important; }
     .p-3 { padding: 12px !important; }
-    .p-4 { padding: 16px !important; }
-    .p-6 { padding: 24px !important; }
+    .p-4 { padding: 14px !important; }
+    .pt-1 { padding-top: 4px !important; }
+    .pt-1\\.5 { padding-top: 6px !important; }
     .pt-2 { padding-top: 8px !important; }
-    .pt-4 { padding-top: 16px !important; }
-    .pt-8 { padding-top: 32px !important; }
-    .pt-12 { padding-top: 48px !important; }
+    .pt-3 { padding-top: 12px !important; }
+    .pb-1 { padding-bottom: 4px !important; }
+    .pb-1\\.5 { padding-bottom: 6px !important; }
     .pb-2 { padding-bottom: 8px !important; }
-    .pb-3 { padding-bottom: 12px !important; }
     .mt-1 { margin-top: 4px !important; }
+    .mt-1\\.5 { margin-top: 6px !important; }
     .mt-2 { margin-top: 8px !important; }
-    .mb-0\\.5 { margin-bottom: 2px !important; }
-    .mb-6 { margin-bottom: 24px !important; }
+    .my-1 { margin-top: 4px !important; margin-bottom: 4px !important; }
+    .my-1\\.5 { margin-top: 6px !important; margin-bottom: 6px !important; }
+    .my-2 { margin-top: 8px !important; margin-bottom: 8px !important; }
+    .mb-1 { margin-bottom: 4px !important; }
+    .mb-1\\.5 { margin-bottom: 6px !important; }
+    .mb-2 { margin-bottom: 8px !important; }
+    .space-y-0\\.5 > * + * { margin-top: 2px !important; }
     .space-y-1 > * + * { margin-top: 4px !important; }
+    .space-y-1\\.5 > * + * { margin-top: 6px !important; }
     .space-y-2 > * + * { margin-top: 8px !important; }
-    .space-y-3 > * + * { margin-top: 12px !important; }
-    .space-y-4 > * + * { margin-top: 16px !important; }
-    .space-y-6 > * + * { margin-top: 24px !important; }
     .flex { display: flex !important; }
     .grid { display: grid !important; }
     .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+    .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
     .items-center { align-items: center !important; }
+    .items-end { align-items: flex-end !important; }
     .justify-between { justify-content: space-between !important; }
     .justify-center { justify-content: center !important; }
+    .gap-1 { gap: 4px !important; }
+    .gap-1\\.5 { gap: 6px !important; }
     .gap-2 { gap: 8px !important; }
     .gap-3 { gap: 12px !important; }
-    .gap-4 { gap: 16px !important; }
-    .gap-6 { gap: 24px !important; }
-    .gap-8 { gap: 32px !important; }
-    .gap-12 { gap: 48px !important; }
     .w-full { width: 100% !important; }
+    .w-10 { width: 40px !important; }
+    .w-12 { width: 48px !important; }
+    .w-20 { width: 80px !important; }
     .w-24 { width: 96px !important; }
     .w-28 { width: 112px !important; }
-    .text-xs { font-size: 9pt !important; }
-    .text-sm { font-size: 10.5pt !important; }
-    .text-base { font-size: 12pt !important; }
-    .text-lg { font-size: 13.5pt !important; }
-    .text-xl { font-size: 15pt !important; }
+    .h-10 { height: 40px !important; }
+    .h-12 { height: 48px !important; }
+    .text-xs { font-size: 8pt !important; }
+    .text-sm { font-size: 9.5pt !important; }
+    .text-base { font-size: 11pt !important; }
+    .text-lg { font-size: 12.5pt !important; }
+    .text-xl { font-size: 14pt !important; }
+    .text-\\[8px\\] { font-size: 6pt !important; }
+    .text-\\[9px\\] { font-size: 7pt !important; }
     .text-\\[10px\\] { font-size: 7.5pt !important; }
     .text-\\[11px\\] { font-size: 8.5pt !important; }
-    .text-slate-500, .text-slate-600, .text-slate-700, .text-gray-500, .text-gray-600 { color: #334155 !important; }
+    .text-slate-500, .text-slate-600, .text-slate-700, .text-gray-500, .text-gray-600, .text-gray-700 { color: #334155 !important; }
     .bg-slate-100, .bg-slate-50, .bg-gray-50 { background-color: #f1f5f9 !important; }
-    .bg-slate-200 { background-color: #e2e8f0 !important; }
-    .bg-slate-900, .bg-black, .bg-\\[\\#2D2A26\\] { background-color: #0f172a !important; color: #ffffff !important; }
+    .bg-slate-200, .bg-gray-100 { background-color: #e2e8f0 !important; }
+    .bg-slate-900, .bg-black { background-color: #0f172a !important; color: #ffffff !important; }
+    
+    /* 1-Page A4 Guarantee Container */
+    .receipt-container-a4 {
+      max-height: 282mm !important;
+      overflow: hidden !important;
+      page-break-after: avoid !important;
+      break-after: avoid !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    .receipt-slip-compact {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+      box-sizing: border-box !important;
+    }
+    /* 1/4 Quarter Page 4-Up Grid */
+    .quarter-grid-4up {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      grid-template-rows: 1fr 1fr !important;
+      gap: 4mm !important;
+      height: 280mm !important;
+      max-height: 280mm !important;
+      box-sizing: border-box !important;
+    }
+    .quarter-slip-box {
+      border: 1.5px dashed #334155 !important;
+      padding: 6px !important;
+      font-size: 7pt !important;
+      line-height: 1.15 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: space-between !important;
+      background: #ffffff !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
   `;
 
   // Write content to iframe document
