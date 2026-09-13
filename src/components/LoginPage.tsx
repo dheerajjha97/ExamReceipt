@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { KeyRound, Building2, ShieldCheck, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { KeyRound, Building2, ShieldCheck, ArrowRight, CheckCircle2, Zap, School } from 'lucide-react';
 import { verifySchoolPassword } from '../services/authService';
 import feeReceiptHero from '../assets/images/fee_receipt_hero_1787937064672.jpg';
 
@@ -16,6 +16,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [imgError, setImgError] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,24 +52,33 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     }
   };
 
+  const handleQuickDemoLogin = () => {
+    onLoginSuccess('31337');
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden font-sans text-slate-100">
       {/* Background radial glow blurs */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-teal-500/20 rounded-full blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none"></div>
 
-      <div className="w-full max-w-md bg-slate-900/80 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/10 overflow-hidden relative z-10">
+      <div className="w-full max-w-md bg-slate-900/90 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/10 overflow-hidden relative z-10">
         
         {/* Header Hero Banner */}
-        <div className="bg-slate-950/60 p-6 text-white text-center border-b border-white/10 relative">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-teal-500 to-indigo-600 p-0.5 shadow-lg shadow-teal-500/20 overflow-hidden mb-3">
-            <div className="w-full h-full rounded-[14px] overflow-hidden bg-slate-900">
-              <img 
-                src={feeReceiptHero} 
-                alt="Fee Receipt Logo" 
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
+        <div className="bg-slate-950/80 p-6 text-white text-center border-b border-white/10 relative">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-teal-500 to-indigo-600 p-0.5 shadow-lg shadow-teal-500/20 overflow-hidden mb-3 flex items-center justify-center">
+            <div className="w-full h-full rounded-[14px] overflow-hidden bg-slate-900 flex items-center justify-center">
+              {!imgError ? (
+                <img 
+                  src={feeReceiptHero} 
+                  alt="Fee Receipt Logo" 
+                  className="w-full h-full object-cover"
+                  onError={() => setImgError(true)}
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <School className="w-8 h-8 text-teal-400" />
+              )}
             </div>
           </div>
           
@@ -76,7 +86,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             Matric & Inter Fee Ledger
           </h1>
           <p className="text-xs text-slate-400 mt-1 font-medium">
-            Board Examination Fee Management Portal
+            Board Examination & Registration Fee Portal
           </p>
 
           <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-xs">
@@ -85,8 +95,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           </div>
         </div>
 
+        {/* 1-Click Instant Login Banner */}
+        <div className="px-6 pt-5">
+          <button
+            type="button"
+            onClick={handleQuickDemoLogin}
+            className="w-full py-2.5 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-2xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20 border border-indigo-400/40 transition active:scale-98 cursor-pointer"
+          >
+            <Zap className="w-4 h-4 text-amber-300 animate-pulse" />
+            <span>1-क्लिक त्वरित लॉगिन (Quick Auto Login - Code: 31337)</span>
+          </button>
+        </div>
+
         {/* Form Area */}
-        <form onSubmit={handleLogin} className="p-6 sm:p-8 space-y-5">
+        <form onSubmit={handleLogin} className="p-6 sm:p-8 space-y-4">
           {errorMsg && (
             <div className="p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold backdrop-blur-md">
               {errorMsg}
@@ -125,7 +147,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="पासवर्ड दर्ज करें"
+                placeholder="पासवर्ड दर्ज करें (डिफ़ॉल्ट: 12345)"
                 className="w-full px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 backdrop-blur-md transition"
                 required
               />
@@ -140,20 +162,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 active:from-teal-600 active:to-emerald-700 text-white font-bold text-sm shadow-xl shadow-teal-500/25 transition-all transform-gpu hover:-translate-y-0.5 flex items-center justify-center gap-2 border border-teal-400/40 disabled:opacity-50"
+            className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 active:from-teal-600 active:to-emerald-700 text-white font-bold text-sm shadow-xl shadow-teal-500/25 transition-all transform-gpu hover:-translate-y-0.5 flex items-center justify-center gap-2 border border-teal-400/40 disabled:opacity-50 cursor-pointer"
           >
             {isLoading ? (
               <span>जांच जारी है...</span>
             ) : (
               <>
-                <span>लॉगिन करें (Login)</span>
+                <span>पासवर्ड से लॉगिन करें (Login)</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
           </button>
 
           {/* Footer Helper Note */}
-          <div className="pt-3 border-t border-white/10 text-center">
+          <div className="pt-2 border-t border-white/10 text-center">
             <p className="text-[11px] text-slate-400">
               लॉगिन करने के बाद आप ऊपर हेडर में <strong className="text-slate-200">"पासवर्ड"</strong> बटन दबाकर नया पासवर्ड सेट कर सकते हैं।
             </p>
@@ -164,4 +186,5 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     </div>
   );
 };
+
 
